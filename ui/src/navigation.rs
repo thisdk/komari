@@ -464,6 +464,7 @@ fn SectionPaths() -> Element {
             }
 
             match popup_content() {
+                #[allow(clippy::double_parens)]
                 PopupContent::None => rsx! {},
                 PopupContent::EditPoint { path_index, point, point_index } => {
                     rsx! {

@@ -349,6 +349,7 @@ fn SectionRotation(disabled: bool) -> Element {
             }
 
             match popup_content() {
+                #[allow(clippy::double_parens)]
                 PopupContent::None => rsx! {},
                 PopupContent::Bound(bound) => rsx! {
                     PopupMobbingBoundInputContent {
@@ -980,6 +981,7 @@ fn SectionActions(actions: Memo<Vec<Action>>, disabled: bool) -> Element {
             }
 
             match popup_content() {
+                #[allow(clippy::double_parens)]
                 PopupContent::None => rsx! {},
                 PopupContent::Add(action) => rsx! {
                     PopupActionInputContent {

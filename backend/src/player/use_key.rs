@@ -192,6 +192,7 @@ pub fn update_use_key_state(
         State::ChangingDirection(_) => {
             update_changing_direction(resources, &mut player.context, &mut use_key);
         }
+        #[allow(unused_assignments)]
         State::EnsuringUseWith => {
             update_ensuring_use_with(&player.context, &mut use_key);
             transition_if!(
