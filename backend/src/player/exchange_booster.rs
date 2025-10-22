@@ -467,7 +467,7 @@ mod tests {
         let mut input = MockInput::default();
         input
             .expect_send_mouse()
-            .with(eq(65), eq(15), eq(MouseKind::Click))
+            .with(eq(135), eq(15), eq(MouseKind::Click))
             .once();
         let resources = Resources::new(Some(input), None);
 

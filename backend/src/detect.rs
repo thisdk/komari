@@ -620,7 +620,7 @@ impl Detector for DefaultDetector {
     }
 
     fn detect_hexa_sol_erda(&self) -> Result<SolErda> {
-        detect_hexa_sol_erda(&to_bgr(&*self.mat))
+        detect_hexa_sol_erda(&**self.grayscale)
     }
 }
 
@@ -2713,28 +2713,32 @@ fn detect_hexa_convert_button(mat: &impl ToInputArray) -> Result<Rect> {
 
 fn detect_hexa_sol_erda(mat: &impl ToInputArray) -> Result<SolErda> {
     static TEMPLATE: LazyLock<Mat> = LazyLock::new(|| {
-        imgcodecs::imdecode(include_bytes!(env!("HEXA_SOL_ERDA_TEMPLATE")), IMREAD_COLOR).unwrap()
+        imgcodecs::imdecode(
+            include_bytes!(env!("HEXA_SOL_ERDA_TEMPLATE")),
+            IMREAD_GRAYSCALE,
+        )
+        .unwrap()
     });
     static FULL_TEMPLATE: LazyLock<Mat> = LazyLock::new(|| {
         imgcodecs::imdecode(
             include_bytes!(env!("HEXA_SOL_ERDA_FULL_TEMPLATE")),
-            IMREAD_COLOR,
+            IMREAD_GRAYSCALE,
         )
         .unwrap()
     });
     static EMPTY_TEMPLATE: LazyLock<Mat> = LazyLock::new(|| {
         imgcodecs::imdecode(
             include_bytes!(env!("HEXA_SOL_ERDA_EMPTY_TEMPLATE")),
-            IMREAD_COLOR,
+            IMREAD_GRAYSCALE,
         )
         .unwrap()
     });
 
-    if detect_template(mat, &*FULL_TEMPLATE, Point::default(), 0.75).is_ok() {
+    if detect_template(mat, &*FULL_TEMPLATE, Point::default(), 0.8).is_ok() {
         return Ok(SolErda::Full);
     }
 
-    if detect_template(mat, &*EMPTY_TEMPLATE, Point::default(), 0.75).is_ok() {
+    if detect_template_single(mat, &*EMPTY_TEMPLATE, no_array(), Point::default(), 0.8).is_ok() {
         return Ok(SolErda::Empty);
     }
 
