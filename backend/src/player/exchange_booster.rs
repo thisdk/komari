@@ -10,17 +10,23 @@ use crate::{
         PlayerEntity, next_action,
         timeout::{Lifecycle, next_timeout_lifecycle},
     },
-    transition, transition_from_action, transition_if, try_ok_transition, try_some_transition,
+    transition, transition_from_action, try_ok_transition, try_some_transition,
 };
 
 /// States of exchanging HEXA booster.
 #[derive(Debug, Clone, Copy)]
 enum State {
+    /// Opening the `HEXA Matrix` menu.
     OpenHexaMenu(Timeout),
+    /// Opening the `Erda conversion` menu.
     OpenExchangingMenu(Timeout, Rect),
+    /// Opening the `HEXA Booster` menu inside `Erda conversion`.
     OpenBoosterMenu(Timeout, Rect),
+    /// Typing the amount or clicking `MAX` button.
     Exchanging(Timeout, Rect),
+    /// Confirming by clicking the `Convert` button.
     Confirming(Timeout, Rect),
+    /// Terminal state.
     Completing(Timeout, bool),
 }
 
@@ -237,16 +243,10 @@ fn update_exchanging(resources: &Resources, exchanging: &mut ExchangingBooster) 
         Lifecycle::Updated(timeout) => {
             if let Some(amount) = amount
                 && timeout.current.is_multiple_of(TYPE_INTERVAL)
+                && amount.index < amount.keys.len()
             {
-                transition_if!(
-                    exchanging,
-                    State::Exchanging(timeout, bbox),
-                    amount.index < amount.keys.len(),
-                    {
-                        exchanging.amount = Some(amount.increment_index());
-                        resources.input.send_key(amount.keys[amount.index]);
-                    }
-                );
+                exchanging.amount = Some(amount.increment_index());
+                resources.input.send_key(amount.keys[amount.index]);
             }
 
             transition!(exchanging, State::Exchanging(timeout, bbox))
@@ -299,4 +299,281 @@ fn bbox_click_point(bbox: Rect) -> (i32, i32) {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use std::assert_matches::assert_matches;
+
+    use anyhow::anyhow;
+    use mockall::{Sequence, predicate::eq};
+    use opencv::core::Rect;
+
+    use super::*;
+    use crate::{
+        bridge::{KeyKind, MockInput, MouseKind},
+        detect::MockDetector,
+        ecs::Resources,
+        player::timeout::Timeout,
+    };
+
+    fn rect(x: i32, y: i32) -> Rect {
+        Rect {
+            x,
+            y,
+            width: 10,
+            height: 10,
+        }
+    }
+
+    #[test]
+    fn bbox_click_point_returns_center() {
+        let bbox = rect(10, 20);
+        let (x, y) = bbox_click_point(bbox);
+        assert_eq!((x, y), (15, 25));
+    }
+
+    #[test]
+    fn update_open_hexa_menu_starts_and_clicks_menu() {
+        let mut detector = MockDetector::default();
+        detector
+            .expect_detect_hexa_quick_menu()
+            .returning(|| Ok(rect(10, 10)));
+        let mut input = MockInput::default();
+        input
+            .expect_send_mouse()
+            .with(eq(15), eq(15), eq(MouseKind::Click))
+            .once();
+
+        let resources = Resources::new(Some(input), Some(detector));
+        let mut exchanging = ExchangingBooster::new(1, false);
+        exchanging.state = State::OpenHexaMenu(Timeout::default());
+
+        update_open_hexa_menu(&resources, &mut exchanging);
+        assert_matches!(exchanging.state, State::OpenHexaMenu(_));
+    }
+
+    #[test]
+    fn update_open_hexa_menu_ends_and_opens_exchanging_menu() {
+        let mut detector = MockDetector::default();
+        detector
+            .expect_detect_hexa_erda_conversion_button()
+            .once()
+            .returning(|| Ok(rect(30, 40)));
+        let resources = Resources::new(None, Some(detector));
+
+        let mut exchanging = ExchangingBooster::new(1, false);
+        exchanging.state = State::OpenHexaMenu(Timeout {
+            current: 20,
+            started: true,
+            ..Default::default()
+        });
+
+        update_open_hexa_menu(&resources, &mut exchanging);
+        assert_matches!(exchanging.state, State::OpenExchangingMenu(_, _));
+    }
+
+    #[test]
+    fn update_open_hexa_menu_fails_when_no_erda_button() {
+        let mut detector = MockDetector::default();
+        detector
+            .expect_detect_hexa_erda_conversion_button()
+            .once()
+            .returning(|| Err(anyhow!("error")));
+        let resources = Resources::new(None, Some(detector));
+
+        let mut exchanging = ExchangingBooster::new(1, false);
+        exchanging.state = State::OpenHexaMenu(Timeout {
+            current: 20,
+            started: true,
+            ..Default::default()
+        });
+
+        update_open_hexa_menu(&resources, &mut exchanging);
+        assert_matches!(exchanging.state, State::Completing(_, false));
+    }
+
+    #[test]
+    fn update_open_exchanging_menu_starts_and_clicks() {
+        let mut input = MockInput::default();
+        input
+            .expect_send_mouse()
+            .with(eq(15), eq(25), eq(MouseKind::Click))
+            .once();
+        let resources = Resources::new(Some(input), None);
+
+        let mut exchanging = ExchangingBooster::new(1, false);
+        exchanging.state = State::OpenExchangingMenu(Timeout::default(), rect(10, 20));
+
+        update_open_exchanging_menu(&resources, &mut exchanging);
+        assert_matches!(exchanging.state, State::OpenExchangingMenu(_, _));
+    }
+
+    #[test]
+    fn update_open_exchanging_menu_ends_and_opens_booster_menu() {
+        let mut detector = MockDetector::default();
+        detector
+            .expect_detect_hexa_booster_button()
+            .once()
+            .returning(|| Ok(rect(40, 50)));
+        let resources = Resources::new(None, Some(detector));
+
+        let mut exchanging = ExchangingBooster::new(1, false);
+        exchanging.state = State::OpenExchangingMenu(
+            Timeout {
+                current: 20,
+                started: true,
+                ..Default::default()
+            },
+            rect(10, 20),
+        );
+
+        update_open_exchanging_menu(&resources, &mut exchanging);
+        assert_matches!(exchanging.state, State::OpenBoosterMenu(_, _));
+    }
+
+    #[test]
+    fn update_exchanging_types_full_input_sequence() {
+        let mut sequence = Sequence::new();
+        let expected_keys = vec![KeyKind::Backspace, KeyKind::Backspace, KeyKind::Five];
+        let mut input = MockInput::default();
+        for key in &expected_keys {
+            input
+                .expect_send_key()
+                .with(eq(*key))
+                .once()
+                .in_sequence(&mut sequence);
+        }
+
+        let resources = Resources::new(Some(input), None);
+        let mut exchanging = ExchangingBooster::new(5, false);
+        for i in 1..=expected_keys.len() {
+            let timeout = Timeout {
+                current: (i as u32) * 10 - 1,
+                started: true,
+                ..Default::default()
+            };
+            exchanging.state = State::Exchanging(timeout, rect(10, 10));
+            update_exchanging(&resources, &mut exchanging);
+        }
+
+        assert_eq!(
+            exchanging.amount.unwrap().index,
+            expected_keys.len(),
+            "All input keys should have been typed"
+        );
+        assert_matches!(exchanging.state, State::Exchanging(_, _));
+    }
+
+    #[test]
+    fn update_exchanging_no_amount_clicks_input_box() {
+        let mut input = MockInput::default();
+        input
+            .expect_send_mouse()
+            .with(eq(65), eq(15), eq(MouseKind::Click))
+            .once();
+        let resources = Resources::new(Some(input), None);
+
+        let mut exchanging = ExchangingBooster::new(1, true); // all = true → no amount
+        exchanging.state = State::Exchanging(Timeout::default(), rect(30, 10));
+
+        update_exchanging(&resources, &mut exchanging);
+        assert_matches!(exchanging.state, State::Exchanging(_, _));
+    }
+
+    #[test]
+    fn update_exchanging_ends_and_opens_confirming() {
+        let mut detector = MockDetector::default();
+        detector
+            .expect_detect_hexa_convert_button()
+            .once()
+            .returning(|| Ok(rect(100, 200)));
+        let resources = Resources::new(None, Some(detector));
+
+        let mut exchanging = ExchangingBooster::new(1, false);
+        exchanging.state = State::Exchanging(
+            Timeout {
+                current: 60,
+                started: true,
+                ..Default::default()
+            },
+            rect(10, 10),
+        );
+
+        update_exchanging(&resources, &mut exchanging);
+        assert_matches!(exchanging.state, State::Confirming(_, _));
+    }
+
+    #[test]
+    fn update_confirming_starts_and_clicks() {
+        let mut input = MockInput::default();
+        input
+            .expect_send_mouse()
+            .with(eq(15), eq(25), eq(MouseKind::Click))
+            .once();
+        let resources = Resources::new(Some(input), None);
+
+        let mut exchanging = ExchangingBooster::new(1, false);
+        exchanging.state = State::Confirming(Timeout::default(), rect(10, 20));
+
+        update_confirming(&resources, &mut exchanging);
+        assert_matches!(exchanging.state, State::Confirming(_, _));
+    }
+
+    #[test]
+    fn update_confirming_ends_and_completes() {
+        let resources = Resources::new(None, None);
+        let mut exchanging = ExchangingBooster::new(1, false);
+        exchanging.state = State::Confirming(
+            Timeout {
+                current: 20,
+                started: true,
+                ..Default::default()
+            },
+            rect(10, 20),
+        );
+
+        update_confirming(&resources, &mut exchanging);
+        assert_matches!(exchanging.state, State::Completing(_, false));
+    }
+
+    #[test]
+    fn update_completing_ends_and_sends_esc() {
+        let mut detector = MockDetector::default();
+        detector.expect_detect_esc_settings().returning(|| true);
+        let mut input = MockInput::default();
+        input.expect_send_key().with(eq(KeyKind::Esc)).once();
+
+        let resources = Resources::new(Some(input), Some(detector));
+
+        let mut exchanging = ExchangingBooster::new(1, false);
+        exchanging.state = State::Completing(
+            Timeout {
+                current: 20,
+                started: true,
+                ..Default::default()
+            },
+            false,
+        );
+
+        update_completing(&resources, &mut exchanging);
+        assert_matches!(exchanging.state, State::Completing(_, true));
+    }
+
+    #[test]
+    fn update_completing_updates_without_esc() {
+        let detector = MockDetector::default();
+        let input = MockInput::default();
+        let resources = Resources::new(Some(input), Some(detector));
+
+        let mut exchanging = ExchangingBooster::new(1, false);
+        exchanging.state = State::Completing(
+            Timeout {
+                current: 10,
+                started: true,
+                ..Default::default()
+            },
+            false,
+        );
+
+        update_completing(&resources, &mut exchanging);
+        assert_matches!(exchanging.state, State::Completing(_, false));
+    }
+}

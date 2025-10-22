@@ -178,11 +178,21 @@ impl MinimapIdle {
         self.has_elite_boss.value.is_some()
     }
 
+    #[cfg(test)]
+    pub fn set_has_elite_boss(&mut self, has_elite_boss: bool) {
+        self.has_elite_boss.value = has_elite_boss.then_some(());
+    }
+
     #[inline]
     pub fn has_any_other_player(&self) -> bool {
         self.has_guildie_player.value.is_some()
             || self.has_stranger_player.value.is_some()
             || self.has_friend_player.value.is_some()
+    }
+
+    #[cfg(test)]
+    pub fn set_has_any_other_player(&mut self, has_any_other_player: bool) {
+        self.has_stranger_player.value = has_any_other_player.then_some(());
     }
 
     #[inline]

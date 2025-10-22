@@ -32,10 +32,10 @@ use crate::{
     task::{Task, Update, update_detection_task},
 };
 
-const COOLDOWN_BETWEEN_QUEUE_MILLIS: u128 = 20_000;
 const AUTO_MOB_SAME_QUAD_THRESHOLD: u32 = 5;
 
 /// [`Condition`] evaluation result.
+#[derive(Debug)]
 enum ConditionResult {
     /// The action will be queued.
     Queue,
@@ -96,20 +96,11 @@ struct PriorityActionQueueInfo {
     last_queued_time: Option<Instant>,
 }
 
+/// Action metadata to help identifying action type.
 #[derive(Debug, Copy, Clone)]
 enum ActionMetadata {
     UseBooster,
     Buff { kind: BuffKind },
-}
-
-#[derive(Debug)]
-enum ResolveConflict {
-    None,
-    #[allow(dead_code)]
-    Replace {
-        id: u32,
-    },
-    Ignore,
 }
 
 /// The action that will be passed to the player.
@@ -234,6 +225,16 @@ impl DefaultRotator {
     /// This function does not pass the action to the player but only pushes the action to
     /// [`Self::priority_actions_queue`]. It is responsible for checking queuing condition.
     fn rotate_priority_actions(&mut self, resources: &Resources, world: &mut World) {
+        #[derive(Debug)]
+        enum ResolveConflict {
+            None,
+            #[allow(dead_code)]
+            Replace {
+                id: u32,
+            },
+            Ignore,
+        }
+
         /// Checks if the provided `id` is a priority linked action in queue or executing.
         #[inline]
         fn is_priority_linked_action_queuing_or_executing(
@@ -1099,7 +1100,7 @@ fn familiar_essence_replenish_priority_action(key: KeyBinding) -> PriorityAction
 
     PriorityAction {
         condition: Condition(Box::new(move |resources, world, info| {
-            if !at_least_millis_passed_since(info.last_queued_time, COOLDOWN_BETWEEN_QUEUE_MILLIS) {
+            if !at_least_millis_passed_since(info.last_queued_time, 20000) {
                 return ConditionResult::Skip;
             }
 
@@ -1145,10 +1146,10 @@ fn solve_rune_priority_action() -> PriorityAction {
     PriorityAction {
         condition: Condition(Box::new(|_, world, info| {
             if world.player.context.is_validating_rune() {
-                return ConditionResult::Skip;
+                return ConditionResult::Ignore;
             }
 
-            if !at_least_millis_passed_since(info.last_queued_time, COOLDOWN_BETWEEN_QUEUE_MILLIS) {
+            if !at_least_millis_passed_since(info.last_queued_time, 5000) {
                 return ConditionResult::Skip;
             }
 
@@ -1192,7 +1193,7 @@ fn buff_priority_action(buff: BuffKind, key: KeyBinding) -> PriorityAction {
 
     PriorityAction {
         condition: Condition(Box::new(move |_, world, info| {
-            if !at_least_millis_passed_since(info.last_queued_time, COOLDOWN_BETWEEN_QUEUE_MILLIS) {
+            if !at_least_millis_passed_since(info.last_queued_time, 20000) {
                 return ConditionResult::Skip;
             }
             if !matches!(world.minimap.state, Minimap::Idle(_)) {
@@ -1358,7 +1359,7 @@ fn use_booster_priority_action(kind: Booster) -> PriorityAction {
 
     PriorityAction {
         condition: Condition(Box::new(move |resources, world, info| {
-            if !at_least_millis_passed_since(info.last_queued_time, COOLDOWN_BETWEEN_QUEUE_MILLIS) {
+            if !at_least_millis_passed_since(info.last_queued_time, 20000) {
                 return ConditionResult::Skip;
             }
             if world
@@ -1416,7 +1417,7 @@ fn exchange_hexa_booster_priority_action(
 
     PriorityAction {
         condition: Condition(Box::new(move |resources, _, info| {
-            if !at_least_millis_passed_since(info.last_queued_time, COOLDOWN_BETWEEN_QUEUE_MILLIS) {
+            if !at_least_millis_passed_since(info.last_queued_time, 20000) {
                 return ConditionResult::Skip;
             }
 
@@ -1489,7 +1490,7 @@ fn should_queue_fixed_action(
 ) -> bool {
     let millis_should_passed = match condition {
         ActionCondition::EveryMillis(millis) => millis as u128,
-        ActionCondition::ErdaShowerOffCooldown => COOLDOWN_BETWEEN_QUEUE_MILLIS,
+        ActionCondition::ErdaShowerOffCooldown => 20000,
         ActionCondition::Linked | ActionCondition::Any => unreachable!(),
     };
     if !at_least_millis_passed_since(last_queued_time, millis_should_passed) {
@@ -1512,16 +1513,19 @@ mod tests {
 
     use opencv::core::{Point, Vec4b};
     use strum::IntoEnumIterator;
+    use tokio::{task::yield_now, time::timeout};
 
     use super::*;
     use crate::{
         Position,
         buff::{BuffContext, BuffEntity, BuffKind},
+        detect::MockDetector,
         minimap::{MinimapContext, MinimapEntity, MinimapIdle},
         player::Player,
         skill::{SkillContext, SkillEntity, SkillKind},
     };
 
+    const COOLDOWN_BETWEEN_QUEUE_MILLIS: u128 = 20_000;
     const NORMAL_ACTION: Action = Action::Move(ActionMove {
         position: Position {
             x: 0,
@@ -1727,7 +1731,7 @@ mod tests {
     }
 
     #[test]
-    fn rotator_priority_action_queue() {
+    fn rotator_priority_actions_queue() {
         let mut rotator = DefaultRotator::default();
         let mut minimap = MinimapIdle::default();
         minimap.set_rune(Point::default());
@@ -1759,7 +1763,7 @@ mod tests {
     }
 
     #[test]
-    fn rotator_priority_action_queue_to_front() {
+    fn rotator_priority_actions_queue_to_front() {
         let mut rotator = DefaultRotator::default();
         let mut world = mock_world();
         let resources = Resources::new(None, None);
@@ -2058,4 +2062,76 @@ mod tests {
         assert!(second_erda.queue_info.last_queued_time.is_some());
         assert!(!rotator.priority_actions_queue.contains(&second_erda_id));
     }
+
+    fn mock_detector(f: fn(&mut MockDetector)) -> MockDetector {
+        let mut detector = MockDetector::new();
+
+        f(&mut detector);
+
+        detector.expect_clone().returning(move || mock_detector(f));
+        detector
+    }
+
+    async fn queue_or_timeout(mut f: impl FnMut() -> ConditionResult) {
+        timeout(Duration::from_secs(1), async move {
+            loop {
+                let result = f();
+                if matches!(result, ConditionResult::Queue) {
+                    break;
+                }
+
+                yield_now().await;
+            }
+        })
+        .await
+        .expect("queue result");
+    }
+
+    #[tokio::test]
+    async fn unstuck_priority_action_triggers_when_esc_settings_detected() {
+        let resources = Resources::new(
+            None,
+            Some(mock_detector(|detector| {
+                detector.expect_detect_esc_settings().returning(|| true);
+            })),
+        );
+        let world = mock_world();
+        let info = PriorityActionQueueInfo::default();
+        let mut action = unstuck_priority_action();
+
+        queue_or_timeout(|| (action.condition.0)(&resources, &world, &info)).await;
+    }
+
+    #[tokio::test]
+    async fn elite_boss_use_key_priority_action_triggers_when_elite_present() {
+        let resources = Resources::new(None, None);
+        let mut idle = MinimapIdle::default();
+        idle.set_has_elite_boss(true);
+        let mut world = mock_world();
+        world.minimap.state = Minimap::Idle(idle);
+
+        let mut action = elite_boss_use_key_priority_action(KeyBinding::default());
+        let info = PriorityActionQueueInfo::default();
+
+        queue_or_timeout(|| (action.condition.0)(&resources, &world, &info)).await;
+    }
+
+    #[tokio::test]
+    async fn panic_priority_action_triggers_when_has_other_players() {
+        let resources = Resources::new(None, None);
+        let mut idle = MinimapIdle::default();
+        idle.set_has_any_other_player(true);
+        let mut world = mock_world();
+        world.minimap.state = Minimap::Idle(idle);
+
+        let mut action = panic_priority_action();
+        let info = PriorityActionQueueInfo {
+            last_queued_time: Some(Instant::now() - std::time::Duration::from_millis(16000)),
+            ..Default::default()
+        };
+
+        queue_or_timeout(|| (action.condition.0)(&resources, &world, &info)).await;
+    }
+
+    // TODO: more tests
 }

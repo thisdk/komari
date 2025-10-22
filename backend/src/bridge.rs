@@ -72,7 +72,7 @@ impl From<RpcKeyState> for KeyState {
 /// The kind of mouse movement/action to perform.
 ///
 /// This is a bridge enum between platform-specific and gRPC.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum MouseKind {
     Move,
     Click,

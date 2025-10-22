@@ -1,6 +1,9 @@
-use std::{fmt, time::Duration};
+use std::{
+    fmt::{self, Debug, Formatter},
+    time::Duration,
+};
 
-use anyhow::{Error, Result};
+use anyhow::{Error, Result, anyhow};
 use tokio::{
     spawn,
     sync::oneshot::{self, Receiver},
@@ -17,10 +20,9 @@ use crate::{detect::Detector, ecs::Resources};
 #[derive(Debug)]
 pub struct Task<T> {
     rx: Receiver<T>,
-    completed: bool,
 }
 
-impl<T: fmt::Debug> Task<T> {
+impl<T: Debug> Task<T> {
     fn spawn<F>(f: F) -> Task<T>
     where
         F: Future<Output = T> + Send + 'static,
@@ -30,27 +32,32 @@ impl<T: fmt::Debug> Task<T> {
         spawn(async move {
             let _ = tx.send(f.await);
         });
-        Task {
-            rx,
-            completed: false,
-        }
+        Task { rx }
     }
 
-    #[cfg(test)]
     pub fn completed(&self) -> bool {
-        self.completed
+        self.rx.is_terminated()
     }
 
     fn poll_inner(&mut self) -> Option<T> {
-        if self.completed {
+        if self.rx.is_terminated() {
             return None;
         }
-        debug_assert!(!self.completed);
-        let value = self.rx.try_recv().ok();
-        self.completed = value.is_some();
-        value
+
+        self.rx.try_recv().ok()
     }
 }
+
+#[derive(Debug)]
+struct DelayComplete;
+
+impl fmt::Display for DelayComplete {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "DelayComplete")
+    }
+}
+
+impl std::error::Error for DelayComplete {}
 
 #[derive(Debug)]
 pub enum Update<T> {
@@ -68,25 +75,41 @@ pub fn update_task<F, T, A>(
 ) -> Update<T>
 where
     F: FnOnce(A) -> Result<T> + Send + 'static,
-    T: fmt::Debug + Send + 'static,
+    T: Debug + Send + 'static,
     A: Send + 'static,
 {
     let update = match task.as_mut().and_then(|task| task.poll_inner()) {
         Some(Ok(value)) => Update::Ok(value),
-        Some(Err(err)) => Update::Err(err),
+        Some(Err(err)) => {
+            if err.downcast_ref::<DelayComplete>().is_some() {
+                *task = None;
+
+                Update::Pending
+            } else {
+                Update::Err(err)
+            }
+        }
         None => Update::Pending,
     };
-    if matches!(update, Update::Pending) && task.as_ref().is_none_or(|task| task.completed) {
-        let has_delay = task.as_ref().is_some_and(|task| task.completed);
-        let args = task_fn_args();
-        let spawned = Task::spawn(async move {
-            if has_delay {
+
+    if matches!(update, Update::Pending) && task.as_ref().is_none_or(|task| task.completed()) {
+        let should_delay = task.as_ref().is_some_and(|task| task.completed());
+        let spawned = if should_delay && repeat_delay_millis > 0 {
+            Task::spawn(async move {
                 sleep(Duration::from_millis(repeat_delay_millis)).await;
-            }
-            spawn_blocking(move || task_fn(args)).await.unwrap()
-        });
+
+                Err(anyhow!(DelayComplete))
+            })
+        } else {
+            let args = task_fn_args();
+            let fut = spawn_blocking(move || task_fn(args));
+
+            Task::spawn(async move { fut.await.unwrap() })
+        };
+
         *task = Some(spawned);
     }
+
     update
 }
 
@@ -99,7 +122,7 @@ pub fn update_detection_task<F, T>(
 ) -> Update<T>
 where
     F: FnOnce(Box<dyn Detector>) -> Result<T> + Send + 'static,
-    T: fmt::Debug + Send + 'static,
+    T: Debug + Send + 'static,
 {
     update_task(
         repeat_delay_millis,

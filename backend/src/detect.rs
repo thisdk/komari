@@ -290,16 +290,22 @@ pub trait Detector: 'static + Send + DynClone + Debug {
     /// Detects the state for HEXA/VIP Booster in the quick slots.
     fn detect_quick_slots_booster(&self, kind: BoosterKind) -> Result<QuickSlotsBooster>;
 
+    /// Detects the HEXA icon in quick menu.
     fn detect_hexa_quick_menu(&self) -> Result<Rect>;
 
+    /// Detects the `Erda conversion` button in HEXA matrix.
     fn detect_hexa_erda_conversion_button(&self) -> Result<Rect>;
 
+    /// Detects the `HEXA Booster` button in `Erda conversion` menu.
     fn detect_hexa_booster_button(&self) -> Result<Rect>;
 
+    /// Detects the `MAX` button in `Erda conversion` menu.
     fn detect_hexa_max_button(&self) -> Result<Rect>;
 
+    /// Detects the `Convert` button in `Erda conversion` menu.
     fn detect_hexa_convert_button(&self) -> Result<Rect>;
 
+    /// Detects the Sol Erda state from the tracker menu.
     fn detect_hexa_sol_erda(&self) -> Result<SolErda>;
 }
 

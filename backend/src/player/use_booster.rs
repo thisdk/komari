@@ -12,8 +12,11 @@ use crate::{
 /// States of using booster.
 #[derive(Debug, Clone, Copy)]
 enum State {
+    /// Using the booster by pressing corresponding booster key.
     Using(Timeout),
+    /// Confirming the popup dialog.
     Confirming(Timeout),
+    /// Terminal state.
     Completing {
         timeout: Timeout,
         completed: bool,
@@ -176,4 +179,198 @@ fn update_completing(resources: &Resources, using: &mut UsingBooster) {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use std::assert_matches::assert_matches;
+
+    use mockall::predicate::eq;
+
+    use super::*;
+    use crate::{
+        bridge::{KeyKind, MockInput},
+        detect::MockDetector,
+        ecs::Resources,
+        player::{Booster, timeout::Timeout},
+    };
+
+    #[test]
+    fn update_using_presses_key_at_tick() {
+        let mut keys = MockInput::default();
+        keys.expect_send_key().with(eq(KeyKind::F1)).once(); // Will press booster key at tick 30
+
+        let resources = Resources::new(Some(keys), None);
+        let mut using = UsingBooster::new(Booster::Vip);
+        using.state = State::Using(Timeout {
+            current: 29, // one before PRESS_KEY_AT
+            started: true,
+            ..Default::default()
+        });
+
+        update_using(&resources, &mut using, KeyKind::F1);
+
+        assert_matches!(using.state, State::Using(_));
+    }
+
+    #[test]
+    fn update_using_detects_admin_and_moves_to_confirming() {
+        let mut detector = MockDetector::default();
+        detector
+            .expect_detect_admin_visible()
+            .once()
+            .returning(|| true);
+        let resources = Resources::new(None, Some(detector));
+
+        let mut using = UsingBooster::new(Booster::Vip);
+        using.state = State::Using(Timeout {
+            current: 60,
+            started: true,
+            ..Default::default()
+        });
+
+        update_using(&resources, &mut using, KeyKind::F1);
+
+        assert_matches!(using.state, State::Confirming(_));
+    }
+
+    #[test]
+    fn update_using_fails_if_admin_not_visible() {
+        let mut detector = MockDetector::default();
+        detector
+            .expect_detect_admin_visible()
+            .once()
+            .returning(|| false);
+        let resources = Resources::new(None, Some(detector));
+
+        let mut using = UsingBooster::new(Booster::Vip);
+        using.state = State::Using(Timeout {
+            current: 60,
+            started: true,
+            ..Default::default()
+        });
+
+        update_using(&resources, &mut using, KeyKind::F1);
+
+        assert_matches!(
+            using.state,
+            State::Completing {
+                failed: true,
+                completed: false,
+                ..
+            }
+        );
+    }
+
+    #[test]
+    fn update_confirming_starts_and_presses_left() {
+        let mut keys = MockInput::default();
+        keys.expect_send_key().with(eq(KeyKind::Left)).once();
+        let resources = Resources::new(Some(keys), None);
+
+        let mut using = UsingBooster::new(Booster::Vip);
+        using.state = State::Confirming(Timeout::default());
+
+        update_confirming(&resources, &mut using);
+        assert_matches!(using.state, State::Confirming(_));
+    }
+
+    #[test]
+    fn update_confirming_updates_and_presses_left_at_tick_15() {
+        let mut keys = MockInput::default();
+        keys.expect_send_key().with(eq(KeyKind::Left)).once();
+        let resources = Resources::new(Some(keys), None);
+
+        let mut using = UsingBooster::new(Booster::Vip);
+        using.state = State::Confirming(Timeout {
+            current: 14,
+            started: true,
+            ..Default::default()
+        });
+
+        update_confirming(&resources, &mut using);
+        assert_matches!(using.state, State::Confirming(_));
+    }
+
+    #[test]
+    fn update_confirming_ends_and_presses_enter() {
+        let mut keys = MockInput::default();
+        keys.expect_send_key().with(eq(KeyKind::Enter)).once();
+        let resources = Resources::new(Some(keys), None);
+
+        let mut using = UsingBooster::new(Booster::Vip);
+        using.state = State::Confirming(Timeout {
+            current: 30,
+            started: true,
+            ..Default::default()
+        });
+
+        update_confirming(&resources, &mut using);
+
+        assert_matches!(
+            using.state,
+            State::Completing {
+                completed: false,
+                failed: false,
+                ..
+            }
+        );
+    }
+
+    #[test]
+    fn update_completing_detects_esc_and_presses_esc_on_end() {
+        let mut detector = MockDetector::default();
+        detector
+            .expect_detect_esc_settings()
+            .once()
+            .returning(|| true);
+        let mut keys = MockInput::default();
+        keys.expect_send_key().with(eq(KeyKind::Esc)).once();
+        let resources = Resources::new(Some(keys), Some(detector));
+
+        let mut using = UsingBooster::new(Booster::Vip);
+        using.state = State::Completing {
+            timeout: Timeout {
+                current: 20, // trigger Lifecycle::Ended
+                started: true,
+                ..Default::default()
+            },
+            completed: false,
+            failed: false,
+        };
+
+        update_completing(&resources, &mut using);
+
+        assert_matches!(
+            using.state,
+            State::Completing {
+                completed: true,
+                ..
+            }
+        );
+    }
+
+    #[test]
+    fn update_completing_updates_without_pressing_esc() {
+        let detector = MockDetector::default(); // no call expected
+        let keys = MockInput::default();
+        let resources = Resources::new(Some(keys), Some(detector));
+
+        let mut using = UsingBooster::new(Booster::Vip);
+        using.state = State::Completing {
+            timeout: Timeout {
+                current: 10,
+                started: true,
+                ..Default::default()
+            },
+            completed: false,
+            failed: false,
+        };
+
+        update_completing(&resources, &mut using);
+        assert_matches!(
+            using.state,
+            State::Completing {
+                completed: false,
+                ..
+            }
+        );
+    }
+}

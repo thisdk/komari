@@ -174,14 +174,14 @@ pub struct Chat {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub enum Booster {
-    Vip,
-    Hexa,
+pub struct UseBooster {
+    pub kind: Booster,
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct UseBooster {
-    pub kind: Booster,
+pub enum Booster {
+    Vip,
+    Hexa,
 }
 
 #[derive(Clone, Copy, Debug)]
