@@ -364,7 +364,6 @@ mod tests {
             (Rect::default(), KeyKind::F),
         ];
         let mut detector = MockDetector::default();
-        detector.expect_clone();
         detector
             .expect_detect_rune_arrows()
             .return_once(move |_| Ok(ArrowsState::Complete(expected_keys)));

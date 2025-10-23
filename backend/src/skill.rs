@@ -164,9 +164,6 @@ mod tests {
         let (mat, rect) = create_test_mat_bbox(center_pixel);
 
         detector.expect_mat().return_const(mat.into());
-        detector
-            .expect_clone()
-            .returning(move || create_mock_detector(center_pixel, error).0);
         detector.expect_detect_erda_shower().returning(move || {
             if let Some(error) = error {
                 Err(anyhow!("error")).context(error)

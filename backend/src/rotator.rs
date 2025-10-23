@@ -2,7 +2,10 @@ use std::{
     assert_matches::debug_assert_matches,
     collections::{HashSet, VecDeque},
     fmt::Debug,
-    sync::atomic::{AtomicU32, Ordering},
+    sync::{
+        Arc,
+        atomic::{AtomicU32, Ordering},
+    },
     time::Instant,
 };
 
@@ -1090,7 +1093,7 @@ fn priority_action(
 #[inline]
 fn familiar_essence_replenish_priority_action(key: KeyBinding) -> PriorityAction {
     let mut task: Option<Task<Result<bool>>> = None;
-    let task_fn = move |detector: Box<dyn Detector>| -> Result<bool> {
+    let task_fn = move |detector: Arc<dyn Detector>| -> Result<bool> {
         Ok(detector.detect_familiar_essence_depleted())
     };
 
@@ -1342,7 +1345,7 @@ fn use_booster_priority_action(kind: Booster) -> PriorityAction {
     };
 
     let mut task: Option<Task<Result<bool>>> = None;
-    let task_fn = move |detector: Box<dyn Detector>| -> Result<bool> {
+    let task_fn = move |detector: Arc<dyn Detector>| -> Result<bool> {
         if detector.detect_timer_visible() {
             return Ok(false);
         }
@@ -1391,7 +1394,7 @@ fn exchange_hexa_booster_priority_action(
     all: bool,
 ) -> PriorityAction {
     let mut task: Option<Task<Result<bool>>> = None;
-    let task_fn = move |detector: Box<dyn Detector>| -> Result<bool> {
+    let task_fn = move |detector: Arc<dyn Detector>| -> Result<bool> {
         let booster = detector.detect_quick_slots_booster(BoosterKind::Hexa)?;
         if !matches!(booster, QuickSlotsBooster::Unavailable) {
             return Ok(false);
@@ -1442,7 +1445,7 @@ fn exchange_hexa_booster_priority_action(
 fn unstuck_priority_action() -> PriorityAction {
     let mut task: Option<Task<Result<bool>>> = None;
     let task_fn =
-        move |detector: Box<dyn Detector>| -> Result<bool> { Ok(detector.detect_esc_settings()) };
+        move |detector: Arc<dyn Detector>| -> Result<bool> { Ok(detector.detect_esc_settings()) };
 
     PriorityAction {
         condition: Condition(Box::new(move |resources, world, info| {
@@ -2074,7 +2077,6 @@ mod tests {
 
         f(&mut detector);
 
-        detector.expect_clone().returning(move || mock_detector(f));
         detector
     }
 

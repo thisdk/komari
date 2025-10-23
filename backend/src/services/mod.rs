@@ -1,6 +1,5 @@
 use std::{cell::RefCell, rc::Rc, sync::Arc, time::Duration};
 
-use dyn_clone::clone_box;
 use opencv::{
     core::{ToInputArray, Vector},
     imgcodecs::{IMREAD_COLOR, IMREAD_GRAYSCALE, imdecode, imencode_def},
@@ -614,10 +613,7 @@ fn state_and_frame_provider(
         Some(Vec::from_iter(vector))
     }
 
-    let detector = resources
-        .detector
-        .as_ref()
-        .map(|detector| clone_box(detector.as_ref()));
+    let detector = resources.detector.as_ref().cloned();
     let state = world.player.state.to_string();
     let operation = resources.operation.to_string();
 
@@ -628,6 +624,7 @@ fn state_and_frame_provider(
             format!("- Operation: ``{operation}``"),
         ]
         .join("\n");
+
         (info, frame)
     }
 }

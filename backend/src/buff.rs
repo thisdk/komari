@@ -259,9 +259,6 @@ mod tests {
             })
             .return_const(result);
         detector
-            .expect_clone()
-            .returning(move || detector_with_kind(kind, result));
-        detector
     }
 
     async fn run_system_until_task_completed(resources: &Resources, buff: &mut BuffEntity) {

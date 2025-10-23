@@ -91,7 +91,7 @@ fn extract_minimap_and_name_base64(
         && let Some(detector) = resources.detector.as_ref()
     {
         let name_bbox = detector.detect_minimap_name(idle.bbox).ok()?;
-        let name = detector.grayscale_mat().roi(name_bbox).ok()?;
+        let name = detector.grayscale().roi(name_bbox).ok()?;
         let mut name_bytes = Vector::new();
         imencode_def(".png", &name, &mut name_bytes).ok()?;
         let name_base64 = BASE64_STANDARD.encode(name_bytes);

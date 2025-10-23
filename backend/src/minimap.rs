@@ -2,6 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     fmt,
     hash::{Hash, Hasher},
+    sync::Arc,
 };
 
 use anyhow::{Result, anyhow};
@@ -568,7 +569,7 @@ fn update_threshold_detection<T, F>(
 ) -> Threshold<T>
 where
     T: fmt::Debug + Send + 'static,
-    F: FnOnce(Box<dyn Detector>) -> Result<T> + Send + 'static,
+    F: FnOnce(Arc<dyn Detector>) -> Result<T> + Send + 'static,
 {
     let update = update_detection_task(
         resources,
@@ -681,9 +682,6 @@ mod tests {
             .withf(move |b| *b == bbox)
             .returning(move |_| Ok(rune_bbox));
         detector
-            .expect_clone()
-            .returning(|| create_mock_detector().0);
-        detector
             .expect_detect_minimap()
             .with(eq(MINIMAP_BORDER_WHITENESS_THRESHOLD))
             .returning(move |_| Ok(bbox));
@@ -784,8 +782,7 @@ mod tests {
         threshold.value = Some(Point::new(1, 2));
         threshold.fail_count = 1;
         let mut task = None;
-        let mut detector = MockDetector::new();
-        detector.expect_clone().returning(MockDetector::default);
+        let detector = MockDetector::new();
         let resources = Resources::new(None, Some(detector));
 
         while task
@@ -810,8 +807,7 @@ mod tests {
         threshold.fail_count = 0;
 
         let mut task = None;
-        let mut detector = MockDetector::new();
-        detector.expect_clone().returning(MockDetector::default);
+        let detector = MockDetector::new();
         let resources = Resources::new(None, Some(detector));
 
         while task
@@ -836,8 +832,7 @@ mod tests {
         threshold.fail_count = 1;
 
         let mut task = None;
-        let mut detector = MockDetector::new();
-        detector.expect_clone().returning(MockDetector::default);
+        let detector = MockDetector::new();
         let resources = Resources::new(None, Some(detector));
 
         while task

@@ -159,7 +159,7 @@ fn systems_loop() {
             let was_player_alive = !world.player.context.is_dead();
             let was_minimap_idle = matches!(world.minimap.state, Minimap::Idle(_));
 
-            resources.detector = Some(Box::new(detector));
+            resources.detector = Some(Arc::new(detector));
             resources.operation = resources.operation.update_tick();
 
             minimap::run_system(&resources, &mut world.minimap, world.player.state);

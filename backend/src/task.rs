@@ -1,5 +1,6 @@
 use std::{
     fmt::{self, Debug, Formatter},
+    sync::Arc,
     time::Duration,
 };
 
@@ -121,7 +122,7 @@ pub fn update_detection_task<F, T>(
     task_fn: F,
 ) -> Update<T>
 where
-    F: FnOnce(Box<dyn Detector>) -> Result<T> + Send + 'static,
+    F: FnOnce(Arc<dyn Detector>) -> Result<T> + Send + 'static,
     T: Debug + Send + 'static,
 {
     update_task(

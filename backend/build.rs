@@ -28,7 +28,7 @@ fn main() {
     let player_guildie = dir.join("player_guildie_ideal_ratio.png");
     let player_friend = dir.join("player_friend_ideal_ratio.png");
 
-    let esc_menu_x = dir.join("esc_menu_x_ideal_ratio.png");
+    let esc_menu = dir.join("esc_menu_ideal_ratio.png");
     let tomb = dir.join("tomb_ideal_ratio.png");
     let cash_shop = dir.join("cash_shop.png");
     let erda_shower = dir.join("erda_shower_ideal_ratio.png");
@@ -88,7 +88,9 @@ fn main() {
     let hexa_button_convert = dir.join("hexa_button_convert_ideal_ratio.png");
     let hexa_sol_erda = dir.join("hexa_sol_erda_ideal_ratio.png");
     let hexa_sol_erda_full = dir.join("hexa_sol_erda_full_ideal_ratio.png");
+    let hexa_sol_erda_full_mask = dir.join("hexa_sol_erda_full_mask_ideal_ratio.png");
     let hexa_sol_erda_empty = dir.join("hexa_sol_erda_empty_ideal_ratio.png");
+    let hexa_sol_erda_empty_mask = dir.join("hexa_sol_erda_empty_mask_ideal_ratio.png");
 
     let hp_bar_anchor = dir.join("hp_bar_anchor_ideal_ratio.png");
     let hp_separator = dir.join("hp_separator_ideal_ratio.png");
@@ -200,8 +202,8 @@ fn main() {
     );
 
     println!(
-        "cargo:rustc-env=ESC_MENU_X_TEMPLATE={}",
-        esc_menu_x.to_str().unwrap()
+        "cargo:rustc-env=ESC_MENU_TEMPLATE={}",
+        esc_menu.to_str().unwrap()
     );
     println!("cargo:rustc-env=TOMB_TEMPLATE={}", tomb.to_str().unwrap());
     println!(
@@ -397,8 +399,16 @@ fn main() {
         hexa_sol_erda_full.to_str().unwrap()
     );
     println!(
+        "cargo:rustc-env=HEXA_SOL_ERDA_FULL_MASK_TEMPLATE={}",
+        hexa_sol_erda_full_mask.to_str().unwrap()
+    );
+    println!(
         "cargo:rustc-env=HEXA_SOL_ERDA_EMPTY_TEMPLATE={}",
         hexa_sol_erda_empty.to_str().unwrap()
+    );
+    println!(
+        "cargo:rustc-env=HEXA_SOL_ERDA_EMPTY_MASK_TEMPLATE={}",
+        hexa_sol_erda_empty_mask.to_str().unwrap()
     );
 
     println!(

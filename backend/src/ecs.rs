@@ -2,8 +2,8 @@
 use std::cell::RefCell;
 #[cfg(test)]
 use std::rc::Rc;
+use std::sync::Arc;
 
-use dyn_clone::clone_box;
 #[cfg(debug_assertions)]
 use opencv::core::Rect;
 
@@ -96,7 +96,7 @@ macro_rules! try_ok_transition {
 #[cfg(debug_assertions)]
 pub struct Debug {
     auto_save: RefCell<bool>,
-    last_rune_detector: RefCell<Option<Box<dyn Detector>>>,
+    last_rune_detector: RefCell<Option<Arc<dyn Detector>>>,
     last_rune_result: RefCell<Option<[(Rect, KeyKind); 4]>>,
 }
 
@@ -124,7 +124,7 @@ impl Debug {
         }
     }
 
-    pub fn set_last_rune_result(&self, detector: Box<dyn Detector>, result: [(Rect, KeyKind); 4]) {
+    pub fn set_last_rune_result(&self, detector: Arc<dyn Detector>, result: [(Rect, KeyKind); 4]) {
         *self.last_rune_detector.borrow_mut() = Some(detector);
         *self.last_rune_result.borrow_mut() = Some(result);
     }
@@ -145,7 +145,7 @@ pub struct Resources {
     /// A resource to detect game information.
     ///
     /// This is [`None`] when no frame as ever been captured.
-    pub detector: Option<Box<dyn Detector>>,
+    pub detector: Option<Arc<dyn Detector>>,
     /// A resource indicating current operation state.
     pub operation: Operation,
     /// A resource indicating current tick.
@@ -161,7 +161,7 @@ impl Resources {
             input: Box::new(input.unwrap_or_default()),
             rng: Rng::new(rand::random(), rand::random()),
             notification: DiscordNotification::new(Rc::new(RefCell::new(Settings::default()))),
-            detector: detector.map(|detector| Box::new(detector) as Box<dyn Detector>),
+            detector: detector.map(|detector| Arc::new(detector) as Arc<dyn Detector>),
             operation: Operation::Running,
             tick: 0,
         }
@@ -182,8 +182,11 @@ impl Resources {
 
     /// Same as [`Self::detector`] but cloned.
     #[inline]
-    pub fn detector_cloned(&self) -> Box<dyn Detector> {
-        clone_box(self.detector())
+    pub fn detector_cloned(&self) -> Arc<dyn Detector> {
+        self.detector
+            .as_ref()
+            .cloned()
+            .expect("detector is not available because no frame has ever been captured")
     }
 }
 

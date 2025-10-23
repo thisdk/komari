@@ -66,7 +66,7 @@ impl LocalizationService for DefaultLocalizationService {
     fn save_capture_image(&self, resources: &Resources, is_grayscale: bool) {
         if let Some(detector) = resources.detector.as_ref() {
             if is_grayscale {
-                utils::save_image_to_default(detector.grayscale_mat(), DatasetDir::Root);
+                utils::save_image_to_default(detector.grayscale(), DatasetDir::Root);
             } else {
                 utils::save_image_to_default(detector.mat(), DatasetDir::Root);
             }
