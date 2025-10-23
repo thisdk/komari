@@ -88,7 +88,9 @@ fn main() {
     let hexa_button_convert = dir.join("hexa_button_convert_ideal_ratio.png");
     let hexa_sol_erda = dir.join("hexa_sol_erda_ideal_ratio.png");
     let hexa_sol_erda_full = dir.join("hexa_sol_erda_full_ideal_ratio.png");
+    let hexa_sol_erda_full_mask = dir.join("hexa_sol_erda_full_mask_ideal_ratio.png");
     let hexa_sol_erda_empty = dir.join("hexa_sol_erda_empty_ideal_ratio.png");
+    let hexa_sol_erda_empty_mask = dir.join("hexa_sol_erda_empty_mask_ideal_ratio.png");
 
     let hp_bar_anchor = dir.join("hp_bar_anchor_ideal_ratio.png");
     let hp_separator = dir.join("hp_separator_ideal_ratio.png");
@@ -397,8 +399,16 @@ fn main() {
         hexa_sol_erda_full.to_str().unwrap()
     );
     println!(
+        "cargo:rustc-env=HEXA_SOL_ERDA_FULL_MASK_TEMPLATE={}",
+        hexa_sol_erda_full_mask.to_str().unwrap()
+    );
+    println!(
         "cargo:rustc-env=HEXA_SOL_ERDA_EMPTY_TEMPLATE={}",
         hexa_sol_erda_empty.to_str().unwrap()
+    );
+    println!(
+        "cargo:rustc-env=HEXA_SOL_ERDA_EMPTY_MASK_TEMPLATE={}",
+        hexa_sol_erda_empty_mask.to_str().unwrap()
     );
 
     println!(
