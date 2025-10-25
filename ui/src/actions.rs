@@ -13,7 +13,6 @@ use backend::{
 };
 use dioxus::prelude::*;
 use futures_util::StreamExt;
-use rand::distr::{Alphanumeric, SampleString};
 use tokio::sync::broadcast::error::RecvError;
 
 use crate::{
@@ -22,6 +21,7 @@ use crate::{
         ContentAlign, ContentSide,
         button::{Button, ButtonStyle},
         checkbox::Checkbox,
+        file::{FileInput, FileOutput},
         icons::{DownArrowIcon, UpArrowIcon, XIcon},
         key::KeyInput,
         labeled::Labeled,
@@ -650,72 +650,37 @@ fn SectionActions(actions: Memo<Vec<Action>>, disabled: bool) -> Element {
     }
 
     let coroutine = use_coroutine_handle::<ActionsUpdate>();
+    let minimap = use_context::<ActionsContext>().minimap;
 
-    let export_element_id = use_memo(|| Alphanumeric.sample_string(&mut rand::rng(), 8));
-    let export = use_callback(move |_| {
-        let js = format!(
-            r#"
-            const element = document.getElementById("{}");
-            if (element === null) {{
-                return;
-            }}
-            const json = await dioxus.recv();
+    let export_name = use_memo(move || format!("{}.json", minimap().name));
+    let export_content = move |_| serde_json::to_vec_pretty(&*actions.peek()).unwrap_or_default();
 
-            element.setAttribute("href", "data:application/json;charset=utf-8," + encodeURIComponent(json));
-            element.setAttribute("download", "actions.json");
-            element.click();
-            "#,
-            export_element_id(),
-        );
-        let eval = document::eval(js.as_str());
-        let Ok(json) = serde_json::to_string_pretty(&*actions.peek()) else {
-            return;
-        };
-        let _ = eval.send(json);
-    });
-
-    let import_element_id = use_memo(|| Alphanumeric.sample_string(&mut rand::rng(), 8));
-    let import = use_callback(move |_| {
-        let js = format!(
-            r#"
-            const element = document.getElementById("{}");
-            if (element === null) {{
-                return;
-            }}
-            element.click();
-            "#,
-            import_element_id()
-        );
-        document::eval(js.as_str());
-    });
-    let import_actions = use_callback(move |files| {
+    let import_actions = use_callback(move |file: String| {
         let mut actions = actions();
 
-        for file in files {
-            let Ok(file) = File::open(file) else {
-                continue;
-            };
-            let reader = BufReader::new(file);
-            let Ok(import_actions) = serde_json::from_reader::<_, Vec<Action>>(reader) else {
-                continue;
-            };
+        let Ok(file) = File::open(file) else {
+            return;
+        };
+        let reader = BufReader::new(file);
+        let Ok(import_actions) = serde_json::from_reader::<_, Vec<Action>>(reader) else {
+            return;
+        };
 
-            let mut i = 0;
-            while i < import_actions.len() {
-                let action = import_actions[i];
-                if matches!(action.condition(), ActionCondition::Linked) {
-                    // Malformed
-                    i += 1;
-                    continue;
-                }
-
-                actions.push(action);
-                if let Some(range) = find_linked_action_range(&import_actions, i) {
-                    actions.extend(import_actions[range.clone()].iter().copied());
-                    i += range.count();
-                }
+        let mut i = 0;
+        while i < import_actions.len() {
+            let action = import_actions[i];
+            if matches!(action.condition(), ActionCondition::Linked) {
+                // Malformed
                 i += 1;
+                continue;
             }
+
+            actions.push(action);
+            if let Some(range) = find_linked_action_range(&import_actions, i) {
+                actions.extend(import_actions[range.clone()].iter().copied());
+                i += range.count();
+            }
+            i += 1;
         }
 
         coroutine.send(ActionsUpdate::Update(actions));
@@ -939,42 +904,27 @@ fn SectionActions(actions: Memo<Vec<Action>>, disabled: bool) -> Element {
             }
             Section { title: "Import/export actions",
                 div { class: "flex gap-2",
-                    div { class: "flex-grow",
-                        a {
-                            id: export_element_id(),
-                            class: "w-0 h-0 invisible",
-                        }
+                    FileInput {
+                        class: "flex-grow",
+                        on_file: import_actions,
+                        disabled,
                         Button {
                             class: "w-full",
                             style: ButtonStyle::Primary,
                             disabled,
-                            on_click: move |_| {
-                                export(());
-                            },
-                            "Export"
+                            "Import"
                         }
                     }
-                    div { class: "flex-grow",
-                        input {
-                            id: import_element_id(),
-                            class: "w-0 h-0 invisible",
-                            r#type: "file",
-                            accept: ".json",
-                            name: "Actions JSON",
-                            onchange: move |e| {
-                                if let Some(files) = e.data.files().map(|engine| engine.files()) {
-                                    import_actions(files);
-                                }
-                            },
-                        }
+                    FileOutput {
+                        class: "flex-grow",
+                        on_file: export_content,
+                        download: export_name(),
+                        disabled,
                         Button {
                             class: "w-full",
                             style: ButtonStyle::Primary,
                             disabled,
-                            on_click: move |_| {
-                                import(());
-                            },
-                            "Import"
+                            "Export"
                         }
                     }
                 }

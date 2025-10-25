@@ -8,7 +8,6 @@ use backend::{
 };
 use dioxus::prelude::*;
 use futures_util::StreamExt;
-use rand::distr::{Alphanumeric, SampleString};
 
 use crate::{
     AppState,
@@ -16,6 +15,7 @@ use crate::{
         ContentAlign, ContentSide,
         button::{Button, ButtonStyle},
         checkbox::Checkbox,
+        file::{FileInput, FileOutput},
         icons::XIcon,
         key::KeyInput,
         labeled::Labeled,
@@ -986,62 +986,29 @@ fn SectionOthers() -> Element {
     let character = context.character;
     let save_character = context.save_character;
 
-    let export_element_id = use_memo(|| Alphanumeric.sample_string(&mut rand::rng(), 8));
-    let export = use_callback(move |_| {
-        let js = format!(
-            r#"
-            const element = document.getElementById("{}");
-            if (element === null) {{
-                return;
-            }}
-            const json = await dioxus.recv();
+    let export_name = use_memo(move || format!("{}.json", character().name));
+    let export_content = move |_| serde_json::to_vec_pretty(&*character.peek()).unwrap_or_default();
 
-            element.setAttribute("href", "data:application/json;charset=utf-8," + encodeURIComponent(json));
-            element.setAttribute("download", "character.json");
-            element.click();
-            "#,
-            export_element_id(),
-        );
-        let eval = document::eval(js.as_str());
-        let Ok(json) = serde_json::to_string_pretty(&*character.peek()) else {
+    let import_character = use_callback(move |file: String| {
+        let Ok(file) = File::open(file) else {
             return;
         };
-        let _ = eval.send(json);
+        let reader = BufReader::new(file);
+        let Ok(character) = serde_json::from_reader::<_, Character>(reader) else {
+            return;
+        };
+
+        save_character(character);
     });
 
-    let import_element_id = use_memo(|| Alphanumeric.sample_string(&mut rand::rng(), 8));
-    let import = use_callback(move |_| {
-        let js = format!(
-            r#"
-            const element = document.getElementById("{}");
-            if (element === null) {{
-                return;
-            }}
-            element.click();
-            "#,
-            import_element_id()
-        );
-        document::eval(js.as_str());
-    });
-    let import_characters = use_callback(move |files| {
-        for file in files {
-            let Ok(file) = File::open(file) else {
-                continue;
-            };
-            let reader = BufReader::new(file);
-            let Ok(character) = serde_json::from_reader::<_, Character>(reader) else {
-                continue;
-            };
-            save_character(character);
-        }
-    });
+    let disabled = use_memo(move || character().id.is_none());
 
     rsx! {
         Section { title: "Others",
             div { class: "grid grid-cols-[auto_auto_128px] gap-4",
                 CharactersSelect::<Class> {
                     label: "Link key timing class",
-                    disabled: character().id.is_none(),
+                    disabled,
                     on_selected: move |class| {
                         save_character(Character {
                             class,
@@ -1054,7 +1021,7 @@ fn SectionOthers() -> Element {
                 div {}
                 CharactersSelect::<EliteBossBehavior> {
                     label: "Elite boss spawns behavior",
-                    disabled: character().id.is_none(),
+                    disabled,
                     on_selected: move |elite_boss_behavior| {
                         save_character(Character {
                             elite_boss_behavior,
@@ -1065,7 +1032,7 @@ fn SectionOthers() -> Element {
                 }
                 CharactersKeyInput {
                     label: "Key to use",
-                    disabled: character().id.is_none(),
+                    disabled,
                     on_value: move |key: Option<KeyBinding>| {
                         save_character(Character {
                             elite_boss_behavior_key: key.expect("not optional"),
@@ -1076,39 +1043,15 @@ fn SectionOthers() -> Element {
                 }
                 div {}
                 div { class: "flex gap-2 col-span-3",
-                    div { class: "flex-grow",
-                        a {
-                            id: export_element_id(),
-                            class: "w-0 h-0 invisible",
-                        }
-                        Button {
-                            class: "w-full",
-                            on_click: move |_| {
-                                export(());
-                            },
-                            "Export"
-                        }
+                    FileInput { on_file: import_character, class: "flex-grow",
+                        Button { class: "w-full", "Import" }
                     }
-                    div { class: "flex-grow",
-                        input {
-                            id: import_element_id(),
-                            class: "w-0 h-0 invisible",
-                            r#type: "file",
-                            accept: ".json",
-                            name: "Character JSON",
-                            onchange: move |e| {
-                                if let Some(files) = e.data.files().map(|engine| engine.files()) {
-                                    import_characters(files);
-                                }
-                            },
-                        }
-                        Button {
-                            class: "w-full",
-                            on_click: move |_| {
-                                import(());
-                            },
-                            "Import"
-                        }
+                    FileOutput {
+                        class: "flex-grow",
+                        on_file: export_content,
+                        download: export_name(),
+                        disabled,
+                        Button { class: "w-full", disabled, "Export" }
                     }
                 }
             }

@@ -8,13 +8,13 @@ use backend::{
 };
 use dioxus::prelude::*;
 use futures_util::StreamExt;
-use rand::distr::{Alphanumeric, SampleString};
 
 use crate::{
     AppState,
     components::{
         button::{Button, ButtonStyle},
         checkbox::Checkbox,
+        file::{FileInput, FileOutput},
         icons::{EyePasswordHideIcon, EyePasswordShowIcon},
         key::KeyInput,
         labeled::Labeled,
@@ -561,43 +561,6 @@ fn SectionOthers() -> Element {
     let settings = context.settings;
     let save_settings = context.save_settings;
 
-    let export_element_id = use_memo(|| Alphanumeric.sample_string(&mut rand::rng(), 8));
-    let export = use_callback(move |_| {
-        let js = format!(
-            r#"
-            const element = document.getElementById("{}");
-            if (element === null) {{
-                return;
-            }}
-            const json = await dioxus.recv();
-
-            element.setAttribute("href", "data:application/json;charset=utf-8," + encodeURIComponent(json));
-            element.setAttribute("download", "settings.json");
-            element.click();
-            "#,
-            export_element_id(),
-        );
-        let eval = document::eval(js.as_str());
-        let Ok(json) = serde_json::to_string_pretty(&*settings.peek()) else {
-            return;
-        };
-        let _ = eval.send(json);
-    });
-
-    let import_element_id = use_memo(|| Alphanumeric.sample_string(&mut rand::rng(), 8));
-    let import = use_callback(move |_| {
-        let js = format!(
-            r#"
-            const element = document.getElementById("{}");
-            if (element === null) {{
-                return;
-            }}
-            element.click();
-            "#,
-            import_element_id()
-        );
-        document::eval(js.as_str());
-    });
     let import_settings = use_callback(move |file| {
         let Some(id) = settings.peek().id else {
             return;
@@ -656,44 +619,13 @@ fn SectionOthers() -> Element {
                     },
                     checked: settings().stop_on_player_die,
                 }
-                div {
-                    a { id: export_element_id(), class: "w-0 h-0 invisible" }
-                    Button {
-                        class: "w-full",
-                        style: ButtonStyle::Primary,
-                        on_click: move |_| {
-                            export(());
-                        },
-
-                        "Export"
-                    }
+                FileInput { class: "flex-grow", on_file: import_settings,
+                    Button { class: "w-full", style: ButtonStyle::Primary, "Import" }
                 }
-                div {
-                    input {
-                        id: import_element_id(),
-                        class: "w-0 h-0 invisible",
-                        r#type: "file",
-                        accept: ".json",
-                        name: "Settings JSON",
-                        onchange: move |e| {
-                            if let Some(file) = e
-                                .data
-                                .files()
-                                .and_then(|engine| engine.files().into_iter().next())
-                            {
-                                import_settings(file);
-                            }
-                        },
-                    }
-                    Button {
-                        class: "w-full",
-                        style: ButtonStyle::Primary,
-                        on_click: move |_| {
-                            import(());
-                        },
-
-                        "Import"
-                    }
+                FileOutput {
+                    on_file: move |_| { serde_json::to_vec_pretty(&*settings.peek()).unwrap_or_default() },
+                    download: "settings.json",
+                    Button { class: "w-full", style: ButtonStyle::Primary, "Export" }
                 }
             }
         }

@@ -485,7 +485,7 @@ fn LocalizationTemplateInput(
                 }
             }
             div { class: "flex items-end",
-                FileInput { on_file: read_file,
+                FileInput { on_file: read_file, accept: ".png,image/png",
                     Button { class: "w-14", style: ButtonStyle::Primary, "Replace" }
                 }
             }

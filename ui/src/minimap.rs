@@ -13,7 +13,6 @@ use backend::{
 };
 use dioxus::{document::EvalError, prelude::*};
 use futures_util::StreamExt;
-use rand::distr::{Alphanumeric, SampleString};
 use serde::Serialize;
 use tokio::{sync::broadcast::error::RecvError, time::sleep};
 
@@ -21,6 +20,7 @@ use crate::{
     AppState,
     components::{
         button::{Button, ButtonStyle},
+        file::{FileInput, FileOutput},
         named_select::NamedSelect,
         select::{Select, SelectOption},
     },
@@ -779,93 +779,44 @@ fn Buttons(
 #[component]
 fn ImportExport(minimap: ReadOnlySignal<Option<MinimapData>>) -> Element {
     let coroutine = use_coroutine_handle::<MinimapUpdate>();
-    let export_element_id = use_memo(|| Alphanumeric.sample_string(&mut rand::rng(), 8));
-    let export = use_callback(move |_| {
-        let js = format!(
-            r#"
-            const element = document.getElementById("{}");
-            if (element === null) {{
-                return;
-            }}
-            const json = await dioxus.recv();
 
-            element.setAttribute("href", "data:application/json;charset=utf-8," + encodeURIComponent(json));
-            element.setAttribute("download", "character.json");
-            element.click();
-            "#,
-            export_element_id(),
-        );
-        let eval = document::eval(js.as_str());
-        let Some(minimap) = &*minimap.peek() else {
+    let export_name = use_memo(move || {
+        let name = minimap().map(|minimap| minimap.name).unwrap_or_default();
+        format!("{name}.json")
+    });
+    let export_content = move |_| {
+        minimap
+            .peek()
+            .as_ref()
+            .and_then(|minimap| serde_json::to_vec_pretty(minimap).ok())
+            .unwrap_or_default()
+    };
+
+    let import_minimap = use_callback(move |file: String| {
+        let Ok(file) = File::open(file) else {
             return;
         };
-        let Ok(json) = serde_json::to_string_pretty(&minimap) else {
+        let reader = BufReader::new(file);
+        let Ok(minimap) = serde_json::from_reader::<_, MinimapData>(reader) else {
             return;
         };
-        let _ = eval.send(json);
-    });
 
-    let import_element_id = use_memo(|| Alphanumeric.sample_string(&mut rand::rng(), 8));
-    let import = use_callback(move |_| {
-        let js = format!(
-            r#"
-            const element = document.getElementById("{}");
-            if (element === null) {{
-                return;
-            }}
-            element.click();
-            "#,
-            import_element_id()
-        );
-        document::eval(js.as_str());
-    });
-    let import_minimaps = use_callback(move |files| {
-        for file in files {
-            let Ok(file) = File::open(file) else {
-                continue;
-            };
-            let reader = BufReader::new(file);
-            let Ok(minimap) = serde_json::from_reader::<_, MinimapData>(reader) else {
-                continue;
-            };
-            coroutine.send(MinimapUpdate::Import(minimap));
-        }
+        coroutine.send(MinimapUpdate::Import(minimap));
     });
 
     rsx! {
         div { class: "flex gap-3",
-            div {
-                input {
-                    id: import_element_id(),
-                    class: "w-0 h-0 invisible",
-                    r#type: "file",
-                    accept: ".json",
-                    name: "Minimap JSON",
-                    onchange: move |e| {
-                        if let Some(files) = e.data.files().map(|engine| engine.files()) {
-                            import_minimaps(files);
-                        }
-                    },
-                }
-                Button {
-                    class: "w-20",
-                    style: ButtonStyle::Primary,
-                    on_click: move |_| {
-                        import(());
-                    },
-
-                    "Import"
-                }
+            FileInput { on_file: import_minimap,
+                Button { class: "w-20", style: ButtonStyle::Primary, "Import" }
             }
-            div {
-                a { id: export_element_id(), class: "w-0 h-0 invisible" }
+            FileOutput {
+                on_file: export_content,
+                download: export_name(),
+                disabled: minimap().is_none(),
                 Button {
                     class: "w-20",
                     style: ButtonStyle::Primary,
                     disabled: minimap().is_none(),
-                    on_click: move |_| {
-                        export(());
-                    },
 
                     "Export"
                 }
