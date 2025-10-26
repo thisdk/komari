@@ -21,7 +21,7 @@
   - [Elite Boss Spawns Behavior](#elite-boss-spawns-behavior)
   - [Control and Notifications](#control-and-notifications)
   - [Localization](#localization)
-  - [VIP/HEXA Booster](#vip-hexa-booster)
+  - [VIP/HEXA Booster](#viphexa-booster)
 - [Video Guides](#video-guides)
 - [Showcase](#showcase)
   - [Rotation](#rotation)
