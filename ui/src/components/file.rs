@@ -1,4 +1,4 @@
-use dioxus::prelude::*;
+use dioxus::{html::FileData, prelude::*};
 use tw_merge::tw_merge;
 
 use crate::components::use_unique_id;
@@ -12,7 +12,7 @@ pub struct FileOutputProps {
     #[props(default = "download.json".to_string())]
     download: String,
     #[props(default)]
-    disabled: ReadOnlySignal<bool>,
+    disabled: ReadSignal<bool>,
     #[props(default)]
     class: String,
     children: Element,
@@ -73,11 +73,11 @@ pub fn FileOutput(props: FileOutputProps) -> Element {
 #[derive(Props, PartialEq, Clone)]
 pub struct FileInputProps {
     #[props(default)]
-    on_file: Callback<String>,
+    on_file: Callback<FileData>,
     #[props(default = ".json,application/json".to_string())]
     accept: String,
     #[props(default)]
-    disabled: ReadOnlySignal<bool>,
+    disabled: ReadSignal<bool>,
     #[props(default)]
     class: String,
     children: Element,
@@ -90,11 +90,7 @@ pub fn FileInput(props: FileInputProps) -> Element {
     let disabled = props.disabled;
 
     let handle_on_change = move |e: Event<FormData>| {
-        if let Some(file) = e
-            .data
-            .files()
-            .and_then(|engine| engine.files().into_iter().next())
-        {
+        if let Some(file) = e.data.files().into_iter().next() {
             props.on_file.call(file);
         }
     };

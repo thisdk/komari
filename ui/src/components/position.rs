@@ -10,9 +10,9 @@ const ICON_CLASS: &str = "size-3";
 pub struct PositionInputProps {
     value: i32,
     on_value: Callback<i32>,
-    on_icon_click: ReadOnlySignal<Option<Callback>>,
+    on_icon_click: ReadSignal<Option<Callback>>,
     #[props(default)]
-    disabled: ReadOnlySignal<bool>,
+    disabled: ReadSignal<bool>,
 }
 
 #[component]

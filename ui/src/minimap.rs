@@ -1,6 +1,4 @@
 use std::{
-    fs::File,
-    io::BufReader,
     ops::Deref,
     time::{Duration, Instant},
 };
@@ -11,7 +9,7 @@ use backend::{
     game_state_receiver, query_minimaps, redetect_minimap, rotate_actions, update_minimap,
     upsert_minimap,
 };
-use dioxus::{document::EvalError, prelude::*};
+use dioxus::{document::EvalError, html::FileData, prelude::*};
 use futures_util::StreamExt;
 use serde::Serialize;
 use tokio::{sync::broadcast::error::RecvError, time::sleep};
@@ -470,8 +468,8 @@ pub fn MinimapScreen() -> Element {
 #[component]
 fn Canvas(
     state: Signal<Option<MinimapState>>,
-    minimap: ReadOnlySignal<Option<MinimapData>>,
-    minimap_preset: ReadOnlySignal<Option<String>>,
+    minimap: ReadSignal<Option<MinimapData>>,
+    minimap_preset: ReadSignal<Option<String>>,
     position: Signal<(i32, i32)>,
 ) -> Element {
     let mut platforms_bound = use_signal(|| None);
@@ -599,8 +597,8 @@ fn Canvas(
 
 #[component]
 fn Info(
-    state: ReadOnlySignal<Option<MinimapState>>,
-    minimap: ReadOnlySignal<Option<MinimapData>>,
+    state: ReadSignal<Option<MinimapState>>,
+    minimap: ReadSignal<Option<MinimapData>>,
 ) -> Element {
     #[derive(Debug, PartialEq, Clone)]
     struct GameStateInfo {
@@ -687,8 +685,8 @@ fn InfoItem(name: String, value: String) -> Element {
 
 #[component]
 fn Buttons(
-    state: ReadOnlySignal<Option<MinimapState>>,
-    minimap: ReadOnlySignal<Option<MinimapData>>,
+    state: ReadSignal<Option<MinimapState>>,
+    minimap: ReadSignal<Option<MinimapData>>,
 ) -> Element {
     let kind = use_memo(move || {
         state()
@@ -777,7 +775,7 @@ fn Buttons(
 }
 
 #[component]
-fn ImportExport(minimap: ReadOnlySignal<Option<MinimapData>>) -> Element {
+fn ImportExport(minimap: ReadSignal<Option<MinimapData>>) -> Element {
     let coroutine = use_coroutine_handle::<MinimapUpdate>();
 
     let export_name = use_memo(move || {
@@ -792,12 +790,11 @@ fn ImportExport(minimap: ReadOnlySignal<Option<MinimapData>>) -> Element {
             .unwrap_or_default()
     };
 
-    let import_minimap = use_callback(move |file: String| {
-        let Ok(file) = File::open(file) else {
+    let import_minimap = use_callback(move |file: FileData| async move {
+        let Ok(bytes) = file.read_bytes().await else {
             return;
         };
-        let reader = BufReader::new(file);
-        let Ok(minimap) = serde_json::from_reader::<_, MinimapData>(reader) else {
+        let Ok(minimap) = serde_json::from_slice::<'_, MinimapData>(&bytes) else {
             return;
         };
 
@@ -806,7 +803,10 @@ fn ImportExport(minimap: ReadOnlySignal<Option<MinimapData>>) -> Element {
 
     rsx! {
         div { class: "flex gap-3",
-            FileInput { on_file: import_minimap,
+            FileInput {
+                on_file: move |file| async move {
+                    import_minimap(file).await;
+                },
                 Button { class: "w-20", style: ButtonStyle::Primary, "Import" }
             }
             FileOutput {

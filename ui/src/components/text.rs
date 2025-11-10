@@ -5,13 +5,13 @@ use crate::components::use_controlled;
 
 #[derive(Props, PartialEq, Clone)]
 pub struct TextInputProps {
-    value: ReadOnlySignal<Option<String>>,
+    value: ReadSignal<Option<String>>,
     #[props(default)]
     on_value: Callback<String>,
     #[props(default)]
     sensitive: bool,
     #[props(default)]
-    disabled: ReadOnlySignal<bool>,
+    disabled: ReadSignal<bool>,
     #[props(default)]
     placeholder: Option<String>,
     #[props(default)]

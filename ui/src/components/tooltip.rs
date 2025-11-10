@@ -15,7 +15,7 @@ struct TooltipContext {
 
 #[derive(Props, Clone, PartialEq)]
 pub struct TooltipProps {
-    pub open: ReadOnlySignal<Option<bool>>,
+    pub open: ReadSignal<Option<bool>>,
     #[props(default)]
     pub on_open: Callback<bool>,
     #[props(default)]

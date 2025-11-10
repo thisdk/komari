@@ -513,7 +513,7 @@ fn SectionPaths() -> Element {
 
 #[component]
 fn PopupPathContent(
-    value: ReadOnlySignal<NavigationPath>,
+    value: ReadSignal<NavigationPath>,
     on_save: Callback<NavigationPath>,
     on_cancel: Callback,
 ) -> Element {
@@ -597,7 +597,7 @@ fn PopupPathContent(
 
 #[component]
 fn PopupPointContent(
-    value: ReadOnlySignal<NavigationPoint>,
+    value: ReadSignal<NavigationPoint>,
     on_save: Callback<NavigationPoint>,
     on_cancel: Callback,
 ) -> Element {
@@ -660,7 +660,7 @@ fn PopupPointContent(
 fn NavigationPathItem(
     groups: Memo<Vec<NavigationPaths>>,
     group_names: Memo<Vec<String>>,
-    path: ReadOnlySignal<NavigationPath>,
+    path: ReadSignal<NavigationPath>,
     path_index: usize,
     on_add_point: Callback,
     on_edit_point: Callback<(NavigationPoint, usize)>,
@@ -860,7 +860,7 @@ fn NavigationSelect<T: 'static + Clone + PartialEq + Display>(
     #[props(default)] disabled: bool,
     #[props(default)] class: String,
     on_selected: Callback<usize>,
-    selected: ReadOnlySignal<usize>,
+    selected: ReadSignal<usize>,
 ) -> Element {
     rsx! {
         Select::<usize> {

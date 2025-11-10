@@ -4,11 +4,11 @@ use crate::components::use_controlled;
 
 #[derive(Props, Clone, PartialEq)]
 pub struct CheckboxProps {
-    checked: ReadOnlySignal<Option<bool>>,
+    checked: ReadSignal<Option<bool>>,
     #[props(default)]
     on_checked: Callback<bool>,
     #[props(default)]
-    disabled: ReadOnlySignal<bool>,
+    disabled: ReadSignal<bool>,
 }
 
 #[component]

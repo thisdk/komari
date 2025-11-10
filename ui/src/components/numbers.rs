@@ -10,7 +10,7 @@ const CLASS: &str = "h-6 text-xs text-primary-text outline-none px-1 border bord
 
 #[derive(Props, Clone, PartialEq)]
 pub struct NumberInputProps<T: Clone + PartialEq + 'static> {
-    value: ReadOnlySignal<Option<T>>,
+    value: ReadSignal<Option<T>>,
     #[props(default)]
     on_value: Callback<T>,
     #[props(default)]
@@ -20,7 +20,7 @@ pub struct NumberInputProps<T: Clone + PartialEq + 'static> {
     #[props(default)]
     suffix: String,
     #[props(default)]
-    disabled: ReadOnlySignal<bool>,
+    disabled: ReadSignal<bool>,
     #[props(default)]
     class: String,
 }

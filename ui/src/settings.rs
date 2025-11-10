@@ -1,4 +1,4 @@
-use std::{fmt::Display, fs::File, io::BufReader, mem};
+use std::{fmt::Display, mem};
 
 use backend::{
     CaptureMode, CycleRunStopMode, FamiliarRarity, Familiars, InputMethod, IntoEnumIterator,
@@ -6,7 +6,7 @@ use backend::{
     query_capture_handles, query_settings, refresh_capture_handles, select_capture_handle,
     upsert_settings,
 };
-use dioxus::prelude::*;
+use dioxus::{html::FileData, prelude::*};
 use futures_util::StreamExt;
 
 use crate::{
@@ -561,15 +561,14 @@ fn SectionOthers() -> Element {
     let settings = context.settings;
     let save_settings = context.save_settings;
 
-    let import_settings = use_callback(move |file| {
+    let import_settings = use_callback(move |file: FileData| async move {
         let Some(id) = settings.peek().id else {
             return;
         };
-        let Ok(file) = File::open(file) else {
+        let Ok(bytes) = file.read_bytes().await else {
             return;
         };
-        let reader = BufReader::new(file);
-        let Ok(mut settings) = serde_json::from_reader::<_, Settings>(reader) else {
+        let Ok(mut settings) = serde_json::from_slice::<'_, Settings>(&bytes) else {
             return;
         };
         settings.id = Some(id);
@@ -619,7 +618,11 @@ fn SectionOthers() -> Element {
                     },
                     checked: settings().stop_on_player_die,
                 }
-                FileInput { class: "flex-grow", on_file: import_settings,
+                FileInput {
+                    class: "flex-grow",
+                    on_file: move |file| async move {
+                        import_settings(file).await;
+                    },
                     Button { class: "w-full", style: ButtonStyle::Primary, "Import" }
                 }
                 FileOutput {
@@ -674,7 +677,7 @@ fn SettingsEnumSelect<T: 'static + Clone + PartialEq + Display + IntoEnumIterato
     label: &'static str,
     #[props(default)] disabled: bool,
     on_selected: Callback<T>,
-    selected: ReadOnlySignal<T>,
+    selected: ReadSignal<T>,
 ) -> Element {
     let selected_equal =
         use_callback(move |value: T| mem::discriminant(&selected()) == mem::discriminant(&value));

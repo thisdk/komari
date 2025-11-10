@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use backend::KeyBinding;
-use dioxus::{events::Key, prelude::*};
+use dioxus::prelude::*;
 use tw_merge::tw_merge;
 
 use crate::components::{icons::XIcon, use_controlled};
@@ -15,17 +15,17 @@ const OPTIONAL_DIV_CLASS: &str =
 
 #[derive(PartialEq, Props, Clone)]
 pub struct KeyInputProps {
-    value: ReadOnlySignal<Option<Option<KeyBinding>>>,
+    value: ReadSignal<Option<Option<KeyBinding>>>,
     #[props(default)]
     on_value: Callback<Option<KeyBinding>>,
     #[props(default)]
-    active: ReadOnlySignal<Option<bool>>,
+    active: ReadSignal<Option<bool>>,
     #[props(default)]
     on_active: Callback<bool>,
     #[props(default)]
     optional: bool,
     #[props(default)]
-    disabled: ReadOnlySignal<bool>,
+    disabled: ReadSignal<bool>,
     #[props(default)]
     class: String,
 }

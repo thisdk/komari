@@ -17,7 +17,7 @@ pub struct ButtonProps {
     #[props(default)]
     on_click: Callback,
     #[props(default)]
-    disabled: ReadOnlySignal<bool>,
+    disabled: ReadSignal<bool>,
     #[props(default = ButtonStyle::Primary)]
     style: ButtonStyle,
     #[props(default)]

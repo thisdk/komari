@@ -1,7 +1,5 @@
 use std::{
     fmt::Display,
-    fs::File,
-    io::BufReader,
     mem::{discriminant, swap},
     ops::Range,
 };
@@ -11,7 +9,7 @@ use backend::{
     IntoEnumIterator, KeyBinding, LinkKeyBinding, Minimap, MobbingKey, Platform, Position,
     RotationMode, key_receiver, update_minimap, upsert_minimap,
 };
-use dioxus::prelude::*;
+use dioxus::{html::FileData, prelude::*};
 use futures_util::StreamExt;
 use tokio::sync::broadcast::error::RecvError;
 
@@ -655,14 +653,13 @@ fn SectionActions(actions: Memo<Vec<Action>>, disabled: bool) -> Element {
     let export_name = use_memo(move || format!("{}.json", minimap().name));
     let export_content = move |_| serde_json::to_vec_pretty(&*actions.peek()).unwrap_or_default();
 
-    let import_actions = use_callback(move |file: String| {
+    let import_actions = use_callback(move |file: FileData| async move {
         let mut actions = actions();
 
-        let Ok(file) = File::open(file) else {
+        let Ok(bytes) = file.read_bytes().await else {
             return;
         };
-        let reader = BufReader::new(file);
-        let Ok(import_actions) = serde_json::from_reader::<_, Vec<Action>>(reader) else {
+        let Ok(import_actions) = serde_json::from_slice::<'_, Vec<Action>>(&bytes) else {
             return;
         };
 
@@ -906,7 +903,9 @@ fn SectionActions(actions: Memo<Vec<Action>>, disabled: bool) -> Element {
                 div { class: "flex gap-2",
                     FileInput {
                         class: "flex-grow",
-                        on_file: import_actions,
+                        on_file: move |file| async move {
+                            import_actions(file).await;
+                        },
                         disabled,
                         Button {
                             class: "w-full",
@@ -1210,7 +1209,7 @@ fn ActionInput(
     #[props(default)] on_copy: Option<Callback>,
     on_cancel: Callback,
     on_value: Callback<(Action, ActionCondition)>,
-    value: ReadOnlySignal<Action>,
+    value: ReadSignal<Action>,
 ) -> Element {
     let mut action = use_signal(&*value);
     let button_text = use_memo(move || {
@@ -1306,7 +1305,7 @@ fn ActionMoveInput(
     linkable: bool,
     on_cancel: Callback,
     on_value: Callback<(ActionMove, ActionCondition)>,
-    value: ReadOnlySignal<ActionMove>,
+    value: ReadSignal<ActionMove>,
 ) -> Element {
     let position = use_context::<AppState>().position;
     let mut action = use_signal(&*value);
@@ -1417,7 +1416,7 @@ fn ActionKeyInput(
     directionable: bool,
     on_cancel: Callback,
     on_value: Callback<(ActionKey, ActionCondition)>,
-    value: ReadOnlySignal<ActionKey>,
+    value: ReadSignal<ActionKey>,
 ) -> Element {
     let position = use_context::<AppState>().position;
     let mut action = use_signal(&*value);
@@ -1932,7 +1931,7 @@ fn ActionsSelect<T: 'static + Clone + PartialEq + Display + IntoEnumIterator>(
     label: &'static str,
     disabled: bool,
     on_selected: Callback<T>,
-    selected: ReadOnlySignal<T>,
+    selected: ReadSignal<T>,
 ) -> Element {
     let selected_equal =
         use_callback(move |value: T| discriminant(&selected()) == discriminant(&value));
@@ -1958,7 +1957,7 @@ fn ActionsSelect<T: 'static + Clone + PartialEq + Display + IntoEnumIterator>(
 fn ActionsPositionInput(
     label: &'static str,
     #[props(default)] disabled: bool,
-    on_icon_click: ReadOnlySignal<Option<Callback>>,
+    on_icon_click: ReadSignal<Option<Callback>>,
     on_value: Callback<i32>,
     value: i32,
 ) -> Element {

@@ -1,4 +1,4 @@
-use std::{fmt::Display, fs::File, io::BufReader, mem};
+use std::{fmt::Display, mem};
 
 use backend::{
     ActionConfiguration, ActionConfigurationCondition, ActionKeyWith, Character, Class,
@@ -6,7 +6,7 @@ use backend::{
     KeyBindingConfiguration, LinkKeyBinding, PotionMode, delete_character, query_characters,
     update_character, upsert_character,
 };
-use dioxus::prelude::*;
+use dioxus::{html::FileData, prelude::*};
 use futures_util::StreamExt;
 
 use crate::{
@@ -652,7 +652,7 @@ fn SectionBuffs() -> Element {
         label: &'static str,
         value: KeyBindingConfiguration,
         on_value: Callback<KeyBindingConfiguration>,
-        disabled: ReadOnlySignal<bool>,
+        disabled: ReadSignal<bool>,
     ) -> Element {
         rsx! {
             div { class: "flex gap-2",
@@ -989,12 +989,11 @@ fn SectionOthers() -> Element {
     let export_name = use_memo(move || format!("{}.json", character().name));
     let export_content = move |_| serde_json::to_vec_pretty(&*character.peek()).unwrap_or_default();
 
-    let import_character = use_callback(move |file: String| {
-        let Ok(file) = File::open(file) else {
+    let import_character = use_callback(move |file: FileData| async move {
+        let Ok(bytes) = file.read_bytes().await else {
             return;
         };
-        let reader = BufReader::new(file);
-        let Ok(character) = serde_json::from_reader::<_, Character>(reader) else {
+        let Ok(character) = serde_json::from_slice::<'_, Character>(&bytes) else {
             return;
         };
 
@@ -1043,7 +1042,11 @@ fn SectionOthers() -> Element {
                 }
                 div {}
                 div { class: "flex gap-2 col-span-3",
-                    FileInput { on_file: import_character, class: "flex-grow",
+                    FileInput {
+                        on_file: move |file| async move {
+                            import_character(file).await;
+                        },
+                        class: "flex-grow",
                         Button { class: "w-full", "Import" }
                     }
                     FileOutput {
@@ -1095,7 +1098,7 @@ fn ActionConfigurationInput(
     on_copy: Callback,
     on_cancel: Callback,
     on_value: Callback<ActionConfiguration>,
-    value: ReadOnlySignal<ActionConfiguration>,
+    value: ReadSignal<ActionConfiguration>,
 ) -> Element {
     let mut action = use_signal(&*value);
     let millis = use_memo(move || match action().condition {
@@ -1482,7 +1485,7 @@ fn CharactersKeyBindingConfigurationInput(
     on_value: Callback<Option<KeyBindingConfiguration>>,
     #[props(default)] optional: bool,
     #[props(default)] tooltip: Option<String>,
-    disabled: ReadOnlySignal<bool>,
+    disabled: ReadSignal<bool>,
     #[props(default)] label_class: String,
     #[props(default)] input_class: String,
 ) -> Element {
@@ -1517,7 +1520,7 @@ fn CharactersKeyInput(
     #[props(default)] tooltip: Option<String>,
     #[props(default = ContentSide::Bottom)] tooltip_side: ContentSide,
     #[props(default = ContentAlign::Start)] tooltip_align: ContentAlign,
-    #[props(default)] disabled: ReadOnlySignal<bool>,
+    #[props(default)] disabled: ReadSignal<bool>,
     #[props(default)] label_class: String,
     #[props(default)] input_class: String,
 ) -> Element {
@@ -1552,7 +1555,7 @@ fn CharactersCheckbox(
     checked: bool,
     on_checked: Callback<bool>,
     #[props(default)] tooltip: Option<String>,
-    #[props(default)] disabled: ReadOnlySignal<bool>,
+    #[props(default)] disabled: ReadSignal<bool>,
 ) -> Element {
     rsx! {
         Labeled { label, tooltip, tooltip_align: ContentAlign::Center,
@@ -1567,8 +1570,8 @@ fn CharactersSelect<T: PartialEq + Clone + Display + IntoEnumIterator + 'static>
     #[props(default)] label_class: String,
     #[props(default)] tooltip: Option<String>,
     on_selected: Callback<T>,
-    selected: ReadOnlySignal<T>,
-    #[props(default)] disabled: ReadOnlySignal<bool>,
+    selected: ReadSignal<T>,
+    #[props(default)] disabled: ReadSignal<bool>,
 ) -> Element {
     let selected_equal =
         use_callback(move |value: T| mem::discriminant(&selected()) == mem::discriminant(&value));

@@ -36,7 +36,7 @@ fn use_unique_id() -> Memo<String> {
 }
 
 fn use_controlled<T: Clone + PartialEq + 'static>(
-    current_value: ReadOnlySignal<Option<T>>,
+    current_value: ReadSignal<Option<T>>,
     default_value: T,
     on_value: Callback<T>,
 ) -> (Memo<T>, Callback<T>) {
@@ -52,9 +52,9 @@ fn use_controlled<T: Clone + PartialEq + 'static>(
 }
 
 fn use_controlled_required<T: Clone + PartialEq + 'static>(
-    current_value: ReadOnlySignal<T>,
+    current_value: ReadSignal<T>,
     on_value: Callback<T>,
-) -> (ReadOnlySignal<T>, Callback<T>) {
+) -> (ReadSignal<T>, Callback<T>) {
     let mut inner_value = use_signal(|| current_value.cloned());
 
     let set_value = use_callback(move |x: T| {
@@ -78,7 +78,7 @@ fn use_auto_numeric<T>(
     suffix: String,
 ) -> Callback<T>
 where
-    T: PartialEq + Clone + Display + FromStr,
+    T: PartialEq + Clone + Display + FromStr + 'static,
 {
     use_effect(move || {
         let initial_value = initial_value.peek().clone();
