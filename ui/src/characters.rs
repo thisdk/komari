@@ -1095,12 +1095,16 @@ fn ActionConfigurationInput(
     on_copy: Callback,
     on_cancel: Callback,
     on_value: Callback<ActionConfiguration>,
-    value: ActionConfiguration,
+    value: ReadOnlySignal<ActionConfiguration>,
 ) -> Element {
-    let mut action = use_signal(|| value);
+    let mut action = use_signal(&*value);
     let millis = use_memo(move || match action().condition {
         ActionConfigurationCondition::EveryMillis(millis) => Some(millis),
         ActionConfigurationCondition::Linked => None,
+    });
+
+    use_effect(move || {
+        action.set(value());
     });
 
     rsx! {
@@ -1143,7 +1147,7 @@ fn ActionConfigurationInput(
                         action.condition = if is_linked {
                             ActionConfigurationCondition::Linked
                         } else {
-                            value.condition
+                            value.peek().condition
                         };
                     },
                 }
