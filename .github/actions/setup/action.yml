@@ -29,28 +29,29 @@ runs:
         echo "set(VCPKG_BUILD_TYPE release)" >> triplets/x64-windows-static.cmake
         ./vcpkg.exe install --clean-after-build --recurse opencv4[contrib,nonfree]:x64-windows-static
 
-    - uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: nightly-x86_64-pc-windows-msvc@fb23dd3c6
-        components: clippy, rustfmt
+    - uses: mozilla-actions/sccache-action@v0.0.9
 
     - uses: actions/setup-node@v4
       with:
         node-version: latest
         cache: "npm"
         cache-dependency-path: "./ui/package-lock.json"
-
-    - uses: mozilla-actions/sccache-action@v0.0.9
-
-    - uses: cargo-bins/cargo-binstall@main
-
     - name: Install TailwindCSS and Dioxus CLI
       shell: pwsh
       run: |
         cd ui
         npm install
-        cd ../
-        cargo binstall dioxus-cli@0.6.3 --no-confirm
+
+    - uses: cargo-bins/cargo-binstall@main
+    - name: Install Dioxus CLI
+      shell: pwsh
+      run: cargo binstall dioxus-cli@0.6.3 --no-confirm
+
+    - name: Install toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: nightly-2025-11-09-x86_64-pc-windows-msvc
+        components: clippy, rustfmt
 
     - name: Install protoc
       shell: pwsh
