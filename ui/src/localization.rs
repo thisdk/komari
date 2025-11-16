@@ -1,10 +1,8 @@
-use std::fs::{self};
-
 use backend::{
     GameTemplate, Localization, convert_image_to_base64, query_localization, query_template,
     save_capture_image, upsert_localization,
 };
-use dioxus::prelude::*;
+use dioxus::{html::FileData, prelude::*};
 use futures_util::{StreamExt, future::OptionFuture};
 
 use crate::{
@@ -433,10 +431,10 @@ fn LocalizationTemplateInput(
     template: GameTemplate,
     #[props(default)] tooltip: Option<String>,
     on_value: Callback<Option<Vec<u8>>>,
-    value: ReadOnlySignal<Option<String>>,
+    value: ReadSignal<Option<String>>,
 ) -> Element {
-    let read_file = use_callback(move |file: String| {
-        on_value(fs::read(file).ok());
+    let read_file = use_callback(move |file: FileData| async move {
+        on_value(file.read_bytes().await.ok().map(Vec::from));
     });
     let mut base64 = use_signal(String::default);
 
@@ -474,7 +472,11 @@ fn LocalizationTemplateInput(
                 }
             }
             div { class: "flex items-end",
-                FileInput { on_file: read_file, accept: ".png,image/png",
+                FileInput {
+                    on_file: move |file| async move {
+                        read_file(file).await;
+                    },
+                    accept: ".png,image/png",
                     Button { class: "w-14", style: ButtonStyle::Primary, "Replace" }
                 }
             }

@@ -17,9 +17,9 @@ pub struct NamedSelectProps {
     #[props(default)]
     class: String,
     #[props(default)]
-    disabled: ReadOnlySignal<bool>,
+    disabled: ReadSignal<bool>,
     #[props(default)]
-    delete_disabled: ReadOnlySignal<bool>,
+    delete_disabled: ReadSignal<bool>,
     children: Element,
 }
 

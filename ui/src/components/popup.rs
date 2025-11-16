@@ -4,13 +4,13 @@ use crate::components::use_controlled_required;
 
 #[derive(Clone, Copy, Debug)]
 struct PopupContext {
-    open: ReadOnlySignal<bool>,
+    open: ReadSignal<bool>,
     set_open: Callback<bool>,
 }
 
 #[derive(Props, Clone, PartialEq)]
 pub struct PopupProps {
-    open: ReadOnlySignal<bool>,
+    open: ReadSignal<bool>,
     #[props(default)]
     on_open: Callback<bool>,
     children: Element,

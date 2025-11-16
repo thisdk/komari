@@ -1,4 +1,4 @@
-use dioxus::prelude::*;
+use dioxus::{core::use_drop, prelude::*};
 
 use crate::components::use_unique_id;
 
@@ -15,8 +15,8 @@ struct SelectContext<T: Clone + PartialEq + 'static> {
 #[derive(Clone)]
 struct OptionState<T: Clone + PartialEq + 'static> {
     id: String,
-    selected: ReadOnlySignal<bool>,
-    value: ReadOnlySignal<T>,
+    selected: ReadSignal<bool>,
+    value: ReadSignal<T>,
 }
 
 #[derive(PartialEq, Props, Clone)]
@@ -24,7 +24,7 @@ pub struct SelectProps<T: Clone + PartialEq + 'static> {
     #[props(default)]
     on_selected: Callback<T>,
     #[props(default)]
-    disabled: ReadOnlySignal<bool>,
+    disabled: ReadSignal<bool>,
     #[props(default)]
     placeholder: String,
     #[props(default)]
@@ -73,13 +73,13 @@ where
 
 #[derive(PartialEq, Props, Clone)]
 pub struct SelectOptionProps<T: Clone + PartialEq + 'static> {
-    value: ReadOnlySignal<T>,
+    value: ReadSignal<T>,
     #[props(default)]
     label: Option<String>,
     #[props(default)]
-    selected: ReadOnlySignal<bool>,
+    selected: ReadSignal<bool>,
     #[props(default)]
-    disabled: ReadOnlySignal<bool>,
+    disabled: ReadSignal<bool>,
     #[props(default)]
     class: String,
 }

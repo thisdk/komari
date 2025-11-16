@@ -45,7 +45,7 @@ runs:
     - uses: cargo-bins/cargo-binstall@main
     - name: Install Dioxus CLI
       shell: pwsh
-      run: cargo binstall dioxus-cli@0.6.3 --no-confirm
+      run: cargo binstall dioxus-cli@0.7.1 --no-confirm
 
     - name: Install toolchain
       uses: dtolnay/rust-toolchain@master
