@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     env,
     sync::{LazyLock, Mutex},
 };
@@ -12,8 +12,8 @@ use serde_json::Value;
 use strum::{Display, EnumIter, EnumString};
 use tokio::sync::broadcast::{Receiver, Sender, channel};
 
+use crate::models::{KeyBinding, KeyBindingConfiguration, Localization, Settings};
 use crate::{ExchangeHexaBoosterCondition, pathing};
-use crate::{bridge::KeyKind, models::Localization};
 
 const MAPS: &str = "maps";
 const NAVIGATION_PATHS: &str = "navigation_paths";
@@ -129,199 +129,11 @@ fn perlin_seed_default() -> u32 {
 #[derive(
     Clone, Copy, PartialEq, Default, Debug, Serialize, Deserialize, EnumIter, Display, EnumString,
 )]
-pub enum InputMethod {
-    #[default]
-    Default,
-    Rpc,
-}
-
-#[derive(
-    Clone, Copy, PartialEq, Default, Debug, Serialize, Deserialize, EnumIter, Display, EnumString,
-)]
-pub enum SwappableFamiliars {
-    #[default]
-    All,
-    Last,
-    SecondAndLast,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Default, Hash, Serialize, Deserialize)]
-pub enum FamiliarRarity {
-    #[default]
-    Rare,
-    Epic,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Familiars {
-    pub enable_familiars_swapping: bool,
-    #[serde(default = "familiars_swap_check_millis")]
-    pub swap_check_millis: u64,
-    pub swappable_familiars: SwappableFamiliars,
-    pub swappable_rarities: HashSet<FamiliarRarity>,
-}
-
-impl Default for Familiars {
-    fn default() -> Self {
-        Self {
-            enable_familiars_swapping: false,
-            swap_check_millis: familiars_swap_check_millis(),
-            swappable_familiars: SwappableFamiliars::default(),
-            swappable_rarities: HashSet::default(),
-        }
-    }
-}
-
-fn familiars_swap_check_millis() -> u64 {
-    300000
-}
-
-#[derive(
-    Clone, Copy, PartialEq, Default, Debug, Serialize, Deserialize, EnumIter, Display, EnumString,
-)]
 pub enum EliteBossBehavior {
     #[default]
     None,
     CycleChannel,
     UseKey,
-}
-
-#[derive(
-    Clone, Copy, PartialEq, Default, Debug, Serialize, Deserialize, EnumIter, Display, EnumString,
-)]
-pub enum CycleRunStopMode {
-    #[default]
-    None,
-    Once,
-    Repeat,
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-pub struct Notifications {
-    pub discord_webhook_url: String,
-    pub discord_user_id: String,
-    pub notify_on_fail_or_change_map: bool,
-    pub notify_on_rune_appear: bool,
-    pub notify_on_elite_boss_appear: bool,
-    pub notify_on_player_die: bool,
-    pub notify_on_player_guildie_appear: bool,
-    pub notify_on_player_stranger_appear: bool,
-    pub notify_on_player_friend_appear: bool,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Settings {
-    #[serde(skip_serializing, default)]
-    pub id: Option<i64>,
-    pub capture_mode: CaptureMode,
-    #[serde(default = "enable_rune_solving_default")]
-    pub enable_rune_solving: bool,
-    pub enable_panic_mode: bool,
-    pub stop_on_fail_or_change_map: bool,
-    #[serde(default = "stop_on_player_die_default")]
-    pub stop_on_player_die: bool,
-    #[serde(default, deserialize_with = "deserialize_with_ok_or_default")]
-    pub cycle_run_stop: CycleRunStopMode,
-    #[serde(default = "cycle_run_duration_millis_default")]
-    pub cycle_run_duration_millis: u64,
-    #[serde(default = "cycle_stop_duration_millis_default")]
-    pub cycle_stop_duration_millis: u64,
-    pub input_method: InputMethod,
-    pub input_method_rpc_server_url: String,
-    #[serde(default)]
-    pub discord_bot_access_token: String,
-    pub notifications: Notifications,
-    pub familiars: Familiars,
-    #[serde(default = "toggle_actions_key_default")]
-    pub toggle_actions_key: KeyBindingConfiguration,
-    #[serde(default = "platform_start_key_default")]
-    pub platform_start_key: KeyBindingConfiguration,
-    #[serde(default = "platform_end_key_default")]
-    pub platform_end_key: KeyBindingConfiguration,
-    #[serde(default = "platform_add_key_default")]
-    pub platform_add_key: KeyBindingConfiguration,
-}
-
-impl Default for Settings {
-    fn default() -> Self {
-        Self {
-            id: None,
-            capture_mode: CaptureMode::default(),
-            enable_rune_solving: enable_rune_solving_default(),
-            enable_panic_mode: false,
-            input_method: InputMethod::default(),
-            input_method_rpc_server_url: String::default(),
-            stop_on_fail_or_change_map: false,
-            stop_on_player_die: stop_on_player_die_default(),
-            cycle_run_stop: CycleRunStopMode::default(),
-            cycle_run_duration_millis: cycle_run_duration_millis_default(),
-            cycle_stop_duration_millis: cycle_stop_duration_millis_default(),
-            discord_bot_access_token: String::default(),
-            notifications: Notifications::default(),
-            familiars: Familiars::default(),
-            toggle_actions_key: toggle_actions_key_default(),
-            platform_start_key: platform_start_key_default(),
-            platform_end_key: platform_end_key_default(),
-            platform_add_key: platform_add_key_default(),
-        }
-    }
-}
-
-impl_identifiable!(Settings);
-
-fn stop_on_player_die_default() -> bool {
-    true
-}
-
-fn cycle_run_duration_millis_default() -> u64 {
-    14400000 // 4 hours
-}
-
-fn cycle_stop_duration_millis_default() -> u64 {
-    3600000 // 1 hour
-}
-
-fn enable_rune_solving_default() -> bool {
-    true
-}
-
-fn toggle_actions_key_default() -> KeyBindingConfiguration {
-    KeyBindingConfiguration {
-        key: KeyBinding::Comma,
-        enabled: false,
-    }
-}
-
-fn platform_start_key_default() -> KeyBindingConfiguration {
-    KeyBindingConfiguration {
-        key: KeyBinding::J,
-        enabled: false,
-    }
-}
-
-fn platform_end_key_default() -> KeyBindingConfiguration {
-    KeyBindingConfiguration {
-        key: KeyBinding::K,
-        enabled: false,
-    }
-}
-
-fn platform_add_key_default() -> KeyBindingConfiguration {
-    KeyBindingConfiguration {
-        key: KeyBinding::L,
-        enabled: false,
-    }
-}
-
-#[derive(
-    Clone, Copy, PartialEq, Default, Debug, Serialize, Deserialize, EnumIter, Display, EnumString,
-)]
-pub enum CaptureMode {
-    BitBlt,
-    #[strum(to_string = "Windows 10 (1903 and up)")] // Thanks OBS
-    #[default]
-    WindowsGraphicsCapture,
-    BitBltArea,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -561,12 +373,6 @@ impl From<ActionConfiguration> for Action {
             wait_after_use_millis_random_range: value.wait_after_millis_random_range,
         })
     }
-}
-
-#[derive(Clone, Copy, Default, PartialEq, Debug, Serialize, Deserialize)]
-pub struct KeyBindingConfiguration {
-    pub key: KeyBinding,
-    pub enabled: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Default, Debug, Serialize, Deserialize)]
@@ -892,162 +698,6 @@ pub enum ActionKeyDirection {
     Any,
     Left,
     Right,
-}
-
-#[derive(
-    Clone, Copy, PartialEq, Default, Debug, Serialize, Deserialize, EnumIter, Display, EnumString,
-)]
-pub enum KeyBinding {
-    #[default]
-    A,
-    B,
-    C,
-    D,
-    E,
-    F,
-    G,
-    H,
-    I,
-    J,
-    K,
-    L,
-    M,
-    N,
-    O,
-    P,
-    Q,
-    R,
-    S,
-    T,
-    U,
-    V,
-    W,
-    X,
-    Y,
-    Z,
-    Zero,
-    One,
-    Two,
-    Three,
-    Four,
-    Five,
-    Six,
-    Seven,
-    Eight,
-    Nine,
-    F1,
-    F2,
-    F3,
-    F4,
-    F5,
-    F6,
-    F7,
-    F8,
-    F9,
-    F10,
-    F11,
-    F12,
-    Up,
-    Down,
-    Left,
-    Right,
-    Home,
-    End,
-    PageUp,
-    PageDown,
-    Insert,
-    Delete,
-    Enter,
-    Space,
-    Tilde,
-    Quote,
-    Semicolon,
-    Comma,
-    Period,
-    Slash,
-    Esc,
-    Shift,
-    Ctrl,
-    Alt,
-    Backspace,
-}
-
-impl From<KeyKind> for KeyBinding {
-    fn from(value: KeyKind) -> Self {
-        match value {
-            KeyKind::A => KeyBinding::A,
-            KeyKind::B => KeyBinding::B,
-            KeyKind::C => KeyBinding::C,
-            KeyKind::D => KeyBinding::D,
-            KeyKind::E => KeyBinding::E,
-            KeyKind::F => KeyBinding::F,
-            KeyKind::G => KeyBinding::G,
-            KeyKind::H => KeyBinding::H,
-            KeyKind::I => KeyBinding::I,
-            KeyKind::J => KeyBinding::J,
-            KeyKind::K => KeyBinding::K,
-            KeyKind::L => KeyBinding::L,
-            KeyKind::M => KeyBinding::M,
-            KeyKind::N => KeyBinding::N,
-            KeyKind::O => KeyBinding::O,
-            KeyKind::P => KeyBinding::P,
-            KeyKind::Q => KeyBinding::Q,
-            KeyKind::R => KeyBinding::R,
-            KeyKind::S => KeyBinding::S,
-            KeyKind::T => KeyBinding::T,
-            KeyKind::U => KeyBinding::U,
-            KeyKind::V => KeyBinding::V,
-            KeyKind::W => KeyBinding::W,
-            KeyKind::X => KeyBinding::X,
-            KeyKind::Y => KeyBinding::Y,
-            KeyKind::Z => KeyBinding::Z,
-            KeyKind::Zero => KeyBinding::Zero,
-            KeyKind::One => KeyBinding::One,
-            KeyKind::Two => KeyBinding::Two,
-            KeyKind::Three => KeyBinding::Three,
-            KeyKind::Four => KeyBinding::Four,
-            KeyKind::Five => KeyBinding::Five,
-            KeyKind::Six => KeyBinding::Six,
-            KeyKind::Seven => KeyBinding::Seven,
-            KeyKind::Eight => KeyBinding::Eight,
-            KeyKind::Nine => KeyBinding::Nine,
-            KeyKind::F1 => KeyBinding::F1,
-            KeyKind::F2 => KeyBinding::F2,
-            KeyKind::F3 => KeyBinding::F3,
-            KeyKind::F4 => KeyBinding::F4,
-            KeyKind::F5 => KeyBinding::F5,
-            KeyKind::F6 => KeyBinding::F6,
-            KeyKind::F7 => KeyBinding::F7,
-            KeyKind::F8 => KeyBinding::F8,
-            KeyKind::F9 => KeyBinding::F9,
-            KeyKind::F10 => KeyBinding::F10,
-            KeyKind::F11 => KeyBinding::F11,
-            KeyKind::F12 => KeyBinding::F12,
-            KeyKind::Up => KeyBinding::Up,
-            KeyKind::Down => KeyBinding::Down,
-            KeyKind::Left => KeyBinding::Left,
-            KeyKind::Right => KeyBinding::Right,
-            KeyKind::Home => KeyBinding::Home,
-            KeyKind::End => KeyBinding::End,
-            KeyKind::PageUp => KeyBinding::PageUp,
-            KeyKind::PageDown => KeyBinding::PageDown,
-            KeyKind::Insert => KeyBinding::Insert,
-            KeyKind::Delete => KeyBinding::Delete,
-            KeyKind::Enter => KeyBinding::Enter,
-            KeyKind::Space => KeyBinding::Space,
-            KeyKind::Tilde => KeyBinding::Tilde,
-            KeyKind::Quote => KeyBinding::Quote,
-            KeyKind::Semicolon => KeyBinding::Semicolon,
-            KeyKind::Comma => KeyBinding::Comma,
-            KeyKind::Period => KeyBinding::Period,
-            KeyKind::Slash => KeyBinding::Slash,
-            KeyKind::Esc => KeyBinding::Esc,
-            KeyKind::Shift => KeyBinding::Shift,
-            KeyKind::Ctrl => KeyBinding::Ctrl,
-            KeyKind::Alt => KeyBinding::Alt,
-            KeyKind::Backspace => KeyBinding::Backspace,
-        }
-    }
 }
 
 pub fn database_event_receiver() -> Receiver<DatabaseEvent> {

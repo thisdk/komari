@@ -10,9 +10,9 @@ use super::{
 use crate::{
     array::Array,
     bridge::{KeyKind, MouseKind},
-    database::{FamiliarRarity, SwappableFamiliars},
     detect::{FamiliarLevel, FamiliarRank},
     ecs::Resources,
+    models::{FamiliarRarity, SwappableFamiliars},
     player::{PlayerEntity, next_action},
     transition, transition_from_action, transition_if, try_ok_transition, try_some_transition,
 };
