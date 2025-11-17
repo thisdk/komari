@@ -324,6 +324,7 @@ pub struct ActionConfiguration {
     pub key: KeyBinding,
     #[serde(default)]
     pub key_hold_millis: u64,
+    #[serde(default, deserialize_with = "deserialize_with_ok_or_default")]
     pub link_key: LinkKeyBinding,
     pub count: u32,
     pub condition: ActionConfigurationCondition,
@@ -410,6 +411,7 @@ pub struct MobbingKey {
     pub key: KeyBinding,
     #[serde(default)]
     pub key_hold_millis: u64,
+    #[serde(default, deserialize_with = "deserialize_with_ok_or_default")]
     pub link_key: LinkKeyBinding,
     #[serde(default = "key_count_default")]
     pub count: u32,
@@ -568,6 +570,7 @@ pub struct ActionKey {
     pub key: KeyBinding,
     #[serde(default)]
     pub key_hold_millis: u64,
+    #[serde(default, deserialize_with = "deserialize_with_ok_or_default")]
     pub link_key: LinkKeyBinding,
     #[serde(default = "count_default")]
     pub count: u32,
@@ -602,8 +605,11 @@ impl Default for ActionKey {
     }
 }
 
-#[derive(Clone, Copy, Display, EnumString, EnumIter, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Display, EnumString, EnumIter, PartialEq, Debug, Serialize, Deserialize, Default,
+)]
 pub enum LinkKeyBinding {
+    #[default]
     None,
     Before(KeyBinding),
     AtTheSame(KeyBinding),
@@ -630,12 +636,6 @@ impl LinkKeyBinding {
             LinkKeyBinding::Along(_) => LinkKeyBinding::Along(key),
             LinkKeyBinding::None => LinkKeyBinding::None,
         }
-    }
-}
-
-impl Default for LinkKeyBinding {
-    fn default() -> Self {
-        LinkKeyBinding::Before(KeyBinding::default())
     }
 }
 
