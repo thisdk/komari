@@ -156,8 +156,8 @@ pub fn update_double_jumping_state(
                 player,
                 Player::DoubleJumping(double_jumping.moving(moving.timeout_started(false))),
                 double_jumping.require_near_stationary
-                    && x_velocity > X_NEAR_STATIONARY_VELOCITY_THRESHOLD
-                    || y_velocity > Y_NEAR_STATIONARY_VELOCITY_THRESHOLD
+                    && (x_velocity > X_NEAR_STATIONARY_VELOCITY_THRESHOLD
+                        || y_velocity > Y_NEAR_STATIONARY_VELOCITY_THRESHOLD)
             );
 
             player.context.last_movement = Some(LastMovement::DoubleJumping);
