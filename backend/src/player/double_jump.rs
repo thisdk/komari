@@ -55,7 +55,7 @@ const COOLDOWN_TIMEOUT: u32 = MOVE_TIMEOUT;
 const GRAPPLING_THRESHOLD: i32 = 4;
 
 /// Minimum x velocity to be considered as double jumped.
-const X_VELOCITY_THRESHOLD: f32 = 0.9;
+const X_VELOCITY_THRESHOLD: f32 = 1.0;
 
 /// Maximum x velocity allowed to be considered as near stationary.
 const X_NEAR_STATIONARY_VELOCITY_THRESHOLD: f32 = 0.75;
