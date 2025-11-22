@@ -343,6 +343,7 @@ pub fn update_use_key_state(
             position: Position { y, .. },
             ..
         })) => {
+            assert!(!use_key.key_hold_buffered_to_wait_after);
             assert!(!use_key.wait_after_buffered);
 
             let should_terminate = matches!(
@@ -367,6 +368,7 @@ pub fn update_use_key_state(
         }
 
         Some(PlayerAction::PingPong(ping_pong)) => {
+            assert!(!use_key.key_hold_buffered_to_wait_after);
             assert!(!use_key.wait_after_buffered);
 
             transition_if!(player, player_next_state, !is_terminal);

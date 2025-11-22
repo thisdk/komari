@@ -1137,6 +1137,7 @@ fn PopupMobbingKeyInputContent(
                 switchable: false,
                 modifying: true,
                 directionable: false,
+                bufferable: false,
                 on_cancel,
                 on_value: move |(action, _)| {
                     let action = match action {
@@ -1191,6 +1192,7 @@ fn PopupActionInputContent(
                 linkable,
                 positionable: true,
                 directionable: true,
+                bufferable: true,
                 on_copy,
                 on_cancel,
                 on_value,
@@ -1207,6 +1209,7 @@ fn ActionInput(
     #[props(default)] linkable: bool,
     #[props(default)] positionable: bool,
     directionable: bool,
+    bufferable: bool,
     #[props(default)] on_copy: Option<Callback>,
     on_cancel: Callback,
     on_value: Callback<(Action, ActionCondition)>,
@@ -1288,6 +1291,7 @@ fn ActionInput(
                         linkable,
                         positionable,
                         directionable,
+                        bufferable,
                         on_cancel,
                         on_value: move |(action, condition)| {
                             on_value((Action::Key(action), condition));
@@ -1415,6 +1419,7 @@ fn ActionKeyInput(
     linkable: bool,
     positionable: bool,
     directionable: bool,
+    bufferable: bool,
     on_cancel: Callback,
     on_value: Callback<(ActionKey, ActionCondition)>,
     value: ReadSignal<ActionKey>,
@@ -1534,15 +1539,19 @@ fn ActionKeyInput(
                     value: action().key_hold_millis,
                 }
             }
-            ActionsCheckbox {
-                label: "Holding buffered",
-                tooltip: "Require [Wait after buffered] to be enabled and without [Link key]. When enabled, the holding time will be added to [Wait after] during the last key use. Useful for holding down key and moving simultaneously.",
-                tooltip_side: ContentSide::Bottom,
-                on_checked: move |checked| {
-                    let mut action = action.write();
-                    action.key_hold_buffered_to_wait_after = checked;
-                },
-                checked: action().key_hold_buffered_to_wait_after,
+            if bufferable {
+                ActionsCheckbox {
+                    label: "Holding buffered",
+                    tooltip: "Require [Wait after buffered] to be enabled and without [Link key]. When enabled, the holding time will be added to [Wait after] during the last key use. Useful for holding down key and moving simultaneously.",
+                    tooltip_side: ContentSide::Bottom,
+                    on_checked: move |checked| {
+                        let mut action = action.write();
+                        action.key_hold_buffered_to_wait_after = checked;
+                    },
+                    checked: action().key_hold_buffered_to_wait_after,
+                }
+            } else {
+                div {}
             }
 
 
@@ -1670,14 +1679,16 @@ fn ActionKeyInput(
                 },
                 value: action().wait_after_use_millis_random_range,
             }
-            ActionsCheckbox {
-                label: "Wait after buffered",
-                tooltip: "After the last key use, instead of waiting inplace, the bot is allowed to execute the next action partially. This can be useful for movable skill with casting animation.",
-                on_checked: move |wait_after_buffered: bool| {
-                    let mut action = action.write();
-                    action.wait_after_buffered = wait_after_buffered;
-                },
-                checked: action().wait_after_buffered,
+            if bufferable {
+                ActionsCheckbox {
+                    label: "Wait after buffered",
+                    tooltip: "After the last key use, instead of waiting inplace, the bot is allowed to execute the next action partially. This can be useful for movable skill with casting animation.",
+                    on_checked: move |wait_after_buffered: bool| {
+                        let mut action = action.write();
+                        action.wait_after_buffered = wait_after_buffered;
+                    },
+                    checked: action().wait_after_buffered,
+                }
             }
         }
         div { class: "flex w-full gap-3 absolute bottom-0 py-2 bg-secondary-surface",
