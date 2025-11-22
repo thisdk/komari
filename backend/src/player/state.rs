@@ -461,7 +461,6 @@ impl PlayerContext {
     #[inline]
     pub fn take_priority_action(&mut self) -> Option<u32> {
         self.reset_to_idle_next_update = true;
-        self.reset_stalling_buffer_states_next_update = true;
         if self.priority_action.take().is_some() {
             self.priority_action_id
         } else {
@@ -479,7 +478,7 @@ impl PlayerContext {
     ) -> Option<u32> {
         let prev_id = self.priority_action_id;
         self.reset_to_idle_next_update = true;
-        self.reset_stalling_buffer_states_next_update = true;
+        self.reset_stalling_buffer_states_next_update = !matches!(action, PlayerAction::Move(_));
         self.priority_action_id = id;
 
         if self.priority_action.replace(action).is_some() {
@@ -526,6 +525,7 @@ impl PlayerContext {
     #[inline]
     pub fn clear_actions_aborted(&mut self, should_idle: bool) {
         self.reset_to_idle_next_update = should_idle;
+        self.reset_stalling_buffer_states_next_update = true;
         self.priority_action = None;
         self.normal_action = None;
     }

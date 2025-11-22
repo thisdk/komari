@@ -416,7 +416,6 @@ impl DefaultRequestHandler<'_> {
         );
         if matches!(kind, RotateKind::Halt | RotateKind::TemporaryHalt) {
             self.rotator.reset_queue();
-            self.resources.input.clear_all_keys();
             self.world.player.context.clear_actions_aborted(true);
             if let Some(handle) = self.service.pending_halt.take() {
                 handle.abort();
@@ -426,7 +425,6 @@ impl DefaultRequestHandler<'_> {
 
     fn update_halt_or_panic(&mut self, should_halt: bool, should_panic: bool) {
         self.rotator.reset_queue();
-        self.resources.input.clear_all_keys();
         self.world
             .player
             .context

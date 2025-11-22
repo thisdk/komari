@@ -18,7 +18,6 @@ use platforms::{
         KeyState as PlatformKeyState, MouseKind as PlatformMouseKind,
     },
 };
-use strum::{EnumIter, IntoEnumIterator};
 
 use crate::{
     CaptureMode, KeyBinding,
@@ -103,7 +102,7 @@ impl From<MouseKind> for PlatformMouseKind {
 /// The kind of key to sent.
 ///
 /// This is a bridge enum between platform-specific, gRPC and database.
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, EnumIter)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum KeyKind {
     A,
     B,
@@ -605,9 +604,6 @@ pub trait Input: Debug {
 
     /// Whether all keys are cleared.
     fn all_keys_cleared(&self) -> bool;
-
-    /// Clears all keys regardless of the key is being held or not.
-    fn clear_all_keys(&self);
 }
 
 /// Default implementation of [`Input`].
@@ -842,12 +838,6 @@ impl Input for DefaultInput {
     #[inline]
     fn all_keys_cleared(&self) -> bool {
         self.delay_map.borrow().is_empty()
-    }
-
-    fn clear_all_keys(&self) {
-        for key in KeyKind::iter() {
-            let _ = self.send_key_up_inner(key, true);
-        }
     }
 }
 
