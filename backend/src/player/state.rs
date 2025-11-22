@@ -284,6 +284,10 @@ pub struct PlayerContext {
     ///
     /// This is true each time player receives [`PlayerAction`].
     pub(super) reset_to_idle_next_update: bool,
+    /// Indicates whether to reset stalling buffer states on next update.
+    ///
+    /// This is true each time priority action is set.
+    pub(super) reset_stalling_buffer_states_next_update: bool,
 
     /// Indicates the last movement.
     ///
@@ -457,6 +461,7 @@ impl PlayerContext {
     #[inline]
     pub fn take_priority_action(&mut self) -> Option<u32> {
         self.reset_to_idle_next_update = true;
+        self.reset_stalling_buffer_states_next_update = true;
         if self.priority_action.take().is_some() {
             self.priority_action_id
         } else {
@@ -474,6 +479,7 @@ impl PlayerContext {
     ) -> Option<u32> {
         let prev_id = self.priority_action_id;
         self.reset_to_idle_next_update = true;
+        self.reset_stalling_buffer_states_next_update = true;
         self.priority_action_id = id;
 
         if self.priority_action.replace(action).is_some() {
@@ -522,6 +528,14 @@ impl PlayerContext {
         self.reset_to_idle_next_update = should_idle;
         self.priority_action = None;
         self.normal_action = None;
+    }
+
+    pub(super) fn clear_stalling_buffer_states(&mut self, resources: &Resources) {
+        if let Some(callback) = self.stalling_timeout_buffered_end_callback.take() {
+            (callback.inner)(resources);
+        }
+        self.stalling_timeout_buffered = None;
+        self.stalling_timeout_buffered_update_callback = None;
     }
 
     /// Clears either normal or priority due to completion.

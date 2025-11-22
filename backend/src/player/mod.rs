@@ -225,6 +225,10 @@ pub fn run_system(
         player.context.reset_to_idle_next_update = false;
         player.state = Player::Idle;
     }
+    if player.context.reset_stalling_buffer_states_next_update {
+        player.context.reset_stalling_buffer_states_next_update = false;
+        player.context.clear_stalling_buffer_states(resources);
+    }
 
     if !update_non_positional_state(resources, player, minimap.state, false) {
         update_positional_state(resources, player, minimap.state);
