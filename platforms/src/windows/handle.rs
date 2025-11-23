@@ -2,15 +2,23 @@ use std::{cell::Cell, ffi::OsString, os::windows::ffi::OsStringExt, ptr, str};
 
 use windows::{
     Win32::{
-        Foundation::{HWND, LPARAM},
-        Graphics::Dwm::{DWMWA_CLOAKED, DwmGetWindowAttribute},
+        Foundation::{HWND, LPARAM, POINT, RECT},
+        Graphics::{
+            Dwm::{DWMWA_CLOAKED, DwmGetWindowAttribute},
+            Gdi::{
+                ClientToScreen, GetMonitorInfoW, MONITOR_DEFAULTTONULL, MONITORINFO,
+                MonitorFromWindow,
+            },
+        },
         UI::WindowsAndMessaging::{
-            EnumWindows, GWL_EXSTYLE, GWL_STYLE, GetClassNameW, GetWindowLongPtrW, GetWindowTextW,
-            IsWindowVisible, WS_DISABLED, WS_EX_TOOLWINDOW,
+            EnumWindows, GWL_EXSTYLE, GWL_STYLE, GetClassNameW, GetWindowLongPtrW, GetWindowRect,
+            GetWindowTextW, IsWindowVisible, WS_DISABLED, WS_EX_TOOLWINDOW,
         },
     },
     core::BOOL,
 };
+
+use crate::{ConvertedCoordinates, Error, Result};
 
 #[derive(Clone, Debug)]
 pub struct HandleCell {
@@ -68,6 +76,58 @@ impl Handle {
             HandleKind::Fixed(handle) => Some(handle),
             HandleKind::Dynamic(class) => query_handle(class),
         }
+    }
+
+    pub fn convert_coordinate(
+        &self,
+        x: i32,
+        y: i32,
+        monitor_coordinate: bool,
+    ) -> Result<ConvertedCoordinates> {
+        let handle = self.as_inner().ok_or(Error::WindowNotFound)?;
+        let mut point = POINT { x, y };
+        unsafe { ClientToScreen(handle, &raw mut point).ok()? };
+
+        if !monitor_coordinate {
+            let mut rect = RECT::default();
+            unsafe { GetWindowRect(handle, &raw mut rect)? };
+
+            let x = point.x - rect.left;
+            let y = point.y - rect.top;
+            let width = rect.right - rect.left;
+            let height = rect.bottom - rect.top;
+
+            return Ok(ConvertedCoordinates {
+                width,
+                height,
+                x,
+                y,
+            });
+        }
+
+        // Get monitor from window
+        let monitor = unsafe { MonitorFromWindow(handle, MONITOR_DEFAULTTONULL) };
+        if monitor.is_invalid() {
+            return Err(Error::WindowNotFound);
+        }
+
+        let mut mi = MONITORINFO {
+            cbSize: size_of::<MONITORINFO>() as u32,
+            ..MONITORINFO::default()
+        };
+        unsafe { GetMonitorInfoW(monitor, &mut mi).ok()? };
+        let width = mi.rcMonitor.right - mi.rcMonitor.left;
+        let height = mi.rcMonitor.bottom - mi.rcMonitor.top;
+
+        let x = point.x - mi.rcMonitor.left;
+        let y = point.y - mi.rcMonitor.top;
+
+        Ok(ConvertedCoordinates {
+            width,
+            height,
+            x,
+            y,
+        })
     }
 }
 

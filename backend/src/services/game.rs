@@ -227,8 +227,6 @@ fn minimap_frame_from(bbox: Rect, mat: &impl MatTraitConst) -> (Vec<u8>, usize, 
 #[inline]
 fn poll_key(service: &mut DefaultGameService, settings: &Settings) -> Option<GameEvent> {
     let received_key = service.input_rx.try_recv().ok()?;
-    debug!(target: "event", "received key {received_key:?}");
-
     if let KeyBindingConfiguration { key, enabled: true } = settings.toggle_actions_key
         && key == received_key.into()
     {

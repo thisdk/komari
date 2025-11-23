@@ -11,10 +11,7 @@ use tokio::sync::broadcast::{self, Receiver, Sender};
 use windows::{
     Win32::{
         Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
-        Graphics::Gdi::{
-            ClientToScreen, GetMonitorInfoW, IntersectRect, MONITOR_DEFAULTTONULL, MONITORINFO,
-            MonitorFromWindow,
-        },
+        Graphics::Gdi::{ClientToScreen, IntersectRect, MONITOR_DEFAULTTONULL, MonitorFromWindow},
         System::Threading::GetCurrentProcessId,
         UI::{
             Input::KeyboardAndMouse::{
@@ -44,7 +41,7 @@ use windows::{
 
 use super::{HandleCell, handle::Handle};
 use crate::{
-    ConvertedCoordinates, Error, Result,
+    Error, Result,
     input::{InputKind, KeyKind, KeyState, MouseKind},
 };
 
@@ -408,58 +405,6 @@ impl From<KeyKind> for VIRTUAL_KEY {
             KeyKind::Backspace => VK_BACK,
         }
     }
-}
-
-pub fn client_to_monitor_or_frame(
-    handle: Handle,
-    x: i32,
-    y: i32,
-    monitor_coordinate: bool,
-) -> Result<ConvertedCoordinates> {
-    let handle = handle.as_inner().ok_or(Error::WindowNotFound)?;
-    let mut point = POINT { x, y };
-    unsafe { ClientToScreen(handle, &raw mut point).ok()? };
-
-    if !monitor_coordinate {
-        let mut rect = RECT::default();
-        unsafe { GetWindowRect(handle, &raw mut rect)? };
-
-        let x = point.x - rect.left;
-        let y = point.y - rect.top;
-        let width = rect.right - rect.left;
-        let height = rect.bottom - rect.top;
-
-        return Ok(ConvertedCoordinates {
-            width,
-            height,
-            x,
-            y,
-        });
-    }
-
-    // Get monitor from window
-    let monitor = unsafe { MonitorFromWindow(handle, MONITOR_DEFAULTTONULL) };
-    if monitor.is_invalid() {
-        return Err(Error::WindowNotFound);
-    }
-
-    let mut mi = MONITORINFO {
-        cbSize: size_of::<MONITORINFO>() as u32,
-        ..MONITORINFO::default()
-    };
-    unsafe { GetMonitorInfoW(monitor, &mut mi).ok()? };
-    let width = mi.rcMonitor.right - mi.rcMonitor.left;
-    let height = mi.rcMonitor.bottom - mi.rcMonitor.top;
-
-    let x = point.x - mi.rcMonitor.left;
-    let y = point.y - mi.rcMonitor.top;
-
-    Ok(ConvertedCoordinates {
-        width,
-        height,
-        x,
-        y,
-    })
 }
 
 fn client_to_absolute_coordinate_raw(handle: HWND, x: i32, y: i32) -> Result<(i32, i32)> {

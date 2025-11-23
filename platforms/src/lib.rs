@@ -3,7 +3,7 @@
 use thiserror::Error;
 
 #[cfg(windows)]
-use crate::windows::{Handle, HandleKind, client_to_monitor_or_frame};
+use crate::windows::{Handle, HandleKind};
 
 pub mod capture;
 pub mod input;
@@ -83,8 +83,7 @@ impl Window {
         relative: CoordinateRelative,
     ) -> Result<ConvertedCoordinates> {
         if cfg!(windows) {
-            return client_to_monitor_or_frame(
-                self.windows,
+            return self.windows.convert_coordinate(
                 x,
                 y,
                 matches!(relative, CoordinateRelative::Monitor),
