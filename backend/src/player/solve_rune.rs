@@ -16,8 +16,8 @@ use crate::{
 pub enum State {
     // Ensures stationary and all keys cleared before solving.
     Precondition(Timeout),
-    // Finds the region containing the four arrows.
-    FindRegion(ArrowsCalibrating, Timeout),
+    // Calibrates rune arrows for possible spinning arrows.
+    Calibrating(ArrowsCalibrating, Timeout),
     // Solves for the rune arrows that possibly include spinning arrows.
     Solving(ArrowsCalibrating, Timeout),
     // Presses the keys.
@@ -52,7 +52,7 @@ pub fn update_solving_rune_state(resources: &Resources, player: &mut PlayerEntit
         State::Precondition(_) => {
             update_precondition(resources, &player.context, &mut solving_rune)
         }
-        State::FindRegion(_, _) => update_find_region(
+        State::Calibrating(_, _) => update_calibrating(
             resources,
             &mut solving_rune,
             player.context.config.interact_key,
@@ -94,7 +94,7 @@ fn update_precondition(
         Lifecycle::Ended => {
             transition_if!(
                 solving_rune,
-                State::FindRegion(ArrowsCalibrating::default(), Timeout::default()),
+                State::Calibrating(ArrowsCalibrating::default(), Timeout::default()),
                 State::Precondition(timeout),
                 player_context.is_stationary && resources.input.all_keys_cleared()
             )
@@ -105,7 +105,7 @@ fn update_precondition(
     }
 }
 
-fn update_find_region(
+fn update_calibrating(
     resources: &Resources,
     solving_rune: &mut SolvingRune,
     interact_key: KeyKind,
@@ -113,13 +113,13 @@ fn update_find_region(
     const COOLDOWN_AND_SOLVE_TIMEOUT: u32 = 125;
     const SOLVE_INTERVAL: u32 = 15;
 
-    let State::FindRegion(calibrating, timeout) = solving_rune.state else {
+    let State::Calibrating(calibrating, timeout) = solving_rune.state else {
         panic!("solving rune state is not finding region")
     };
 
     match next_timeout_lifecycle(timeout, COOLDOWN_AND_SOLVE_TIMEOUT) {
         Lifecycle::Started(timeout) => {
-            transition!(solving_rune, State::FindRegion(calibrating, timeout), {
+            transition!(solving_rune, State::Calibrating(calibrating, timeout), {
                 resources.input.send_key(interact_key);
             })
         }
@@ -129,7 +129,7 @@ fn update_find_region(
             if timeout.current.is_multiple_of(SOLVE_INTERVAL) {
                 let arrows_state = try_ok_transition!(
                     solving_rune,
-                    State::FindRegion(ArrowsCalibrating::default(), timeout),
+                    State::Calibrating(ArrowsCalibrating::default(), timeout),
                     resources.detector().detect_rune_arrows(calibrating)
                 );
                 match arrows_state {
@@ -141,7 +141,7 @@ fn update_find_region(
                 }
             }
 
-            transition!(solving_rune, State::FindRegion(calibrating, timeout));
+            transition!(solving_rune, State::Calibrating(calibrating, timeout));
         }
     }
 }
@@ -247,20 +247,20 @@ mod tests {
         assert_matches!(
             player.state,
             Player::SolvingRune(SolvingRune {
-                state: State::FindRegion(_, _)
+                state: State::Calibrating(_, _)
             })
         );
     }
 
     #[test]
-    fn update_find_region_to_solving_on_calibrating() {
+    fn update_calibrating_to_solving_on_calibrating() {
         let mut detector = MockDetector::default();
         detector
             .expect_detect_rune_arrows()
             .return_once(|_| Ok(ArrowsState::Calibrating(ArrowsCalibrating::default())));
         let resources = Resources::new(None, Some(detector));
         let mut solving_rune = SolvingRune {
-            state: State::FindRegion(
+            state: State::Calibrating(
                 ArrowsCalibrating::default(),
                 Timeout {
                     started: true,
@@ -270,7 +270,7 @@ mod tests {
             ),
         };
 
-        update_find_region(&resources, &mut solving_rune, KeyKind::A);
+        update_calibrating(&resources, &mut solving_rune, KeyKind::A);
 
         assert_matches!(
             solving_rune.state,
@@ -286,14 +286,14 @@ mod tests {
     }
 
     #[test]
-    fn update_find_region_to_completed_on_timeout() {
+    fn update_calibrating_to_completed_on_timeout() {
         let mut detector = MockDetector::default();
         detector
             .expect_detect_rune_arrows()
             .return_once(move |_| Err(anyhow!("rune region not found")));
         let resources = Resources::new(None, Some(detector));
         let mut solving_rune = SolvingRune {
-            state: State::FindRegion(
+            state: State::Calibrating(
                 ArrowsCalibrating::default(),
                 Timeout {
                     started: true,
@@ -303,7 +303,7 @@ mod tests {
             ),
         };
 
-        update_find_region(&resources, &mut solving_rune, KeyKind::A);
+        update_calibrating(&resources, &mut solving_rune, KeyKind::A);
 
         assert_matches!(solving_rune.state, State::Completed);
     }
