@@ -75,7 +75,6 @@ pub enum ArrowsState {
 pub struct ArrowsCalibrating {
     spin_arrows: Option<Array<SpinArrow, MAX_SPIN_ARROWS>>,
     spin_arrows_calibrated: bool,
-    normal_arrows: Option<Array<(Rect, KeyKind), MAX_ARROWS>>,
     #[cfg(debug_assertions)]
     is_spin_testing: bool,
 }
@@ -1827,41 +1826,6 @@ fn detect_rune_arrows(
             detect_spin_arrow(bgr, spin_arrow)?;
         }
         return Ok(ArrowsState::Calibrating(calibrating));
-    }
-
-    // Reuse cached result if any
-    if let Some(normal_arrows) = calibrating.normal_arrows.take() {
-        if calibrating.spin_arrows.is_none() && normal_arrows.len() == MAX_ARROWS {
-            info!(target: "rune", "reuse cached arrows result");
-            return Ok(ArrowsState::Complete(extract_rune_arrows_to_slice(
-                normal_arrows.into_iter().collect::<Vec<_>>(),
-            )));
-        }
-
-        if let Some(ref spin_arrows) = calibrating.spin_arrows {
-            let mut final_arrows = normal_arrows
-                .into_iter()
-                .filter(|(normal_arrow_region, _)| {
-                    spin_arrows
-                        .iter()
-                        .map(|spin_arrow| spin_arrow.region)
-                        .all(|spin_arrow_region| iou(*normal_arrow_region, spin_arrow_region) < 0.5)
-                })
-                .collect::<Vec<(Rect, KeyKind)>>();
-
-            for arrow in spin_arrows {
-                final_arrows.push((arrow.region, arrow.final_arrow.unwrap()));
-            }
-            if final_arrows.len() == MAX_ARROWS {
-                final_arrows.sort_by_key(|(region, _)| region.x);
-                info!(target: "rune", "reuse cached arrows result with spin arrows {calibrating:?}");
-                return Ok(ArrowsState::Complete(extract_rune_arrows_to_slice(
-                    final_arrows,
-                )));
-            }
-        }
-
-        debug!(target: "rune", "cached result not used");
     }
 
     // Normal detection path
