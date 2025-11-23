@@ -1909,6 +1909,10 @@ fn calibrate_for_spin_arrows(bgr: &impl MatTraitConst, calibrating: &mut ArrowsC
         info!(target: "rune", "retry calibrating spin arrow because at least 1 spin arrow is found...");
         return;
     }
+    if spin_arrow_regions.len() > MAX_SPIN_ARROWS {
+        info!(target: "rune", "retry calibrating spin arrow because of false positives...");
+        return;
+    }
     calibrating.spin_arrows_calibrated = true;
 
     let mut spin_arrows = Array::new();
