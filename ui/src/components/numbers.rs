@@ -6,7 +6,7 @@ use tw_merge::tw_merge;
 
 use crate::components::{use_auto_numeric, use_controlled, use_unique_id};
 
-const CLASS: &str = "h-6 text-xs text-primary-text outline-none px-1 border border-primary-border disabled:text-tertiary-text disabled:cursor-not-allowed";
+const CLASS: &str = "h-6 text-xs text-primary-text outline-none px-1 border border-primary-border disabled:text-tertiary-text disabled:cursor-not-allowed w-full";
 
 #[derive(Props, Clone, PartialEq)]
 pub struct NumberInputProps<T: Clone + PartialEq + 'static> {

@@ -34,7 +34,7 @@ pub fn Labeled(props: LabeledProps) -> Element {
 
     rsx! {
         div { class: tw_merge!(DIV_CLASS, class),
-            div { class: "flex gap-1 items-center",
+            div { class: "flex gap-1",
                 label { class: LABEL_CLASS, {props.label} }
                 if let Some(tooltip) = tooltip {
                     Tooltip { class: "leading-0",

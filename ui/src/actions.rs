@@ -1435,57 +1435,40 @@ fn ActionKeyInput(
     rsx! {
         div { class: "grid grid-cols-3 gap-3 pr-2 overflow-y-auto",
             if positionable {
-                ActionsCheckbox {
-                    label: "Positioned",
-                    on_checked: move |has_position: bool| {
-                        let mut action = action.write();
-                        action.position = has_position.then_some(Position::default());
-                    },
-                    checked: action().position.is_some(),
-                }
-                ActionsCheckbox {
-                    label: "Adjust",
-                    disabled: action().position.is_none(),
-                    on_checked: move |adjust: bool| {
-                        let mut action = action.write();
-                        action.position.as_mut().unwrap().allow_adjusting = adjust;
-                    },
-                    checked: action().position.map(|pos| pos.allow_adjusting).unwrap_or_default(),
-                }
-                div {}
-
-                ActionsPositionInput {
-                    label: "X",
-                    disabled: action().position.is_none(),
-                    on_icon_click: action()
-                        .position
-                        .is_some()
-                        .then_some(
-                            Callback::new(move |_| {
-                                let mut action = action.write();
-                                if let Some(pos) = action.position.as_mut() {
-                                    pos.x = position.peek().0;
-                                }
-                            }),
-                        ),
-                    on_value: move |x| {
-                        let mut action = action.write();
-                        if let Some(pos) = action.position.as_mut() {
-                            pos.x = x;
-                        }
-                    },
-                    value: action().position.map(|pos| pos.x).unwrap_or_default(),
-                }
-                ActionsNumberInputI32 {
-                    label: "X random range",
-                    disabled: action().position.is_none(),
-                    on_value: move |x| {
-                        let mut action = action.write();
-                        if let Some(pos) = action.position.as_mut() {
-                            pos.x_random_range = x;
-                        }
-                    },
-                    value: action().position.map(|pos| pos.x_random_range).unwrap_or_default(),
+                div { class: "grid grid-cols-2 gap-3",
+                    ActionsPositionInput {
+                        label: "X",
+                        disabled: action().position.is_none(),
+                        on_icon_click: action()
+                            .position
+                            .is_some()
+                            .then_some(
+                                Callback::new(move |_| {
+                                    let mut action = action.write();
+                                    if let Some(pos) = action.position.as_mut() {
+                                        pos.x = position.peek().0;
+                                    }
+                                }),
+                            ),
+                        on_value: move |x| {
+                            let mut action = action.write();
+                            if let Some(pos) = action.position.as_mut() {
+                                pos.x = x;
+                            }
+                        },
+                        value: action().position.map(|pos| pos.x).unwrap_or_default(),
+                    }
+                    ActionsNumberInputI32 {
+                        label: "X range",
+                        disabled: action().position.is_none(),
+                        on_value: move |x| {
+                            let mut action = action.write();
+                            if let Some(pos) = action.position.as_mut() {
+                                pos.x_random_range = x;
+                            }
+                        },
+                        value: action().position.map(|pos| pos.x_random_range).unwrap_or_default(),
+                    }
                 }
                 ActionsPositionInput {
                     label: "Y",
@@ -1508,6 +1491,26 @@ fn ActionKeyInput(
                         }
                     },
                     value: action().position.map(|pos| pos.y).unwrap_or_default(),
+                }
+
+                div { class: "grid grid-cols-2 gap-3",
+                    ActionsCheckbox {
+                        label: "Adjust",
+                        disabled: action().position.is_none(),
+                        on_checked: move |adjust: bool| {
+                            let mut action = action.write();
+                            action.position.as_mut().unwrap().allow_adjusting = adjust;
+                        },
+                        checked: action().position.map(|pos| pos.allow_adjusting).unwrap_or_default(),
+                    }
+                    ActionsCheckbox {
+                        label: "Positioned",
+                        on_checked: move |has_position: bool| {
+                            let mut action = action.write();
+                            action.position = has_position.then_some(Position::default());
+                        },
+                        checked: action().position.is_some(),
+                    }
                 }
             }
 

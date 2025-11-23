@@ -3,7 +3,7 @@ use dioxus::prelude::*;
 use crate::components::{icons::PositionIcon, numbers::PrimitiveIntegerInput};
 
 const ICON_CONTAINER_CLASS: &str =
-    "absolute invisible group-hover:visible top-0 right-1 w-fit h-full flex items-center";
+    "absolute invisible group-hover:visible top-0 right-1 w-fit h-fit flex items-center";
 const ICON_CLASS: &str = "size-3";
 
 #[derive(Props, PartialEq, Clone)]

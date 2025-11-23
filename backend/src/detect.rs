@@ -1812,7 +1812,7 @@ fn detect_rune_arrows(
     const SCORE_THRESHOLD: f32 = 0.8;
 
     if !calibrating.spin_arrows_calibrated {
-        calibrate_for_spin_arrows(bgr, &mut calibrating)?;
+        calibrate_for_spin_arrows(bgr, &mut calibrating);
         return Ok(ArrowsState::Calibrating(calibrating));
     }
 
@@ -1914,10 +1914,7 @@ fn detect_rune_arrows(
     }
 }
 
-fn calibrate_for_spin_arrows(
-    bgr: &impl MatTraitConst,
-    calibrating: &mut ArrowsCalibrating,
-) -> Result<()> {
+fn calibrate_for_spin_arrows(bgr: &impl MatTraitConst, calibrating: &mut ArrowsCalibrating) {
     static RUNE_SPIN_MODEL: LazyLock<Mutex<Session>> = LazyLock::new(|| {
         Mutex::new(
             build_session(include_bytes!(env!("RUNE_SPIN_MODEL")))
@@ -1942,11 +1939,11 @@ fn calibrate_for_spin_arrows(
     if spin_arrow_regions.is_empty() {
         calibrating.spin_arrows_calibrated = true;
         info!(target: "rune", "no spin arrow is found, proceed with normal detection...");
-        bail!("no spin arrow is found");
+        return;
     }
     if spin_arrow_regions.len() < MAX_SPIN_ARROWS {
         info!(target: "rune", "retry calibrating spin arrow because at least 1 spin arrow is found...");
-        bail!("only 1 spin arrow is found");
+        return;
     }
     calibrating.spin_arrows_calibrated = true;
 
@@ -1985,8 +1982,6 @@ fn calibrate_for_spin_arrows(
         info!(target: "rune", "{} spinning rune arrows detected, calibrating...", spin_arrows.len());
         calibrating.spin_arrows = Some(spin_arrows);
     }
-
-    Ok(())
 }
 
 fn detect_spin_arrow(bgr: &impl MatTraitConst, spin_arrow: &mut SpinArrow) -> Result<()> {
