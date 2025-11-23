@@ -75,7 +75,6 @@ pub enum ArrowsState {
 pub struct ArrowsCalibrating {
     spin_arrows: Option<Array<SpinArrow, MAX_SPIN_ARROWS>>,
     spin_arrows_calibrated: bool,
-    rune_region: Option<Rect>,
     normal_arrows: Option<Array<(Rect, KeyKind), MAX_ARROWS>>,
     #[cfg(debug_assertions)]
     is_spin_testing: bool,
@@ -1810,50 +1809,10 @@ fn detect_rune_arrows(
     bgr: &impl MatTraitConst,
     mut calibrating: ArrowsCalibrating,
 ) -> Result<ArrowsState> {
-    /// The minimum region width required to contain 4 arrows
-    ///
-    /// Based on the rectangular region in-game with round border when detecting arrows.
-    const RUNE_REGION_MIN_WIDTH: i32 = 260;
     const SCORE_THRESHOLD: f32 = 0.8;
 
-    if calibrating.rune_region.is_none() {
-        // Detect until 4 arrows found even if there maybe spin arrows or a large enough rune region
-        // is found
-        //
-        // TODO: Replace with detecting spin arrows from model
-        let result = detect_rune_arrows_with_scores_regions(bgr);
-        let region = result
-            .clone()
-            .into_iter()
-            .map(|(r, _, _)| r)
-            .reduce(|acc, cur| acc | cur)
-            .filter(|region| result.len() == MAX_ARROWS || region.width >= RUNE_REGION_MIN_WIDTH);
-        calibrating.rune_region = region;
-
-        // Cache result for later
-        let filtered = result
-            .into_iter()
-            .filter_map(|(rect, arrow, score)| (score >= SCORE_THRESHOLD).then_some((rect, arrow)))
-            .collect::<Vec<_>>();
-        if !filtered.is_empty() && filtered.len() <= MAX_ARROWS {
-            info!(target: "rune", "initial rune region {filtered:?}");
-            calibrating.normal_arrows = Some(Array::from_iter(filtered));
-        }
-    }
-
-    #[cfg(debug_assertions)]
-    if calibrating.is_spin_testing {
-        calibrating.rune_region = Some(Rect::new(0, 0, bgr.cols(), bgr.rows()));
-    }
-
-    let rune_region = calibrating
-        .rune_region
-        .ok_or(anyhow!("rune region not found"))?;
-
-    // If there is no previous calibrating, try it once
     if !calibrating.spin_arrows_calibrated {
-        calibrating.spin_arrows_calibrated = true;
-        calibrate_for_spin_arrows(bgr, rune_region, &mut calibrating)?;
+        calibrate_for_spin_arrows(bgr, &mut calibrating)?;
         return Ok(ArrowsState::Calibrating(calibrating));
     }
 
@@ -1906,10 +1865,9 @@ fn detect_rune_arrows(
     }
 
     // Normal detection path
-    let mut mat_rune_region = bgr.roi(rune_region)?;
+    let mut bgr = bgr.try_clone().unwrap();
     if calibrating.spin_arrows.is_some() {
         //  Set all spin arrow regions to black pixels
-        let mut mat_clone = mat_rune_region.clone_pointee();
         for region in calibrating
             .spin_arrows
             .as_ref()
@@ -1917,23 +1875,18 @@ fn detect_rune_arrows(
             .iter()
             .map(|arrow| arrow.region)
         {
-            mat_clone
-                .roi_mut(region - rune_region.tl())?
-                .set_scalar(Scalar::default())?;
+            bgr.roi_mut(region)?.set_scalar(Scalar::default())?;
         }
-        mat_rune_region = BoxedRef::from(mat_clone);
 
         #[cfg(debug_assertions)]
         if calibrating.is_spin_testing {
-            debug_mat("Rune Region Spin Arrows Removed", &mat_rune_region, 0, &[]);
+            debug_mat("Rune Region Spin Arrows Removed", &bgr, 0, &[]);
         }
     }
 
-    let result = detect_rune_arrows_with_scores_regions(&mat_rune_region)
+    let result = detect_rune_arrows_with_scores_regions(&bgr)
         .into_iter()
-        .filter_map(|(rect, arrow, score)| {
-            (score >= SCORE_THRESHOLD).then_some((rect + rune_region.tl(), arrow))
-        })
+        .filter_map(|(rect, arrow, score)| (score >= SCORE_THRESHOLD).then_some((rect, arrow)))
         .collect::<Vec<_>>();
     // TODO: If there are spinning arrows, either set the limit internally
     // or ensure caller only try to solve rune for a fixed time frame. Otherwise, it may
@@ -1961,97 +1914,65 @@ fn detect_rune_arrows(
     }
 }
 
-// TODO: Improve spin arrows detection by detecting from model
 fn calibrate_for_spin_arrows(
     bgr: &impl MatTraitConst,
-    rune_region: Rect,
     calibrating: &mut ArrowsCalibrating,
 ) -> Result<()> {
+    static RUNE_SPIN_MODEL: LazyLock<Mutex<Session>> = LazyLock::new(|| {
+        Mutex::new(
+            build_session(include_bytes!(env!("RUNE_SPIN_MODEL")))
+                .expect("build rune spin detection session successfully"),
+        )
+    });
+
     const SPIN_REGION_PAD: i32 = 16;
-    const SPIN_ARROW_AREA_PIXEL_THRESHOLD: i32 = 200;
-    const SPIN_ARROW_AREA_THRESHOLD: i32 = 520;
 
-    // Extract the saturation channel and perform thresholding
-    let mut rune_region_mat = to_hsv(&bgr.roi(rune_region)?);
-    unsafe {
-        rune_region_mat.modify_inplace(|mat, mat_mut| {
-            extract_channel(mat, mat_mut, 1).unwrap();
-            #[cfg(debug_assertions)]
-            if calibrating.is_spin_testing {
-                debug_mat("Rune Region Before Thresholding", mat, 0, &[]);
-            }
-            threshold(mat, mat_mut, 245.0, 255.0, THRESH_BINARY).unwrap();
-        });
+    // Detect the rune region
+    let size = bgr.size().unwrap();
+    let (mat_in, w_ratio, h_ratio, left, top) = preprocess_for_yolo(bgr);
+    let mut model = RUNE_SPIN_MODEL.lock().unwrap();
+    let result = model.run([to_input_value(&mat_in)]).unwrap();
+    let mat_out = from_output_value(&result);
+    let spin_arrow_regions = (0..mat_out.rows())
+        // SAFETY: 0..result.rows() is within Mat bounds
+        .map(|i| unsafe { mat_out.at_row_unchecked::<f32>(i).unwrap() })
+        .filter(|pred| pred[4] >= 0.5)
+        .map(|pred| remap_from_yolo(pred, size, w_ratio, h_ratio, left, top))
+        .collect::<Vec<Rect>>();
+    if spin_arrow_regions.is_empty() {
+        calibrating.spin_arrows_calibrated = true;
+        info!(target: "rune", "no spin arrow is found, proceed with normal detection...");
+        bail!("no spin arrow is found");
     }
-
-    #[cfg(debug_assertions)]
-    if calibrating.is_spin_testing {
-        debug_mat("Rune Region After Thresholding", &rune_region_mat, 0, &[]);
+    if spin_arrow_regions.len() < MAX_SPIN_ARROWS {
+        info!(target: "rune", "retry calibrating spin arrow because at least 1 spin arrow is found...");
+        bail!("only 1 spin arrow is found");
     }
+    calibrating.spin_arrows_calibrated = true;
 
-    let mut centroids = Mat::default();
-    let mut stats = Mat::default();
-    let labels_count = connected_components_with_stats(
-        &rune_region_mat,
-        &mut Mat::default(),
-        &mut stats,
-        &mut centroids,
-        8,
-        CV_32S,
-    )
-    .unwrap();
-    // Maximum number of spinning arrows is 2
     let mut spin_arrows = Array::new();
 
-    for i in 1..labels_count {
-        let area = *stats.at_2d::<i32>(i, CC_STAT_AREA).unwrap();
-        let w = *stats.at_2d::<i32>(i, CC_STAT_WIDTH).unwrap();
-        let h = *stats.at_2d::<i32>(i, CC_STAT_HEIGHT).unwrap();
-        // Spinning arrow has bigger area than normal rune
-        if area < SPIN_ARROW_AREA_PIXEL_THRESHOLD && (w * h) < SPIN_ARROW_AREA_THRESHOLD {
-            continue;
-        }
-        if spin_arrows.len() >= MAX_SPIN_ARROWS {
-            debug!(target:"rune", "number of spin arrows exceeded limit, possibly false positives");
-            return Ok(());
-        }
-
-        let centroid = centroids.row(i).unwrap();
-        let centroid = centroid.data_typed::<f64>().unwrap();
-        let centroid = Point::new(
-            rune_region.x + centroid[0] as i32,
-            rune_region.y + centroid[1] as i32,
-        );
-
-        let x = *stats.at_2d::<i32>(i, CC_STAT_LEFT).unwrap();
-        let y = *stats.at_2d::<i32>(i, CC_STAT_TOP).unwrap();
+    for region in spin_arrow_regions {
+        let x = region.x;
+        let y = region.y;
+        let w = region.width;
+        let h = region.height;
 
         // Pad to ensure the region always contain the spin arrow even when it rotates
         // horitzontally or vertically
         let padded_x = (x - SPIN_REGION_PAD).max(0);
         let padded_y = (y - SPIN_REGION_PAD).max(0);
-        let padded_w = (padded_x + w + SPIN_REGION_PAD * 2).min(rune_region.width) - padded_x;
-        let padded_h = (padded_y + h + SPIN_REGION_PAD * 2).min(rune_region.height) - padded_y;
-
-        let rect = Rect::new(
-            rune_region.x + padded_x,
-            rune_region.y + padded_y,
-            padded_w,
-            padded_h,
-        );
+        let padded_w = (padded_x + w + SPIN_REGION_PAD * 2).min(size.width) - padded_x;
+        let padded_h = (padded_y + h + SPIN_REGION_PAD * 2).min(size.height) - padded_y;
+        let rect = Rect::new(padded_x, padded_y, padded_w, padded_h);
 
         #[cfg(debug_assertions)]
         if calibrating.is_spin_testing {
-            debug_mat(
-                "Spin Arrow",
-                &rune_region_mat,
-                0,
-                &[(rect - rune_region.tl(), "Region")],
-            );
+            debug_mat("Spin Arrow", bgr, 0, &[(rect, "Region")]);
         }
 
         spin_arrows.push(SpinArrow {
-            centroid,
+            centroid: Point::new(x + w / 2, y + h / 2),
             region: rect,
             last_arrow_head: None,
             final_arrow: None,

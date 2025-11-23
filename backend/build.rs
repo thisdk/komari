@@ -41,7 +41,7 @@ fn main() {
     let rune = dir.join("rune_ideal_ratio.png");
     let rune_mask = dir.join("rune_mask_ideal_ratio.png");
     let rune_buff = dir.join("rune_buff_ideal_ratio.png");
-    let spin_test = dir.join("spin_test_2");
+    let spin_test = dir.join("spin_test");
 
     let sayram_elixir_buff = dir.join("sayram_elixir_buff_ideal_ratio.png");
     let aurelia_elixir_buff = dir.join("aurelia_elixir_buff_ideal_ratio.png");
@@ -120,6 +120,7 @@ fn main() {
 
     let mob_model = dir.join("mob_nms.onnx");
     let rune_model = dir.join("rune_nms.onnx");
+    let rune_spin_model = dir.join("rune_spin_nms.onnx");
     let minimap_model = dir.join("minimap_nms.onnx");
     let text_detection_model = dir.join("text_detection.onnx");
     let text_recognition_model = dir.join("text_recognition.onnx");
@@ -565,6 +566,10 @@ fn main() {
     println!(
         "cargo:rustc-env=RUNE_MODEL={}",
         rune_model.to_str().unwrap()
+    );
+    println!(
+        "cargo:rustc-env=RUNE_SPIN_MODEL={}",
+        rune_spin_model.to_str().unwrap()
     );
     println!(
         "cargo:rustc-env=TEXT_DETECTION_MODEL={}",
