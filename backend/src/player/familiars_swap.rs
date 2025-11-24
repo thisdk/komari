@@ -143,7 +143,7 @@ fn update_open_menu(resources: &Resources, swapping: &mut FamiliarsSwapping, key
         panic!("familiars swapping state is not opening menu");
     };
 
-    match next_timeout_lifecycle(timeout, 10) {
+    match next_timeout_lifecycle(timeout, 30) {
         Lifecycle::Started(timeout) => {
             resources.input.send_mouse(
                 swapping.mouse_rest.x,
@@ -181,7 +181,8 @@ fn update_find_slots(resources: &Resources, swapping: &mut FamiliarsSwapping) {
                 swapping.slots.push(pair);
             }
         } else {
-            debug!(target: "player", "familiar slots is not 3, aborting...");
+            debug!(target: "player", "familiar slots is not 3 but was {}, aborting...", vec.len());
+            debug!(target: "player", "detected familiar slots were {vec:?}");
             // Weird spots with false positives
             transition!(swapping, State::Completing(Timeout::default(), false));
         }

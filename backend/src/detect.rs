@@ -2131,22 +2131,23 @@ static FAMILIAR_SLOT_FREE: LazyLock<Mat> = LazyLock::new(|| {
     )
     .unwrap()
 });
-static FAMILIAR_SLOT_OCCUPIED: LazyLock<Mat> = LazyLock::new(|| {
-    imgcodecs::imdecode(
-        include_bytes!(env!("FAMILIAR_SLOT_OCCUPIED_TEMPLATE")),
-        IMREAD_COLOR,
-    )
-    .unwrap()
-});
-static FAMILIAR_SLOT_OCCUPIED_MASK: LazyLock<Mat> = LazyLock::new(|| {
-    imgcodecs::imdecode(
-        include_bytes!(env!("FAMILIAR_SLOT_OCCUPIED_MASK_TEMPLATE")),
-        IMREAD_GRAYSCALE,
-    )
-    .unwrap()
-});
 
 fn detect_familiar_slots(bgr: &impl ToInputArray) -> Vec<(Rect, bool)> {
+    static FAMILIAR_SLOT_OCCUPIED: LazyLock<Mat> = LazyLock::new(|| {
+        imgcodecs::imdecode(
+            include_bytes!(env!("FAMILIAR_SLOT_OCCUPIED_TEMPLATE")),
+            IMREAD_COLOR,
+        )
+        .unwrap()
+    });
+    static FAMILIAR_SLOT_OCCUPIED_MASK: LazyLock<Mat> = LazyLock::new(|| {
+        imgcodecs::imdecode(
+            include_bytes!(env!("FAMILIAR_SLOT_OCCUPIED_MASK_TEMPLATE")),
+            IMREAD_GRAYSCALE,
+        )
+        .unwrap()
+    });
+
     let first = detect_template_multiple(
         bgr,
         &*FAMILIAR_SLOT_FREE,
@@ -2155,6 +2156,14 @@ fn detect_familiar_slots(bgr: &impl ToInputArray) -> Vec<(Rect, bool)> {
         3,
         0.75,
     );
+    let first_slots = first
+        .into_iter()
+        .filter_map(|bbox| bbox.ok().map(|(bbox, _)| (bbox, true)))
+        .collect::<Vec<(Rect, bool)>>();
+
+    // The occupied slots detection acts more like a general familiar slot frame detection. This
+    // may include both free and occupied slots. As such, truely free slots need to be filtered
+    // out.
     let second = detect_template_multiple(
         bgr,
         &*FAMILIAR_SLOT_OCCUPIED,
@@ -2163,15 +2172,17 @@ fn detect_familiar_slots(bgr: &impl ToInputArray) -> Vec<(Rect, bool)> {
         3,
         0.75,
     );
-    let mut vec = first
+    let second_slots = second
         .into_iter()
-        .filter_map(|bbox| bbox.ok().map(|(bbox, _)| (bbox, true)))
-        .chain(
-            second
-                .into_iter()
-                .filter_map(|bbox| bbox.ok().map(|(bbox, _)| (bbox, false))),
-        )
-        .collect::<Vec<_>>();
+        .filter_map(|bbox| bbox.ok().map(|(bbox, _)| (bbox, false)))
+        .filter(|(second_slot, _)| {
+            !first_slots
+                .iter()
+                .any(|(first_slot, _)| iou(*first_slot, *second_slot) >= 0.8)
+        })
+        .collect::<Vec<(Rect, bool)>>();
+
+    let mut vec = [first_slots, second_slots].concat();
     vec.sort_by_key(|(bbox, _)| bbox.x);
     vec
 }
@@ -2683,35 +2694,64 @@ fn detect_template_multiple<T: ToInputArray + MatTraitConst>(
     threshold: f64,
 ) -> Vec<Result<(Rect, f64)>> {
     #[inline]
-    fn clear_result(result: &mut Mat, rect: Rect, offset: Point) -> Result<()> {
-        let size = result.size().expect("size available");
-        let mut x1 = rect.x - offset.x;
-        let mut y1 = rect.y - offset.y;
-        let mut x2 = x1 + rect.width;
-        let mut y2 = y1 + rect.height;
-        x1 = x1.clamp(0, size.width);
-        y1 = y1.clamp(0, size.height);
-        x2 = x2.clamp(0, size.width);
-        y2 = y2.clamp(0, size.height);
+    fn clear_result(result: &mut Mat, loc: Point, template_size: Size) {
+        let cols = result.cols();
+        let rows = result.rows();
 
-        let width = x2 - x1;
-        let height = y2 - y1;
-        if width <= 0 || height <= 0 {
-            bail!("zero area clearing");
+        let x1 = loc.x.clamp(0, cols);
+        let y1 = loc.y.clamp(0, rows);
+        let x2 = (loc.x + template_size.width).clamp(0, cols);
+        let y2 = (loc.y + template_size.height).clamp(0, rows);
+
+        if x2 <= x1 || y2 <= y1 {
+            return;
         }
 
-        let roi_rect = Rect::new(x1, y1, width, height);
-        result.roi_mut(roi_rect)?.set_scalar(Scalar::default())?;
-        Ok(())
+        result
+            .roi_mut(Rect::new(x1, y1, x2 - x1, y2 - y1))
+            .expect("valid ROI")
+            .set_scalar(Scalar::all(0.0))
+            .expect("failed to set scalar");
     }
 
     #[inline]
-    fn match_one(
-        result: &Mat,
+    fn append_result(
+        matches: &mut Vec<Result<(Rect, f64)>>,
+        score: f64,
+        loc: Point,
         offset: Point,
         template_size: Size,
-        threshold: f64,
-    ) -> (Rect, Result<(Rect, f64)>) {
+    ) {
+        // Weird INFINITY values when match template with mask
+        // https://github.com/opencv/opencv/issues/23257
+        if score == f64::INFINITY {
+            return;
+        }
+
+        let tl = Point::new(loc.x + offset.x, loc.y + offset.y);
+        let br = tl + Point::new(template_size.width, template_size.height);
+        let rect = Rect::from_points(tl, br);
+        if matches
+            .iter()
+            .filter_map(|result| result.as_ref().ok())
+            .any(|(match_rect, _)| iou(*match_rect, rect) > 0.9)
+        {
+            return;
+        }
+
+        matches.push(Ok((rect, score)));
+    }
+
+    let mut result = Mat::default();
+    if let Err(err) = match_template(mat, template, &mut result, TM_CCOEFF_NORMED, &mask) {
+        error!(target: "detect", "template detection error {err}");
+        return vec![];
+    }
+
+    let template_size = template.size().unwrap();
+    let max_matches = max_matches.max(1);
+    let mut matches = Vec::new();
+    while matches.len() < max_matches {
         let mut score = 0f64;
         let mut loc = Point::default();
         min_max_loc(
@@ -2723,64 +2763,16 @@ fn detect_template_multiple<T: ToInputArray + MatTraitConst>(
             &no_array(),
         )
         .unwrap();
-
-        let tl = loc + offset;
-        let br = tl + Point::from_size(template_size);
-        let rect = Rect::from_points(tl, br);
         if score < threshold {
-            (rect, Err(anyhow!("template not found").context(score)))
-        } else {
-            (rect, Ok((rect, score)))
-        }
-    }
-
-    let mut result = Mat::default();
-    if let Err(err) = match_template(mat, template, &mut result, TM_CCOEFF_NORMED, &mask) {
-        error!(target: "detect", "template detection error {err}");
-        return vec![];
-    }
-
-    let template_size = template.size().unwrap();
-    let max_matches = max_matches.max(1);
-    if max_matches == 1 {
-        // Weird INFINITY values when match template with mask
-        // https://github.com/opencv/opencv/issues/23257
-        loop {
-            let (rect, match_result) = match_one(&result, offset, template_size, threshold);
-            if match_result
-                .as_ref()
-                .is_ok_and(|(_, score)| *score == f64::INFINITY)
-            {
-                if clear_result(&mut result, rect, offset).is_err() {
-                    return vec![];
-                }
-                continue;
-            }
-            return vec![match_result];
-        }
-    }
-
-    let mut filter = Vec::new();
-    for _ in 0..max_matches {
-        loop {
-            let (rect, match_result) = match_one(&result, offset, template_size, threshold);
-            if clear_result(&mut result, rect, offset).is_err() {
-                return vec![];
-            }
-            // Weird INFINITY values when match template with mask
-            // https://github.com/opencv/opencv/issues/23257
-            if match_result
-                .as_ref()
-                .is_ok_and(|(_, score)| *score == f64::INFINITY)
-            {
-                continue;
-            }
-
-            filter.push(match_result);
+            matches.push(Err(anyhow!("template not found").context(score)));
             break;
         }
+
+        clear_result(&mut result, loc, template_size);
+        append_result(&mut matches, score, loc, offset, template_size);
     }
-    filter
+
+    matches
 }
 
 /// Extracts texts from the non-preprocessed `Mat` and detected text bounding boxes.
