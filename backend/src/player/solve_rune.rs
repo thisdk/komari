@@ -111,7 +111,7 @@ fn update_calibrating(
     interact_key: KeyKind,
 ) {
     const COOLDOWN_AND_SOLVE_TIMEOUT: u32 = 125;
-    const SOLVE_INTERVAL: u32 = 15;
+    const SOLVE_INTERVAL: u32 = 30;
 
     let State::Calibrating(calibrating, timeout) = solving_rune.state else {
         panic!("solving rune state is not finding region")
