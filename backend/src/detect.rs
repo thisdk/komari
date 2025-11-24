@@ -1900,7 +1900,7 @@ fn calibrate_for_spin_arrows(bgr: &impl MatTraitConst, calibrating: &mut ArrowsC
     let spin_arrow_regions = (0..mat_out.rows())
         // SAFETY: 0..result.rows() is within Mat bounds
         .map(|i| unsafe { mat_out.at_row_unchecked::<f32>(i).unwrap() })
-        .filter(|pred| pred[4] >= 0.7)
+        .filter(|pred| pred[4] >= 0.8)
         .map(|pred| remap_from_yolo(pred, size, w_ratio, h_ratio, left, top))
         .collect::<Vec<Rect>>();
     if spin_arrow_regions.is_empty() {
