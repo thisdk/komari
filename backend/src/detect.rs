@@ -131,7 +131,7 @@ pub enum BuffKind {
 }
 
 #[derive(Debug)]
-pub enum QuickSlotsBooster {
+pub enum QuickSlotsHexaBooster {
     Available,
     Unavailable,
 }
@@ -141,12 +141,6 @@ pub enum SolErda {
     Full,
     AtLeastOne,
     Empty,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum BoosterKind {
-    Vip,
-    Hexa,
 }
 
 /// A trait for detecting objects from provided frame.
@@ -285,8 +279,8 @@ pub trait Detector: Debug + Send + Sync {
     /// Detects whether there is a timer (e.g. from using booster).
     fn detect_timer_visible(&self) -> bool;
 
-    /// Detects the state for HEXA/VIP Booster in the quick slots.
-    fn detect_quick_slots_booster(&self, kind: BoosterKind) -> Result<QuickSlotsBooster>;
+    /// Detects the state for HEXA Booster in the quick slots.
+    fn detect_quick_slots_hexa_booster(&self) -> Result<QuickSlotsHexaBooster>;
 
     /// Detects the HEXA icon in quick menu.
     fn detect_hexa_quick_menu(&self) -> Result<Rect>;
@@ -524,8 +518,8 @@ impl Detector for DefaultDetector {
         detect_timer_visible(self.grayscale(), &self.localization)
     }
 
-    fn detect_quick_slots_booster(&self, kind: BoosterKind) -> Result<QuickSlotsBooster> {
-        detect_booster(&to_quick_slots_region(self.grayscale()).0, kind)
+    fn detect_quick_slots_hexa_booster(&self) -> Result<QuickSlotsHexaBooster> {
+        detect_quick_slots_hexa_booster(&to_quick_slots_region(self.grayscale()).0)
     }
 
     fn detect_hexa_quick_menu(&self) -> Result<Rect> {
@@ -2386,61 +2380,34 @@ fn detect_timer_visible(grayscale: &impl ToInputArray, localization: &Localizati
     .is_ok()
 }
 
-fn detect_booster<T: MatTraitConst + ToInputArray>(
+fn detect_quick_slots_hexa_booster<T: MatTraitConst + ToInputArray>(
     grayscale: &T,
-    kind: BoosterKind,
-) -> Result<QuickSlotsBooster> {
-    static HEXA_TEMPLATE: LazyLock<Mat> = LazyLock::new(|| {
+) -> Result<QuickSlotsHexaBooster> {
+    static TEMPLATE: LazyLock<Mat> = LazyLock::new(|| {
         imgcodecs::imdecode(
             include_bytes!(env!("HEXA_BOOSTER_TEMPLATE")),
             IMREAD_GRAYSCALE,
         )
         .unwrap()
     });
-    static HEXA_TEMPLATE_NUMBER: LazyLock<Mat> = LazyLock::new(|| {
+    static TEMPLATE_NUMBER: LazyLock<Mat> = LazyLock::new(|| {
         imgcodecs::imdecode(
             include_bytes!(env!("HEXA_BOOSTER_NUMBER_TEMPLATE")),
             IMREAD_GRAYSCALE,
         )
         .unwrap()
     });
-    static VIP_TEMPLATE: LazyLock<Mat> = LazyLock::new(|| {
-        imgcodecs::imdecode(
-            include_bytes!(env!("VIP_BOOSTER_TEMPLATE")),
-            IMREAD_GRAYSCALE,
-        )
-        .unwrap()
-    });
-    static VIP_TEMPLATE_NUMBER: LazyLock<Mat> = LazyLock::new(|| {
-        imgcodecs::imdecode(
-            include_bytes!(env!("VIP_BOOSTER_NUMBER_TEMPLATE")),
-            IMREAD_GRAYSCALE,
-        )
-        .unwrap()
-    });
     static TEMPLATE_NUMBER_MASK: LazyLock<Mat> = LazyLock::new(|| {
         imgcodecs::imdecode(
-            include_bytes!(env!("HEXA_VIP_BOOSTER_NUMBER_MASK_TEMPLATE")),
+            include_bytes!(env!("HEXA_BOOSTER_NUMBER_MASK_TEMPLATE")),
             IMREAD_GRAYSCALE,
         )
         .unwrap()
     });
 
-    let (template, template_number, template_number_mask) = match kind {
-        BoosterKind::Vip => (
-            &*VIP_TEMPLATE,
-            &*VIP_TEMPLATE_NUMBER,
-            &*TEMPLATE_NUMBER_MASK,
-        ),
-        BoosterKind::Hexa => (
-            &*HEXA_TEMPLATE,
-            &*HEXA_TEMPLATE_NUMBER,
-            &*TEMPLATE_NUMBER_MASK,
-        ),
-    };
-    let pad_height = template_number.size().unwrap().height;
+    let pad_height = TEMPLATE_NUMBER.size().unwrap().height;
     let booster_bbox =
-        detect_template(grayscale, template, Point::default(), 0.75).map(|bbox| {
+        detect_template(grayscale, &*TEMPLATE, Point::default(), 0.75).map(|bbox| {
             let br = bbox.br();
 
             let x1 = bbox.x - 1;
@@ -2454,17 +2421,17 @@ fn detect_booster<T: MatTraitConst + ToInputArray>(
     let booster = grayscale.roi(booster_bbox).expect("can extract roi");
     let has_booster = detect_template_single(
         &booster,
-        template_number,
-        template_number_mask,
+        &*TEMPLATE_NUMBER,
+        &*TEMPLATE_NUMBER_MASK,
         Point::default(),
         0.8,
     )
     .is_err();
 
     if has_booster {
-        Ok(QuickSlotsBooster::Available)
+        Ok(QuickSlotsHexaBooster::Available)
     } else {
-        Ok(QuickSlotsBooster::Unavailable)
+        Ok(QuickSlotsHexaBooster::Unavailable)
     }
 }
 

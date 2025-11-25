@@ -97,7 +97,7 @@ impl RotatorService for DefaultRotatorService {
             .map(|character| character.hexa_booster_exchange_all)
             .unwrap_or_default();
         let enable_using_vip_booster = character
-            .map(|character| character.vip_booster_key.enabled)
+            .map(|character| character.generic_booster_key.enabled)
             .unwrap_or_default();
         let enable_using_hexa_booster = character
             .map(|character| character.hexa_booster_key.enabled)
@@ -119,7 +119,7 @@ impl RotatorService for DefaultRotatorService {
             enable_rune_solving: settings.enable_rune_solving,
             enable_familiars_swapping: settings.familiars.enable_familiars_swapping,
             enable_reset_normal_actions_on_erda: reset_normal_actions_on_erda,
-            enable_using_vip_booster,
+            enable_using_generic_booster: enable_using_vip_booster,
             enable_using_hexa_booster,
         };
 

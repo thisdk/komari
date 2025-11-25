@@ -7,7 +7,7 @@ use crate::{
     bridge::{KeyKind, MouseKind},
     ecs::Resources,
     player::{
-        PlayerEntity, next_action,
+        Booster, PlayerEntity, next_action,
         timeout::{Lifecycle, next_timeout_lifecycle},
     },
     transition, transition_from_action, try_ok_transition, try_some_transition,
@@ -34,6 +34,7 @@ enum State {
 pub struct ExchangingBooster {
     state: State,
     amount: Option<ExchangeAmount>,
+    success: bool,
 }
 
 impl ExchangingBooster {
@@ -70,6 +71,7 @@ impl ExchangingBooster {
         Self {
             state: State::OpenHexaMenu(Timeout::default()),
             amount,
+            success: false,
         }
     }
 }
@@ -112,7 +114,12 @@ pub fn update_exchanging_booster_state(resources: &Resources, player: &mut Playe
     let is_terminal = matches!(player_next_state, Player::Idle);
 
     match next_action(&player.context) {
-        Some(_) => transition_from_action!(player, player_next_state, is_terminal),
+        Some(_) => {
+            if is_terminal && exchanging.success {
+                player.context.clear_booster_fail_count(Booster::Hexa);
+            }
+            transition_from_action!(player, player_next_state, is_terminal)
+        }
         None => transition!(
             player,
             Player::Idle // Force cancel if it is not initiated from an action
@@ -264,6 +271,7 @@ fn update_confirming(resources: &Resources, exchanging: &mut ExchangingBooster) 
                 let (x, y) = bbox_click_point(bbox);
 
                 resources.input.send_mouse(x, y, MouseKind::Click);
+                exchanging.success = true;
             })
         }
         Lifecycle::Ended => transition!(exchanging, State::Completing(Timeout::default(), false)),

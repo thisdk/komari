@@ -192,7 +192,7 @@ pub struct UseBooster {
 
 #[derive(Clone, Copy, Debug)]
 pub enum Booster {
-    Vip,
+    Generic,
     Hexa,
 }
 

@@ -76,9 +76,7 @@ fn main() {
 
     let hexa_booster = dir.join("hexa_booster_ideal_ratio.png");
     let hexa_booster_number = dir.join("hexa_booster_number_ideal_ratio.png");
-    let vip_booster = dir.join("vip_booster_ideal_ratio.png");
-    let vip_booster_number = dir.join("vip_booster_number_ideal_ratio.png");
-    let hexa_vip_booster_number_mask = dir.join("hexa_vip_booster_number_mask_ideal_ratio.png");
+    let hexa_booster_number_mask = dir.join("hexa_booster_number_mask_ideal_ratio.png");
 
     let hexa_menu = dir.join("hexa_menu_ideal_ratio.png");
     let hexa_quick_menu = dir.join("hexa_quick_menu_ideal_ratio.png");
@@ -355,16 +353,8 @@ fn main() {
         hexa_booster_number.to_str().unwrap()
     );
     println!(
-        "cargo:rustc-env=VIP_BOOSTER_TEMPLATE={}",
-        vip_booster.to_str().unwrap()
-    );
-    println!(
-        "cargo:rustc-env=VIP_BOOSTER_NUMBER_TEMPLATE={}",
-        vip_booster_number.to_str().unwrap()
-    );
-    println!(
-        "cargo:rustc-env=HEXA_VIP_BOOSTER_NUMBER_MASK_TEMPLATE={}",
-        hexa_vip_booster_number_mask.to_str().unwrap()
+        "cargo:rustc-env=HEXA_BOOSTER_NUMBER_MASK_TEMPLATE={}",
+        hexa_booster_number_mask.to_str().unwrap()
     );
 
     println!(

@@ -186,8 +186,8 @@ pub struct Character {
     pub extreme_blue_potion_key: KeyBindingConfiguration,
     pub extreme_green_potion_key: KeyBindingConfiguration,
     pub extreme_gold_potion_key: KeyBindingConfiguration,
-    #[serde(default)]
-    pub vip_booster_key: KeyBindingConfiguration,
+    #[serde(default, alias = "vip_booster_key")]
+    pub generic_booster_key: KeyBindingConfiguration,
     #[serde(default)]
     pub hexa_booster_key: KeyBindingConfiguration,
     #[serde(default)]
@@ -277,7 +277,7 @@ impl Default for Character {
             extreme_blue_potion_key: KeyBindingConfiguration::default(),
             extreme_green_potion_key: KeyBindingConfiguration::default(),
             extreme_gold_potion_key: KeyBindingConfiguration::default(),
-            vip_booster_key: KeyBindingConfiguration::default(),
+            generic_booster_key: KeyBindingConfiguration::default(),
             hexa_booster_key: KeyBindingConfiguration::default(),
             hexa_booster_exchange_condition: ExchangeHexaBoosterCondition::default(),
             hexa_booster_exchange_amount: hexa_booster_exchange_amount_default(),

@@ -475,11 +475,11 @@ fn SectionUseBooster() -> Element {
         Section { title: "Use booster",
             div { class: "grid grid-cols-3 gap-4",
                 CharactersKeyBindingConfigurationInput {
-                    label: "VIP Booster key",
-                    value: character().vip_booster_key,
+                    label: "Generic Booster key",
+                    value: character().generic_booster_key,
                     on_value: move |key_config: Option<KeyBindingConfiguration>| {
                         save_character(Character {
-                            vip_booster_key: key_config.expect("not optional"),
+                            generic_booster_key: key_config.expect("not optional"),
                             ..character.peek().clone()
                         });
                     },
@@ -488,14 +488,13 @@ fn SectionUseBooster() -> Element {
                 }
                 CharactersCheckbox {
                     label: "Enabled",
-                    tooltip: "Requires VIP Booster to be visible in quick slots.",
-                    checked: character().vip_booster_key.enabled,
+                    checked: character().generic_booster_key.enabled,
                     on_checked: move |enabled| {
                         let character = character.peek().clone();
                         save_character(Character {
-                            vip_booster_key: KeyBindingConfiguration {
+                            generic_booster_key: KeyBindingConfiguration {
                                 enabled,
-                                ..character.vip_booster_key
+                                ..character.generic_booster_key
                             },
                             ..character
                         });

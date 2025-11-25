@@ -62,7 +62,7 @@ impl CharacterService for DefaultCharacterService {
                     (_, PotionMode::Percentage(percent)) => Some(percent / 100.0),
                 };
             player_context.config.update_health_millis = Some(character.health_update_millis);
-            player_context.config.vip_booster_key = character.vip_booster_key.key.into();
+            player_context.config.generic_booster_key = character.generic_booster_key.key.into();
             player_context.config.hexa_booster_key = character.hexa_booster_key.key.into();
         }
     }

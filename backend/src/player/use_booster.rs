@@ -45,7 +45,7 @@ pub fn update_using_booster_state(resources: &Resources, player: &mut PlayerEnti
         panic!("state is not using booster")
     };
     let key = match using.kind {
-        Booster::Vip => player.context.config.vip_booster_key,
+        Booster::Generic => player.context.config.generic_booster_key,
         Booster::Hexa => player.context.config.hexa_booster_key,
     };
 
@@ -198,7 +198,7 @@ mod tests {
         keys.expect_send_key().with(eq(KeyKind::F1)).once(); // Will press booster key at tick 30
 
         let resources = Resources::new(Some(keys), None);
-        let mut using = UsingBooster::new(Booster::Vip);
+        let mut using = UsingBooster::new(Booster::Generic);
         using.state = State::Using(Timeout {
             current: 29, // one before PRESS_KEY_AT
             started: true,
@@ -219,7 +219,7 @@ mod tests {
             .returning(|| true);
         let resources = Resources::new(None, Some(detector));
 
-        let mut using = UsingBooster::new(Booster::Vip);
+        let mut using = UsingBooster::new(Booster::Generic);
         using.state = State::Using(Timeout {
             current: 60,
             started: true,
@@ -240,7 +240,7 @@ mod tests {
             .returning(|| false);
         let resources = Resources::new(None, Some(detector));
 
-        let mut using = UsingBooster::new(Booster::Vip);
+        let mut using = UsingBooster::new(Booster::Generic);
         using.state = State::Using(Timeout {
             current: 60,
             started: true,
@@ -265,7 +265,7 @@ mod tests {
         keys.expect_send_key().with(eq(KeyKind::Left)).once();
         let resources = Resources::new(Some(keys), None);
 
-        let mut using = UsingBooster::new(Booster::Vip);
+        let mut using = UsingBooster::new(Booster::Generic);
         using.state = State::Confirming(Timeout::default());
 
         update_confirming(&resources, &mut using);
@@ -278,7 +278,7 @@ mod tests {
         keys.expect_send_key().with(eq(KeyKind::Left)).once();
         let resources = Resources::new(Some(keys), None);
 
-        let mut using = UsingBooster::new(Booster::Vip);
+        let mut using = UsingBooster::new(Booster::Generic);
         using.state = State::Confirming(Timeout {
             current: 14,
             started: true,
@@ -295,7 +295,7 @@ mod tests {
         keys.expect_send_key().with(eq(KeyKind::Enter)).once();
         let resources = Resources::new(Some(keys), None);
 
-        let mut using = UsingBooster::new(Booster::Vip);
+        let mut using = UsingBooster::new(Booster::Generic);
         using.state = State::Confirming(Timeout {
             current: 30,
             started: true,
@@ -325,7 +325,7 @@ mod tests {
         keys.expect_send_key().with(eq(KeyKind::Esc)).once();
         let resources = Resources::new(Some(keys), Some(detector));
 
-        let mut using = UsingBooster::new(Booster::Vip);
+        let mut using = UsingBooster::new(Booster::Generic);
         using.state = State::Completing {
             timeout: Timeout {
                 current: 20, // trigger Lifecycle::Ended
@@ -353,7 +353,7 @@ mod tests {
         let keys = MockInput::default();
         let resources = Resources::new(Some(keys), Some(detector));
 
-        let mut using = UsingBooster::new(Booster::Vip);
+        let mut using = UsingBooster::new(Booster::Generic);
         using.state = State::Completing {
             timeout: Timeout {
                 current: 10,

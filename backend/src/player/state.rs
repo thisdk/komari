@@ -28,7 +28,7 @@ const STATIONARY_TIMEOUT: u32 = MOVE_TIMEOUT + 1;
 /// [`Player::CashShopThenExit`].
 const MAX_RUNE_FAILED_COUNT: u32 = 8;
 
-/// The maximum number of times using VIP Booster can fail before it is determined that it is not
+/// The maximum number of times using Generic Booster can fail before it is determined that it is not
 /// usable anymore (e.g. 10 times limit reached).
 const MAX_BOOSTER_FAILED_COUNT: u32 = 5;
 
@@ -191,8 +191,8 @@ pub struct PlayerConfiguration {
     pub use_potion_below_percent: Option<f32>,
     /// Milliseconds interval to update current health.
     pub update_health_millis: Option<u64>,
-    /// VIP Booster key.
-    pub vip_booster_key: KeyKind,
+    /// Generic Booster key.
+    pub generic_booster_key: KeyKind,
     /// HEXA Booster key.
     pub hexa_booster_key: KeyKind,
 }
@@ -225,7 +225,7 @@ impl Default for PlayerConfiguration {
             potion_key: KeyKind::A,
             use_potion_below_percent: None,
             update_health_millis: None,
-            vip_booster_key: KeyKind::A,
+            generic_booster_key: KeyKind::A,
             hexa_booster_key: KeyKind::A,
         }
     }
@@ -361,8 +361,8 @@ pub struct PlayerContext {
     /// Approximated player velocity.
     pub(super) velocity: (f32, f32),
 
-    /// The number of times [`Player::UsingBooster`] for VIP Booster failed.
-    vip_booster_failed_count: u32,
+    /// The number of times [`Player::UsingBooster`] for Generic Booster failed.
+    generic_booster_failed_count: u32,
     /// The number of times [`Player::UsingBooster`] for HEXA Booster failed.
     hexa_booster_failed_count: u32,
 
@@ -574,22 +574,22 @@ impl PlayerContext {
         }
     }
 
-    /// Whether fail count for using HEXA/VIP Booster has reached limit.
+    /// Whether fail count for using booster `kind` has reached limit.
     #[inline]
     pub fn is_booster_fail_count_limit_reached(&self, kind: Booster) -> bool {
         match kind {
-            Booster::Vip => self.vip_booster_failed_count >= MAX_BOOSTER_FAILED_COUNT,
+            Booster::Generic => self.generic_booster_failed_count >= MAX_BOOSTER_FAILED_COUNT,
             Booster::Hexa => self.hexa_booster_failed_count >= MAX_BOOSTER_FAILED_COUNT,
         }
     }
 
-    /// Increments the HEXA/VIP Booster usage fail count.
+    /// Increments booster `kind` usage fail count.
     #[inline]
     pub(super) fn track_booster_fail_count(&mut self, kind: Booster) {
         match kind {
-            Booster::Vip => {
-                if self.vip_booster_failed_count < MAX_BOOSTER_FAILED_COUNT {
-                    self.vip_booster_failed_count += 1;
+            Booster::Generic => {
+                if self.generic_booster_failed_count < MAX_BOOSTER_FAILED_COUNT {
+                    self.generic_booster_failed_count += 1;
                 }
             }
             Booster::Hexa => {
@@ -600,12 +600,12 @@ impl PlayerContext {
         }
     }
 
-    /// Resets HEXA/VIP Booster usage fail count.
+    /// Resets booster `kind` usage fail count.
     #[inline]
     pub(super) fn clear_booster_fail_count(&mut self, kind: Booster) {
         match kind {
-            Booster::Vip => {
-                self.vip_booster_failed_count = 0;
+            Booster::Generic => {
+                self.generic_booster_failed_count = 0;
             }
             Booster::Hexa => {
                 self.hexa_booster_failed_count = 0;

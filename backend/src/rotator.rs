@@ -22,7 +22,7 @@ use crate::{
     array::Array,
     buff::{Buff, BuffKind},
     database::{Action, ActionCondition, ActionKey, ActionMove, EliteBossBehavior},
-    detect::{BoosterKind, Detector, QuickSlotsBooster, SolErda},
+    detect::{Detector, QuickSlotsHexaBooster, SolErda},
     ecs::{Resources, World},
     minimap::Minimap,
     player::{
@@ -153,7 +153,7 @@ pub struct RotatorBuildArgs<'a> {
     pub enable_rune_solving: bool,
     pub enable_familiars_swapping: bool,
     pub enable_reset_normal_actions_on_erda: bool,
-    pub enable_using_vip_booster: bool,
+    pub enable_using_generic_booster: bool,
     pub enable_using_hexa_booster: bool,
 }
 
@@ -832,7 +832,7 @@ impl Rotator for DefaultRotator {
             enable_rune_solving,
             enable_familiars_swapping,
             enable_reset_normal_actions_on_erda,
-            enable_using_vip_booster,
+            enable_using_generic_booster,
             enable_using_hexa_booster,
         } = args;
         self.reset_queue();
@@ -842,9 +842,11 @@ impl Rotator for DefaultRotator {
         self.priority_actions.clear();
 
         // Low priority
-        if enable_using_vip_booster {
-            self.priority_actions
-                .insert(next_action_id(), use_booster_priority_action(Booster::Vip));
+        if enable_using_generic_booster {
+            self.priority_actions.insert(
+                next_action_id(),
+                use_booster_priority_action(Booster::Generic),
+            );
         }
 
         if enable_using_hexa_booster {
@@ -1385,28 +1387,16 @@ fn elite_boss_use_key_priority_action(key: KeyBinding) -> PriorityAction {
 
 #[inline]
 fn use_booster_priority_action(kind: Booster) -> PriorityAction {
-    let detect_kind = match kind {
-        Booster::Vip => BoosterKind::Vip,
-        Booster::Hexa => BoosterKind::Hexa,
-    };
-
     let mut task: Option<Task<Result<bool>>> = None;
-    let task_fn = move |detector: Arc<dyn Detector>| -> Result<bool> {
-        if detector.detect_timer_visible() {
-            return Ok(false);
-        }
-
-        let booster = detector.detect_quick_slots_booster(detect_kind)?;
-        let queue = matches!(booster, QuickSlotsBooster::Available);
-
-        Ok(queue)
-    };
+    let task_fn =
+        move |detector: Arc<dyn Detector>| -> Result<bool> { Ok(!detector.detect_timer_visible()) };
 
     PriorityAction {
         condition: Condition(Box::new(move |resources, world, info| {
             if !at_least_millis_passed_since(info.last_queued_time, 20000) {
                 return ConditionResult::Skip;
             }
+
             if world
                 .player
                 .context
@@ -1441,8 +1431,8 @@ fn exchange_hexa_booster_priority_action(
 ) -> PriorityAction {
     let mut task: Option<Task<Result<bool>>> = None;
     let task_fn = move |detector: Arc<dyn Detector>| -> Result<bool> {
-        let booster = detector.detect_quick_slots_booster(BoosterKind::Hexa)?;
-        if !matches!(booster, QuickSlotsBooster::Unavailable) {
+        let booster = detector.detect_quick_slots_hexa_booster()?;
+        if !matches!(booster, QuickSlotsHexaBooster::Unavailable) {
             return Ok(false);
         }
 
@@ -1714,7 +1704,7 @@ mod tests {
             enable_rune_solving: true,
             enable_familiars_swapping: false,
             enable_reset_normal_actions_on_erda: false,
-            enable_using_vip_booster: false,
+            enable_using_generic_booster: false,
             enable_using_hexa_booster: false,
         };
 
