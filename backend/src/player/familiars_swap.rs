@@ -20,13 +20,11 @@ use crate::{
 /// Number of familiar slots available.
 const FAMILIAR_SLOTS: usize = 3;
 
-const MAX_RETRY: u32 = 3;
-
 /// Internal state machine representing the current state of familiar swapping.
 #[derive(Debug, Clone, Copy)]
 enum State {
     /// Opening the familiar menu.
-    OpenMenu(Timeout, u32),
+    OpenMenu(Timeout),
     /// Find the familiar slots.
     FindSlots,
     /// Check if slot is free or occupied to release the slot.
@@ -40,7 +38,7 @@ enum State {
     /// Scrolling the familiar cards list to find more cards.
     Scrolling(Timeout, Option<Rect>, u32),
     /// Saving the familiar setup.
-    Saving(Timeout, u32),
+    Saving(Timeout),
     Completing(Timeout, bool),
 }
 
@@ -64,7 +62,7 @@ pub struct FamiliarsSwapping {
 impl Display for FamiliarsSwapping {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.state {
-            State::OpenMenu(_, _) => write!(f, "Opening"),
+            State::OpenMenu(_) => write!(f, "Opening"),
             State::FindSlots => write!(f, "Find Slots"),
             State::FreeSlots(_, _) | State::FreeSlot(_, _) => {
                 write!(f, "Freeing Slots")
@@ -72,7 +70,7 @@ impl Display for FamiliarsSwapping {
             State::FindCards(_) => write!(f, "Finding Cards"),
             State::Swapping(_, _) => write!(f, "Swapping"),
             State::Scrolling(_, _, _) => write!(f, "Scrolling"),
-            State::Saving(_, _) => write!(f, "Saving"),
+            State::Saving(_) => write!(f, "Saving"),
             State::Completing(_, _) => write!(f, "Completing"),
         }
     }
@@ -84,7 +82,7 @@ impl FamiliarsSwapping {
         swappable_rarities: Array<FamiliarRarity, 2>,
     ) -> Self {
         Self {
-            state: State::OpenMenu(Timeout::default(), 0),
+            state: State::OpenMenu(Timeout::default()),
             slots: Array::new(),
             cards: Array::new(),
             swappable_slots,
@@ -113,14 +111,14 @@ pub fn update_familiars_swapping_state(resources: &Resources, player: &mut Playe
     );
 
     match swapping.state {
-        State::OpenMenu(_, _) => update_open_menu(resources, &mut swapping, familiar_key),
+        State::OpenMenu(_) => update_open_menu(resources, &mut swapping, familiar_key),
         State::FindSlots => update_find_slots(resources, &mut swapping),
         State::FreeSlots(_, _) => update_free_slots(resources, &mut swapping),
         State::FreeSlot(_, _) => update_free_slot(resources, &mut swapping),
         State::FindCards(_) => update_find_cards(resources, &mut swapping),
         State::Swapping(_, _) => update_swapping(resources, &mut swapping),
         State::Scrolling(_, _, _) => update_scrolling(resources, &mut swapping),
-        State::Saving(_, _) => update_saving(resources, &mut swapping),
+        State::Saving(_) => update_saving(resources, &mut swapping),
         State::Completing(timeout, completed) => {
             update_completing(resources, &mut swapping, timeout, completed)
         }
@@ -139,36 +137,29 @@ pub fn update_familiars_swapping_state(resources: &Resources, player: &mut Playe
 }
 
 fn update_open_menu(resources: &Resources, swapping: &mut FamiliarsSwapping, key: KeyKind) {
-    let State::OpenMenu(timeout, retry_count) = swapping.state else {
+    let State::OpenMenu(timeout) = swapping.state else {
         panic!("familiars swapping state is not opening menu");
     };
 
-    match next_timeout_lifecycle(timeout, 30) {
-        Lifecycle::Started(timeout) => {
+    match next_timeout_lifecycle(timeout, 60) {
+        Lifecycle::Started(timeout) => transition!(swapping, State::OpenMenu(timeout), {
             resources.input.send_mouse(
                 swapping.mouse_rest.x,
                 swapping.mouse_rest.y,
                 MouseKind::Move,
             );
-            transition_if!(
-                swapping,
-                State::FindSlots,
-                resources.detector().detect_familiar_menu_opened()
-            );
-            transition_if!(
-                swapping,
-                State::OpenMenu(timeout, retry_count + 1),
-                retry_count < MAX_RETRY,
-                {
-                    resources.input.send_key(key);
-                }
-            );
-            transition!(swapping, State::Completing(Timeout::default(), false))
-        }
-        Lifecycle::Ended => transition!(swapping, State::OpenMenu(Timeout::default(), retry_count)),
-        Lifecycle::Updated(timeout) => {
-            transition!(swapping, State::OpenMenu(timeout, retry_count))
-        }
+        }),
+        Lifecycle::Ended => transition_if!(
+            swapping,
+            State::FindSlots,
+            State::Completing(Timeout::default(), false),
+            resources.detector().detect_familiar_menu_opened()
+        ),
+        Lifecycle::Updated(timeout) => transition!(swapping, State::OpenMenu(timeout), {
+            if timeout.current == 30 {
+                resources.input.send_key(key);
+            }
+        }),
     }
 }
 
@@ -190,8 +181,7 @@ fn update_find_slots(resources: &Resources, swapping: &mut FamiliarsSwapping) {
 
     transition_if!(
         swapping,
-        // Still empty, bail and retry as this could indicate the menu closed/overlap
-        State::OpenMenu(Timeout::default(), 0),
+        State::Completing(Timeout::default(), false),
         State::FreeSlots(FAMILIAR_SLOTS - 1, false),
         swapping.slots.is_empty()
     );
@@ -241,7 +231,7 @@ fn update_free_slots(resources: &Resources, swapping: &mut FamiliarsSwapping) {
             // Bail and retry as this could indicate the menu closed/overlap
             transition_if!(
                 swapping,
-                State::OpenMenu(Timeout::default(), 0),
+                State::OpenMenu(Timeout::default()),
                 was_freeing,
                 {
                     swapping.slots = Array::new();
@@ -402,7 +392,7 @@ fn update_swapping(resources: &Resources, swapping: &mut FamiliarsSwapping) {
             // Save if all slots are occupied. Could also mean UI is already closed.
             transition_if!(
                 swapping,
-                State::Saving(Timeout::default(), 0),
+                State::Saving(Timeout::default()),
                 swapping.slots.iter().all(|slot| !slot.1)
             );
 
@@ -457,6 +447,8 @@ fn update_swapping(resources: &Resources, swapping: &mut FamiliarsSwapping) {
 
 #[inline]
 fn update_scrolling(resources: &Resources, swapping: &mut FamiliarsSwapping) {
+    const MAX_RETRY: u32 = 3;
+
     /// Timeout for scrolling familiar cards list.
     const SCROLLING_TIMEOUT: u32 = 10;
 
@@ -526,51 +518,30 @@ fn update_scrolling(resources: &Resources, swapping: &mut FamiliarsSwapping) {
 
 #[inline]
 fn update_saving(resources: &Resources, swapping: &mut FamiliarsSwapping) {
-    /// Timeout for saving familiars setup.
-    const SAVING_TIMEOUT: u32 = 30;
-    const PRESS_OK_AT: u32 = 15;
-    const PRESS_ESC_AT: u32 = 20;
-
-    let State::Saving(timeout, retry_count) = swapping.state else {
+    let State::Saving(timeout) = swapping.state else {
         panic!("familiars swapping state is not saving")
     };
 
-    match next_timeout_lifecycle(timeout, SAVING_TIMEOUT) {
+    match next_timeout_lifecycle(timeout, 30) {
         Lifecycle::Started(timeout) => {
-            // TODO: recoverable?
             let button = try_ok_transition!(
                 swapping,
                 State::Completing(Timeout::default(), false),
                 resources.detector().detect_familiar_save_button()
             );
 
-            transition!(swapping, State::Saving(timeout, retry_count), {
+            transition!(swapping, State::Saving(timeout,), {
                 let (x, y) = bbox_click_point(button);
                 resources.input.send_mouse(x, y, MouseKind::Click);
             });
         }
-        Lifecycle::Ended => transition_if!(
-            swapping,
-            State::Saving(Timeout::default(), retry_count + 1),
-            State::Completing(Timeout::default(), false),
-            resources.detector().detect_familiar_menu_opened() && retry_count < MAX_RETRY
-        ),
-        Lifecycle::Updated(timeout) => {
-            match timeout.current {
-                PRESS_OK_AT => {
-                    if let Ok(button) = resources.detector().detect_popup_confirm_button() {
-                        let (x, y) = bbox_click_point(button);
-                        resources.input.send_mouse(x, y, MouseKind::Click);
-                    }
-                }
-                PRESS_ESC_AT => {
-                    resources.input.send_key(KeyKind::Esc);
-                }
-                _ => (),
+        Lifecycle::Ended => transition!(swapping, State::Completing(Timeout::default(), false), {
+            if let Ok(button) = resources.detector().detect_popup_confirm_button() {
+                let (x, y) = bbox_click_point(button);
+                resources.input.send_mouse(x, y, MouseKind::Click);
             }
-
-            transition!(swapping, State::Saving(timeout, retry_count));
-        }
+        }),
+        Lifecycle::Updated(timeout) => transition!(swapping, State::Saving(timeout)),
     }
 }
 
@@ -581,17 +552,17 @@ fn update_completing(
     timeout: Timeout,
     completed: bool,
 ) {
-    match next_timeout_lifecycle(timeout, 10) {
-        Lifecycle::Started(timeout) => {
-            let has_menu = resources.detector().detect_familiar_menu_opened();
-            if has_menu {
-                resources.input.send_key(KeyKind::Esc);
-            }
-
-            transition!(swapping, State::Completing(timeout, !has_menu));
+    match next_timeout_lifecycle(timeout, 20) {
+        Lifecycle::Started(timeout) | Lifecycle::Updated(timeout) => {
+            transition!(swapping, State::Completing(timeout, completed))
         }
-        Lifecycle::Ended => transition!(swapping, State::Completing(Timeout::default(), completed)),
-        Lifecycle::Updated(timeout) => transition!(swapping, State::Completing(timeout, completed)),
+        Lifecycle::Ended => {
+            transition!(swapping, State::Completing(Timeout::default(), true), {
+                if resources.detector().detect_familiar_menu_opened() {
+                    resources.input.send_key(KeyKind::Esc);
+                }
+            })
+        }
     }
 }
 
@@ -878,18 +849,17 @@ mod tests {
         let resources = Resources::new(Some(keys), Some(detector));
 
         let mut swapping = FamiliarsSwapping::new(SwappableFamiliars::All, Array::new());
-        swapping.state = State::Saving(Timeout::default(), 0);
+        swapping.state = State::Saving(Timeout::default());
 
         update_saving(&resources, &mut swapping);
 
-        assert_matches!(swapping.state, State::Saving(_, 0));
+        assert_matches!(swapping.state, State::Saving(_));
     }
 
     #[test]
     fn update_saving_press_ok_button() {
         let mut keys = MockInput::default();
         keys.expect_send_mouse().once();
-        keys.expect_send_key().once();
 
         let mut detector = MockDetector::default();
         detector
@@ -900,27 +870,13 @@ mod tests {
         let resources = Resources::new(Some(keys), Some(detector));
         let mut swapping = FamiliarsSwapping::new(SwappableFamiliars::All, Array::new());
 
-        swapping.state = State::Saving(
-            Timeout {
-                current: 14, // PRESS_OK_AT
-                started: true,
-                ..Default::default()
-            },
-            0,
-        );
+        swapping.state = State::Saving(Timeout {
+            current: 30,
+            started: true,
+            ..Default::default()
+        });
         update_saving(&resources, &mut swapping);
-        assert_matches!(swapping.state, State::Saving(_, 0));
-
-        swapping.state = State::Saving(
-            Timeout {
-                current: 19, // PRESS_ESC_AT
-                started: true,
-                ..Default::default()
-            },
-            0,
-        );
-        update_saving(&resources, &mut swapping);
-        assert_matches!(swapping.state, State::Saving(_, 0));
+        assert_matches!(swapping.state, State::Completing(_, false));
     }
 
     // TODO: more tests
