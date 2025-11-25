@@ -222,7 +222,7 @@ pub enum PlayerAction {
     Panic(Panic),
     /// Chats in-game action.
     Chat(Chat),
-    /// Use VIP or HEXA booster action.
+    /// Use Generic or HEXA booster action.
     UseBooster(UseBooster),
     /// Exchange HEXA booster action.
     ExchangeBooster(ExchangeBooster),

@@ -155,7 +155,7 @@ fn SectionInfo() -> Element {
                         Data { description: "Cash shop text." }
                     }
                     tr {
-                        Data { description: "Detect whether VIP/HEXA booster is in use." }
+                        Data { description: "Detect whether HEXA/Generic booster is in use." }
                         Data { description: "Timer text." }
                     }
                 }

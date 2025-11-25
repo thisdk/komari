@@ -21,7 +21,8 @@
   - [Elite Boss Spawns Behavior](#elite-boss-spawns-behavior)
   - [Control and Notifications](#control-and-notifications)
   - [Localization](#localization)
-  - [VIP/HEXA Booster](#viphexa-booster)
+  - [Generic/HEXA Booster](#generichexa-booster)
+  - [HEXA Booster Exchange](#hexa-booster-exchange)
 - [Video Guides](#video-guides)
 - [Showcase](#showcase)
   - [Rotation](#rotation)
@@ -79,7 +80,7 @@ If the bot is close enough to the destination (within `25` units, subject to cha
 1. `Key Bindings` – For general in-game key mappings.
 2. `Feed pet` – Configures feed pet.
 3. `Use potion` – Configures potion usage.
-4. `Use booster` – Configures VIP/HEXA booster usage.
+4. `Use booster` – Configures Generic/HEXA booster usage.
 5. `Movement` – Movement settings.
 6. `Buffs` – For automatic buff setup.
 7. `Fixed Actions` – Shared across all maps (useful for buffs or one-time skills).
@@ -448,20 +449,19 @@ How to use:
 
 ---
 
-### VIP/HEXA Booster
+### Generic/HEXA Booster
 
 Introduced in **v0.22**
 
-The VIP and HEXA Boosters can be accessed under `Characters → Use booster`.
+The Generic and HEXA Boosters can be accessed under `Characters → Use booster`.
 
-Each booster type (VIP or HEXA) can be enabled independently. For the feature to function properly, the assigned booster must be assigned to a visible quick slot — similar to the `Erda Shower` skill setup.
+Each booster type (Generic or HEXA) can be enabled independently. Any booster item that is not HEXA is referred
+to as Generic (e.g. VIP Booster, Gilded Clockwork, etc.).
 
 How the bot uses:
-1. Detects the VIP/HEXA Booster in the quick slots.  
-2. Checks if at least one booster is available.  
-3. Attempts to use the booster.  
-4. If successful, repeats from step 1.  
-5. If the bot fails 5 consecutive attempts or no booster is available, it stops attempting to use boosters.
+1. Attempts to use the booster.  
+2. If successful, repeats from step 1.  
+3. If the bot fails 5 consecutive attempts or no booster is available, it stops attempting to use boosters.
 
 #### HEXA Booster Exchange
 
