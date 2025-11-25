@@ -515,7 +515,6 @@ fn SectionUseBooster() -> Element {
                 }
                 CharactersCheckbox {
                     label: "Enabled",
-                    tooltip: "Requires HEXA Booster to be visible in quick slots.",
                     checked: character().hexa_booster_key.enabled,
                     on_checked: move |enabled| {
                         let character = character.peek().clone();
