@@ -67,7 +67,16 @@ struct SpinArrow {
 #[derive(Debug)]
 pub enum ArrowsState {
     Calibrating(ArrowsCalibrating),
-    Complete([(Rect, KeyKind); MAX_ARROWS]),
+    Complete(ArrowsComplete),
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct ArrowsComplete {
+    pub keys: [KeyKind; MAX_ARROWS],
+    #[cfg(debug_assertions)]
+    pub bboxes: [Rect; MAX_ARROWS],
+    #[cfg(debug_assertions)]
+    pub spins: [bool; MAX_ARROWS],
 }
 
 /// Struct representing arrows calibration in-progress
@@ -1849,7 +1858,9 @@ fn detect_rune_arrows(
 
     let result = detect_rune_arrows_with_scores_regions(&bgr)
         .into_iter()
-        .filter_map(|(rect, arrow, score)| (score >= SCORE_THRESHOLD).then_some((rect, arrow)))
+        .filter_map(|(rect, arrow, score)| {
+            (score >= SCORE_THRESHOLD).then_some((rect, false, arrow))
+        })
         .collect::<Vec<_>>();
     if calibrating.spin_arrows.is_some() {
         if result.len() != MAX_ARROWS / 2 {
@@ -1861,15 +1872,15 @@ fn detect_rune_arrows(
             .take()
             .unwrap()
             .into_iter()
-            .map(|arrow| (arrow.region, arrow.final_arrow.unwrap()))
+            .map(|arrow| (arrow.region, true, arrow.final_arrow.unwrap()))
             .chain(result)
             .collect::<Vec<_>>();
         vec.sort_by_key(|a| a.0.x);
-        return Ok(ArrowsState::Complete(extract_rune_arrows_to_slice(vec)));
+        return Ok(ArrowsState::Complete(to_arrows_complete(vec)));
     }
 
     if result.len() == MAX_ARROWS {
-        Ok(ArrowsState::Complete(extract_rune_arrows_to_slice(result)))
+        Ok(ArrowsState::Complete(to_arrows_complete(result)))
     } else {
         Err(anyhow!("failed to detect rune arrows"))
     }
@@ -2042,14 +2053,27 @@ fn detect_spin_arrow(bgr: &impl MatTraitConst, spin_arrow: &mut SpinArrow) -> Re
 }
 
 #[inline]
-fn extract_rune_arrows_to_slice(vec: Vec<(Rect, KeyKind)>) -> [(Rect, KeyKind); MAX_ARROWS] {
+fn to_arrows_complete(vec: Vec<(Rect, bool, KeyKind)>) -> ArrowsComplete {
     debug_assert!(vec.len() == 4);
+    info!( target: "player", "solving rune result {vec:?}");
+
     let first = vec[0];
     let second = vec[1];
     let third = vec[2];
     let fourth = vec[3];
-    info!( target: "player", "solving rune result {first:?} {second:?} {third:?} {fourth:?}");
-    [first, second, third, fourth]
+    let keys = [first.2, second.2, third.2, fourth.2];
+    #[cfg(debug_assertions)]
+    let bboxes = [first.0, second.0, third.0, fourth.0];
+    #[cfg(debug_assertions)]
+    let spins = [first.1, second.1, third.1, fourth.1];
+
+    ArrowsComplete {
+        keys,
+        #[cfg(debug_assertions)]
+        bboxes,
+        #[cfg(debug_assertions)]
+        spins,
+    }
 }
 
 fn detect_erda_shower(grayscale: &impl MatTraitConst) -> Result<Rect> {

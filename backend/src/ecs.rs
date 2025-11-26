@@ -4,9 +4,6 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
-#[cfg(debug_assertions)]
-use opencv::core::Rect;
-
 #[cfg(test)]
 use crate::{Settings, bridge::MockInput, detect::MockDetector};
 use crate::{
@@ -15,7 +12,7 @@ use crate::{
     skill::SkillEntities,
 };
 #[cfg(debug_assertions)]
-use crate::{bridge::KeyKind, debug::save_rune_for_training};
+use crate::{debug::save_rune_for_training, detect::ArrowsComplete};
 
 #[macro_export]
 macro_rules! transition {
@@ -97,7 +94,7 @@ macro_rules! try_ok_transition {
 pub struct Debug {
     auto_save: RefCell<bool>,
     last_rune_detector: RefCell<Option<Arc<dyn Detector>>>,
-    last_rune_result: RefCell<Option<[(Rect, KeyKind); 4]>>,
+    last_rune_result: RefCell<Option<ArrowsComplete>>,
 }
 
 #[cfg(debug_assertions)]
@@ -124,7 +121,7 @@ impl Debug {
         }
     }
 
-    pub fn set_last_rune_result(&self, detector: Arc<dyn Detector>, result: [(Rect, KeyKind); 4]) {
+    pub fn set_last_rune_result(&self, detector: Arc<dyn Detector>, result: ArrowsComplete) {
         *self.last_rune_detector.borrow_mut() = Some(detector);
         *self.last_rune_result.borrow_mut() = Some(result);
     }

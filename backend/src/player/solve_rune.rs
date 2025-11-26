@@ -166,14 +166,14 @@ fn update_solving(resources: &Resources, solving_rune: &mut SolvingRune) {
                 ArrowsState::Calibrating(calibrating) => {
                     transition!(solving_rune, State::Solving(calibrating, timeout))
                 }
-                ArrowsState::Complete(pairs) => transition!(
+                ArrowsState::Complete(complete) => transition!(
                     solving_rune,
-                    State::PressKeys(Timeout::default(), pairs.map(|(_, key)| key), 0),
+                    State::PressKeys(Timeout::default(), complete.keys, 0),
                     {
                         #[cfg(debug_assertions)]
                         resources
                             .debug
-                            .set_last_rune_result(resources.detector_cloned(), pairs);
+                            .set_last_rune_result(resources.detector_cloned(), complete);
                     }
                 ),
             }
@@ -212,12 +212,11 @@ mod tests {
 
     use anyhow::{Ok, anyhow};
     use mockall::predicate::eq;
-    use opencv::core::Rect;
 
     use super::*;
     use crate::{
         bridge::{KeyKind, MockInput},
-        detect::{ArrowsCalibrating, ArrowsState, MockDetector},
+        detect::{ArrowsCalibrating, ArrowsComplete, ArrowsState, MockDetector},
         ecs::Resources,
         player::{Player, PlayerContext, PlayerEntity},
     };
@@ -357,16 +356,15 @@ mod tests {
 
     #[test]
     fn update_solving_to_press_keys_on_complete() {
-        let expected_keys = [
-            (Rect::default(), KeyKind::A),
-            (Rect::default(), KeyKind::S),
-            (Rect::default(), KeyKind::D),
-            (Rect::default(), KeyKind::F),
-        ];
+        let complete = ArrowsComplete {
+            keys: [KeyKind::A, KeyKind::S, KeyKind::D, KeyKind::F],
+            bboxes: Default::default(),
+            spins: Default::default(),
+        };
         let mut detector = MockDetector::default();
         detector
             .expect_detect_rune_arrows()
-            .return_once(move |_| Ok(ArrowsState::Complete(expected_keys)));
+            .return_once(move |_| Ok(ArrowsState::Complete(complete)));
         let resources = Resources::new(None, Some(detector));
         let mut solving_rune = SolvingRune {
             state: State::Solving(

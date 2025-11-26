@@ -15,6 +15,7 @@ use opencv::imgproc::{LINE_8, circle_def};
 use rand::distr::{Alphanumeric, SampleString};
 
 use crate::bridge::KeyKind;
+use crate::detect::ArrowsComplete;
 use crate::utils::{self, DatasetDir};
 
 #[allow(unused)]
@@ -185,24 +186,37 @@ pub fn debug_rune(mat: &Mat, preds: &Vec<&[f32]>, w_ratio: f32, h_ratio: f32) {
     );
 }
 
-pub fn save_rune_for_training<T: MatTraitConst + ToInputArray>(
-    mat: &T,
-    result: [(Rect, KeyKind); 4],
-) {
+pub fn save_rune_for_training<T: MatTraitConst + ToInputArray>(mat: &T, result: ArrowsComplete) {
     let name = Alphanumeric.sample_string(&mut rand::rng(), 8);
     let size = mat.size().unwrap();
-    let labels = result
-        .map(|(bbox, arrow)| {
-            let label = match arrow {
-                KeyKind::Up => 0,
-                KeyKind::Down => 1,
-                KeyKind::Left => 2,
-                KeyKind::Right => 3,
-                _ => unreachable!(),
-            };
-            to_yolo_format(label, size, bbox)
-        })
-        .join("\n");
+
+    let labels = if result.spins.iter().any(|spin| *spin) {
+        result
+            .bboxes
+            .into_iter()
+            .enumerate()
+            .filter(|(index, _)| result.spins[*index])
+            .map(|(_, bbox)| to_yolo_format(0, size, bbox))
+            .collect::<Vec<String>>()
+            .join("\n")
+    } else {
+        result
+            .bboxes
+            .into_iter()
+            .zip(result.keys)
+            .map(|(bbox, arrow)| {
+                let label = match arrow {
+                    KeyKind::Up => 0,
+                    KeyKind::Down => 1,
+                    KeyKind::Left => 2,
+                    KeyKind::Right => 3,
+                    _ => unreachable!(),
+                };
+                to_yolo_format(label, size, bbox)
+            })
+            .collect::<Vec<String>>()
+            .join("\n")
+    };
 
     utils::save_image_to(mat, DatasetDir::Rune, format!("{name}.png"));
     utils::save_file_to(labels, DatasetDir::Rune, format!("{name}.txt"));
