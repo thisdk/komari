@@ -125,10 +125,6 @@ fn SectionInfo() -> Element {
                         Data { description: "Familiar menu setup tab's save button." }
                     }
                     tr {
-                        Data { description: "Open setup tab in familiar menu." }
-                        Data { description: "Familiar menu's setup button." }
-                    }
-                    tr {
                         Data { description: "HEXA", rowspan: 4 }
                         Data { description: "Open Sol Erda version menu in HEXA Matrix." }
                         Data { description: "Erda conversion button." }
