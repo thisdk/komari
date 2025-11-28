@@ -102,14 +102,15 @@ impl RotatorService for DefaultRotatorService {
         let enable_using_hexa_booster = character
             .map(|character| character.hexa_booster_key.enabled)
             .unwrap_or_default();
+        let familiars = character
+            .map(|character| character.familiars.clone())
+            .unwrap_or_default();
         let args = RotatorBuildArgs {
             mode,
             actions: &self.actions,
             buffs: &self.buffs,
+            familiars,
             familiar_essence_key,
-            familiar_swappable_slots: settings.familiars.swappable_familiars,
-            familiar_swappable_rarities: &settings.familiars.swappable_rarities,
-            familiar_swap_check_millis: settings.familiars.swap_check_millis,
             elite_boss_behavior,
             elite_boss_behavior_key,
             hexa_booster_exchange_condition,
@@ -117,7 +118,6 @@ impl RotatorService for DefaultRotatorService {
             hexa_booster_exchange_all,
             enable_panic_mode: settings.enable_panic_mode,
             enable_rune_solving: settings.enable_rune_solving,
-            enable_familiars_swapping: settings.familiars.enable_familiars_swapping,
             enable_reset_normal_actions_on_erda: reset_normal_actions_on_erda,
             enable_using_generic_booster,
             enable_using_hexa_booster,
@@ -401,28 +401,23 @@ mod tests {
 
     #[test]
     fn update_with_familiar_swap_config() {
-        let mut settings = Settings::default();
-        settings.familiars.swappable_familiars = SwappableFamiliars::SecondAndLast;
-        settings.familiars.swappable_rarities =
+        let mut character = Character::default();
+        character.familiars.swappable_familiars = SwappableFamiliars::SecondAndLast;
+        character.familiars.swappable_rarities =
             HashSet::from_iter([FamiliarRarity::Epic, FamiliarRarity::Rare]);
-        settings.familiars.swap_check_millis = 5000;
-        settings.familiars.enable_familiars_swapping = true;
+        character.familiars.swap_check_millis = 5000;
+        character.familiars.enable_familiars_swapping = true;
 
-        let settings_clone = settings.clone();
+        let character_clone = character.clone();
         let mut rotator = MockRotator::new();
         rotator
             .expect_build_actions()
-            .withf(move |args| {
-                args.familiar_swappable_slots == SwappableFamiliars::SecondAndLast
-                    && args.familiar_swappable_rarities == &settings.familiars.swappable_rarities
-                    && args.familiar_swap_check_millis == 5000
-                    && args.enable_familiars_swapping
-            })
+            .withf(move |args| args.familiars == character_clone.familiars)
             .once()
             .return_const(());
 
         let service = DefaultRotatorService::default();
-        service.apply(&mut rotator, None, None, &settings_clone);
+        service.apply(&mut rotator, None, Some(&character), &Settings::default());
     }
 
     #[test]

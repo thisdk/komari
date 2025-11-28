@@ -13,8 +13,8 @@ use strum::{Display, EnumIter, EnumString};
 use tokio::sync::broadcast::{Receiver, Sender, channel};
 
 use crate::{
-    ExchangeHexaBoosterCondition, KeyBinding, KeyBindingConfiguration, Localization, Settings,
-    WaitAfterBuffered, pathing,
+    ExchangeHexaBoosterCondition, Familiars, KeyBinding, KeyBindingConfiguration, Localization,
+    Settings, WaitAfterBuffered, pathing,
 };
 
 const MAPS: &str = "maps";
@@ -161,6 +161,8 @@ pub struct Character {
     pub potion_key: KeyBindingConfiguration,
     pub potion_mode: PotionMode,
     pub health_update_millis: u64,
+    #[serde(default)]
+    pub familiars: Familiars,
     pub familiar_buff_key: KeyBindingConfiguration,
     #[serde(default = "key_default")]
     pub familiar_essence_key: KeyBindingConfiguration,
@@ -259,6 +261,7 @@ impl Default for Character {
             potion_key: KeyBindingConfiguration::default(),
             potion_mode: PotionMode::EveryMillis(180000),
             health_update_millis: 1000,
+            familiars: Familiars::default(),
             familiar_buff_key: KeyBindingConfiguration::default(),
             familiar_essence_key: key_default(),
             sayram_elixir_key: KeyBindingConfiguration::default(),

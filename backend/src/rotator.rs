@@ -1,6 +1,6 @@
 use std::{
     assert_matches::debug_assert_matches,
-    collections::{HashSet, VecDeque},
+    collections::VecDeque,
     fmt::Debug,
     sync::{
         Arc,
@@ -17,8 +17,8 @@ use opencv::core::{Point, Rect};
 use ordered_hash_map::OrderedHashMap;
 
 use crate::{
-    ActionKeyDirection, ActionKeyWith, Bound, ExchangeHexaBoosterCondition, FamiliarRarity,
-    KeyBinding, LinkKeyBinding, MobbingKey, Position, SwappableFamiliars, WaitAfterBuffered,
+    ActionKeyDirection, ActionKeyWith, Bound, ExchangeHexaBoosterCondition, Familiars, KeyBinding,
+    LinkKeyBinding, MobbingKey, Position, WaitAfterBuffered,
     array::Array,
     buff::{Buff, BuffKind},
     database::{Action, ActionCondition, ActionKey, ActionMove, EliteBossBehavior},
@@ -140,10 +140,8 @@ pub struct RotatorBuildArgs<'a> {
     pub mode: RotatorMode,
     pub actions: &'a [Action],
     pub buffs: &'a [(BuffKind, KeyBinding)],
+    pub familiars: Familiars,
     pub familiar_essence_key: KeyBinding,
-    pub familiar_swappable_slots: SwappableFamiliars,
-    pub familiar_swappable_rarities: &'a HashSet<FamiliarRarity>,
-    pub familiar_swap_check_millis: u64,
     pub elite_boss_behavior: EliteBossBehavior,
     pub elite_boss_behavior_key: KeyBinding,
     pub hexa_booster_exchange_condition: ExchangeHexaBoosterCondition,
@@ -151,7 +149,6 @@ pub struct RotatorBuildArgs<'a> {
     pub hexa_booster_exchange_all: bool,
     pub enable_panic_mode: bool,
     pub enable_rune_solving: bool,
-    pub enable_familiars_swapping: bool,
     pub enable_reset_normal_actions_on_erda: bool,
     pub enable_using_generic_booster: bool,
     pub enable_using_hexa_booster: bool,
@@ -819,10 +816,8 @@ impl Rotator for DefaultRotator {
             mode,
             actions,
             buffs,
+            familiars,
             familiar_essence_key,
-            familiar_swappable_slots,
-            familiar_swappable_rarities,
-            familiar_swap_check_millis,
             elite_boss_behavior,
             elite_boss_behavior_key,
             hexa_booster_exchange_condition,
@@ -830,7 +825,6 @@ impl Rotator for DefaultRotator {
             hexa_booster_exchange_all,
             enable_panic_mode,
             enable_rune_solving,
-            enable_familiars_swapping,
             enable_reset_normal_actions_on_erda,
             enable_using_generic_booster,
             enable_using_hexa_booster,
@@ -868,15 +862,15 @@ impl Rotator for DefaultRotator {
             );
         }
 
-        if enable_familiars_swapping {
+        if familiars.enable_familiars_swapping {
             self.priority_actions.insert(
                 next_action_id(),
                 familiars_swap_priority_action(
                     FamiliarsSwap {
-                        swappable_slots: familiar_swappable_slots,
-                        swappable_rarities: Array::from_iter(familiar_swappable_rarities.clone()),
+                        swappable_slots: familiars.swappable_familiars,
+                        swappable_rarities: Array::from_iter(familiars.swappable_rarities.clone()),
                     },
-                    familiar_swap_check_millis,
+                    familiars.swap_check_millis,
                 ),
             );
         }
@@ -1691,10 +1685,8 @@ mod tests {
             mode: RotatorMode::default(),
             actions: &actions,
             buffs: &buffs,
+            familiars: Familiars::default(),
             familiar_essence_key: KeyBinding::default(),
-            familiar_swappable_slots: SwappableFamiliars::default(),
-            familiar_swappable_rarities: &HashSet::default(),
-            familiar_swap_check_millis: 0,
             elite_boss_behavior: EliteBossBehavior::CycleChannel,
             elite_boss_behavior_key: KeyBinding::default(),
             hexa_booster_exchange_condition: ExchangeHexaBoosterCondition::None,
@@ -1702,7 +1694,6 @@ mod tests {
             hexa_booster_exchange_all: false,
             enable_panic_mode: true,
             enable_rune_solving: true,
-            enable_familiars_swapping: false,
             enable_reset_normal_actions_on_erda: false,
             enable_using_generic_booster: false,
             enable_using_hexa_booster: false,

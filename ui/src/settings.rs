@@ -1,10 +1,9 @@
 use std::{fmt::Display, mem};
 
 use backend::{
-    CaptureMode, CycleRunStopMode, FamiliarRarity, Familiars, InputMethod, IntoEnumIterator,
-    KeyBinding, KeyBindingConfiguration, Notifications, Settings, SwappableFamiliars,
-    query_capture_handles, query_settings, refresh_capture_handles, select_capture_handle,
-    upsert_settings,
+    CaptureMode, CycleRunStopMode, InputMethod, IntoEnumIterator, KeyBinding,
+    KeyBindingConfiguration, Notifications, Settings, query_capture_handles, query_settings,
+    refresh_capture_handles, select_capture_handle, upsert_settings,
 };
 use dioxus::{html::FileData, prelude::*};
 use futures_util::StreamExt;
@@ -73,7 +72,6 @@ pub fn SettingsScreen() -> Element {
         div { class: "flex flex-col h-full overflow-y-auto",
             SectionCapture {}
             SectionInput {}
-            SectionFamiliars {}
             SectionControlAndNotifications {}
             SectionHotkeys {}
             SectionRunStopCycle {}
@@ -172,103 +170,6 @@ fn SectionInput() -> Element {
                         });
                     },
                     value: settings().input_method_rpc_server_url,
-                }
-            }
-        }
-    }
-}
-
-#[component]
-fn SectionFamiliars() -> Element {
-    let context = use_context::<SettingsContext>();
-    let settings = context.settings;
-    let save_settings = context.save_settings;
-    let familiars = use_memo(move || settings().familiars);
-
-    rsx! {
-        Section { title: "Familiars",
-            SettingsCheckbox {
-                label: "Enable swapping",
-                on_checked: move |enable_familiars_swapping| {
-                    save_settings(Settings {
-                        familiars: Familiars {
-                            enable_familiars_swapping,
-                            ..familiars.peek().clone()
-                        },
-                        ..settings.peek().clone()
-                    });
-                },
-                checked: familiars().enable_familiars_swapping,
-            }
-            div { class: "grid grid-cols-2 gap-3 mt-2",
-                SettingsEnumSelect::<SwappableFamiliars> {
-                    label: "Swappable slots",
-                    disabled: !familiars().enable_familiars_swapping,
-                    on_selected: move |swappable_familiars| async move {
-                        save_settings(Settings {
-                            familiars: Familiars {
-                                swappable_familiars,
-                                ..familiars.peek().clone()
-                            },
-                            ..settings.peek().clone()
-                        });
-                    },
-                    selected: familiars().swappable_familiars,
-                }
-                SettingsMillisInput {
-                    label: "Swap check every",
-                    disabled: !familiars().enable_familiars_swapping,
-                    on_value: move |swap_check_millis| {
-                        save_settings(Settings {
-                            familiars: Familiars {
-                                swap_check_millis,
-                                ..familiars.peek().clone()
-                            },
-                            ..settings.peek().clone()
-                        });
-                    },
-                    value: familiars().swap_check_millis,
-                }
-
-                SettingsCheckbox {
-                    label: "Can swap rare familiars",
-                    disabled: !familiars().enable_familiars_swapping,
-                    on_checked: move |allowed| {
-                        let mut rarities = familiars.peek().swappable_rarities.clone();
-                        if allowed {
-                            rarities.insert(FamiliarRarity::Rare);
-                        } else {
-                            rarities.remove(&FamiliarRarity::Rare);
-                        }
-                        save_settings(Settings {
-                            familiars: Familiars {
-                                swappable_rarities: rarities,
-                                ..familiars.peek().clone()
-                            },
-                            ..settings.peek().clone()
-                        });
-                    },
-                    checked: familiars().swappable_rarities.contains(&FamiliarRarity::Rare),
-                }
-                SettingsCheckbox {
-                    label: "Can swap epic familiars",
-                    disabled: !familiars().enable_familiars_swapping,
-                    on_checked: move |allowed| {
-                        let mut rarities = familiars.peek().swappable_rarities.clone();
-                        if allowed {
-                            rarities.insert(FamiliarRarity::Epic);
-                        } else {
-                            rarities.remove(&FamiliarRarity::Epic);
-                        }
-                        save_settings(Settings {
-                            familiars: Familiars {
-                                swappable_rarities: rarities,
-                                ..familiars.peek().clone()
-                            },
-                            ..settings.peek().clone()
-                        });
-                    },
-                    checked: familiars().swappable_rarities.contains(&FamiliarRarity::Epic),
                 }
             }
         }

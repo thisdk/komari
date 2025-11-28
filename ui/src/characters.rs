@@ -2,9 +2,9 @@ use std::{fmt::Display, mem};
 
 use backend::{
     ActionConfiguration, ActionConfigurationCondition, ActionKeyWith, Character, Class,
-    EliteBossBehavior, ExchangeHexaBoosterCondition, IntoEnumIterator, KeyBinding,
-    KeyBindingConfiguration, LinkKeyBinding, PotionMode, WaitAfterBuffered, delete_character,
-    query_characters, update_character, upsert_character,
+    EliteBossBehavior, ExchangeHexaBoosterCondition, FamiliarRarity, Familiars, IntoEnumIterator,
+    KeyBinding, KeyBindingConfiguration, LinkKeyBinding, PotionMode, SwappableFamiliars,
+    WaitAfterBuffered, delete_character, query_characters, update_character, upsert_character,
 };
 use dioxus::{html::FileData, prelude::*};
 use futures_util::StreamExt;
@@ -28,6 +28,7 @@ use crate::{
 };
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 enum CharactersUpdate {
     Set,
     Update(Character),
@@ -143,10 +144,10 @@ pub fn CharactersScreen() -> Element {
     rsx! {
         div { class: "flex flex-col pb-15 h-full overflow-y-auto",
             SectionKeyBindings {}
-            SectionFeedPet {}
-            SectionUsePotion {}
+            SectionUsePotionAndFeedPet {}
             SectionUseBooster {}
             SectionMovement {}
+            SectionFamiliars {}
             SectionBuffs {}
             SectionFixedActions {}
             SectionOthers {}
@@ -308,158 +309,165 @@ fn SectionKeyBindings() -> Element {
         }
     }
 }
-
 #[component]
-fn SectionFeedPet() -> Element {
-    let context = use_context::<CharactersContext>();
-    let character = context.character;
-    let save_character = context.save_character;
-
+fn SectionUsePotionAndFeedPet() -> Element {
     rsx! {
-        Section { title: "Feed pet",
-            div { class: "grid grid-cols-3 gap-4",
-                CharactersKeyBindingConfigurationInput {
-                    label: "Key",
-                    label_class: "col-span-2",
-                    disabled: character().id.is_none(),
-                    on_value: move |key_config: Option<KeyBindingConfiguration>| {
-                        save_character(Character {
-                            feed_pet_key: key_config.expect("not optional"),
-                            ..character.peek().clone()
-                        });
-                    },
-                    value: character().feed_pet_key,
-                }
-                CharactersCheckbox {
-                    label: "Enabled",
-                    disabled: character().id.is_none(),
-                    on_checked: move |enabled| {
-                        let character = character.peek().clone();
-                        save_character(Character {
-                            feed_pet_key: KeyBindingConfiguration {
-                                enabled,
-                                ..character.feed_pet_key
-                            },
-                            ..character
-                        });
-                    },
-                    checked: character().feed_pet_key.enabled,
-                }
-                CharactersNumberU32Input {
-                    label: "Count",
-                    disabled: character().id.is_none(),
-                    on_value: move |feed_pet_count| {
-                        save_character(Character {
-                            feed_pet_count,
-                            ..character.peek().clone()
-                        });
-                    },
-                    value: character().feed_pet_count,
-                }
-                CharactersMillisInput {
-                    label: "Every",
-                    disabled: character().id.is_none(),
-                    on_value: move |feed_pet_millis| {
-                        save_character(Character {
-                            feed_pet_millis,
-                            ..character.peek().clone()
-                        });
-                    },
-                    value: character().feed_pet_millis,
-                }
+        Section { title: "Use potion and feed pet",
+            div { class: "flex flex-col gap-4",
+                UsePotion {}
+                FeedPet {}
             }
         }
     }
 }
 
 #[component]
-fn SectionUsePotion() -> Element {
+fn FeedPet() -> Element {
     let context = use_context::<CharactersContext>();
     let character = context.character;
     let save_character = context.save_character;
 
     rsx! {
-        Section { title: "Use potion",
-            div { class: "grid grid-cols-3 gap-4",
-                CharactersKeyBindingConfigurationInput {
-                    label: "Key",
-                    label_class: "col-span-2",
-                    disabled: character().id.is_none(),
-                    on_value: move |key_config: Option<KeyBindingConfiguration>| {
-                        save_character(Character {
-                            potion_key: key_config.expect("not optional"),
-                            ..character.peek().clone()
-                        });
-                    },
-                    value: character().potion_key,
-                }
-                CharactersCheckbox {
-                    label: "Enabled",
-                    disabled: character().id.is_none(),
-                    on_checked: move |enabled| {
-                        let character = character.peek().clone();
-                        save_character(Character {
-                            potion_key: KeyBindingConfiguration {
-                                enabled,
-                                ..character.potion_key
-                            },
-                            ..character
-                        });
-                    },
-                    checked: character().potion_key.enabled,
-                }
-                CharactersSelect::<PotionMode> {
-                    label: "Mode",
-                    disabled: character().id.is_none(),
-                    on_selected: move |potion_mode| {
-                        save_character(Character {
-                            potion_mode,
-                            ..character.peek().clone()
-                        });
-                    },
-                    selected: character().potion_mode,
-                }
-                match character().potion_mode {
-                    PotionMode::EveryMillis(millis) => rsx! {
-                        CharactersMillisInput {
-                            label: "Every",
+        div { class: "grid grid-cols-3 gap-4",
+            CharactersKeyBindingConfigurationInput {
+                label: "Feed key",
+                label_class: "col-span-2",
+                disabled: character().id.is_none(),
+                on_value: move |key_config: Option<KeyBindingConfiguration>| {
+                    save_character(Character {
+                        feed_pet_key: key_config.expect("not optional"),
+                        ..character.peek().clone()
+                    });
+                },
+                value: character().feed_pet_key,
+            }
+            CharactersCheckbox {
+                label: "Enabled",
+                disabled: character().id.is_none(),
+                on_checked: move |enabled| {
+                    let character = character.peek().clone();
+                    save_character(Character {
+                        feed_pet_key: KeyBindingConfiguration {
+                            enabled,
+                            ..character.feed_pet_key
+                        },
+                        ..character
+                    });
+                },
+                checked: character().feed_pet_key.enabled,
+            }
+            CharactersNumberU32Input {
+                label: "Count",
+                disabled: character().id.is_none(),
+                on_value: move |feed_pet_count| {
+                    save_character(Character {
+                        feed_pet_count,
+                        ..character.peek().clone()
+                    });
+                },
+                value: character().feed_pet_count,
+            }
+            CharactersMillisInput {
+                label: "Every",
+                disabled: character().id.is_none(),
+                on_value: move |feed_pet_millis| {
+                    save_character(Character {
+                        feed_pet_millis,
+                        ..character.peek().clone()
+                    });
+                },
+                value: character().feed_pet_millis,
+            }
+        }
+    }
+}
+
+#[component]
+fn UsePotion() -> Element {
+    let context = use_context::<CharactersContext>();
+    let character = context.character;
+    let save_character = context.save_character;
+
+    rsx! {
+        div { class: "grid grid-cols-3 gap-4",
+            CharactersKeyBindingConfigurationInput {
+                label: "Potion key",
+                label_class: "col-span-2",
+                disabled: character().id.is_none(),
+                on_value: move |key_config: Option<KeyBindingConfiguration>| {
+                    save_character(Character {
+                        potion_key: key_config.expect("not optional"),
+                        ..character.peek().clone()
+                    });
+                },
+                value: character().potion_key,
+            }
+            CharactersCheckbox {
+                label: "Enabled",
+                disabled: character().id.is_none(),
+                on_checked: move |enabled| {
+                    let character = character.peek().clone();
+                    save_character(Character {
+                        potion_key: KeyBindingConfiguration {
+                            enabled,
+                            ..character.potion_key
+                        },
+                        ..character
+                    });
+                },
+                checked: character().potion_key.enabled,
+            }
+            CharactersSelect::<PotionMode> {
+                label: "Mode",
+                disabled: character().id.is_none(),
+                on_selected: move |potion_mode| {
+                    save_character(Character {
+                        potion_mode,
+                        ..character.peek().clone()
+                    });
+                },
+                selected: character().potion_mode,
+            }
+            match character().potion_mode {
+                PotionMode::EveryMillis(millis) => rsx! {
+                    CharactersMillisInput {
+                        label: "Every",
+                        disabled: character().id.is_none(),
+                        on_value: move |millis| {
+                            save_character(Character {
+                                potion_mode: PotionMode::EveryMillis(millis),
+                                ..character.peek().clone()
+                            });
+                        },
+                        value: millis,
+                    }
+                },
+                PotionMode::Percentage(percent) => rsx! {
+                    div { class: "grid grid-cols-2 gap-2",
+                        CharactersPercentageInput {
+                            label: "Below health",
                             disabled: character().id.is_none(),
-                            on_value: move |millis| {
+                            on_value: move |percent| {
                                 save_character(Character {
-                                    potion_mode: PotionMode::EveryMillis(millis),
+                                    potion_mode: PotionMode::Percentage(percent as f32),
                                     ..character.peek().clone()
                                 });
                             },
-                            value: millis,
+                            value: percent as u32,
                         }
-                    },
-                    PotionMode::Percentage(percent) => rsx! {
-                        div { class: "grid grid-cols-2 col-span-2 gap-2",
-                            CharactersPercentageInput {
-                                label: "Below health",
-                                disabled: character().id.is_none(),
-                                on_value: move |percent| {
-                                    save_character(Character {
-                                        potion_mode: PotionMode::Percentage(percent as f32),
-                                        ..character.peek().clone()
-                                    });
-                                },
-                                value: percent as u32,
-                            }
-                            CharactersMillisInput {
-                                label: "Health update every",
-                                disabled: character().id.is_none(),
-                                on_value: move |millis| {
-                                    save_character(Character {
-                                        health_update_millis: millis,
-                                        ..character.peek().clone()
-                                    });
-                                },
-                                value: character().health_update_millis,
-                            }
+                        CharactersMillisInput {
+                            label: "Health update every",
+                            disabled: character().id.is_none(),
+                            on_value: move |millis| {
+                                save_character(Character {
+                                    health_update_millis: millis,
+                                    ..character.peek().clone()
+                                });
+                            },
+                            value: character().health_update_millis,
                         }
-                    },
-                }
+                    }
+                },
             }
         }
     }
@@ -637,6 +645,103 @@ fn SectionMovement() -> Element {
                     },
                     tooltip: "Not applicable if an action requires adjusting.",
                     disabled,
+                }
+            }
+        }
+    }
+}
+
+#[component]
+fn SectionFamiliars() -> Element {
+    let context = use_context::<CharactersContext>();
+    let character = context.character;
+    let save_character = context.save_character;
+    let familiars = use_memo(move || character().familiars);
+
+    rsx! {
+        Section { title: "Familiars",
+            CharactersCheckbox {
+                label: "Enable swapping",
+                on_checked: move |enable_familiars_swapping| {
+                    save_character(Character {
+                        familiars: Familiars {
+                            enable_familiars_swapping,
+                            ..familiars.peek().clone()
+                        },
+                        ..character.peek().clone()
+                    });
+                },
+                checked: familiars().enable_familiars_swapping,
+            }
+            div { class: "grid grid-cols-2 gap-3 mt-2",
+                CharactersSelect::<SwappableFamiliars> {
+                    label: "Swappable slots",
+                    disabled: !familiars().enable_familiars_swapping,
+                    on_selected: move |swappable_familiars| async move {
+                        save_character(Character {
+                            familiars: Familiars {
+                                swappable_familiars,
+                                ..familiars.peek().clone()
+                            },
+                            ..character.peek().clone()
+                        });
+                    },
+                    selected: familiars().swappable_familiars,
+                }
+                CharactersMillisInput {
+                    label: "Swap check every",
+                    disabled: !familiars().enable_familiars_swapping,
+                    on_value: move |swap_check_millis| {
+                        save_character(Character {
+                            familiars: Familiars {
+                                swap_check_millis,
+                                ..familiars.peek().clone()
+                            },
+                            ..character.peek().clone()
+                        });
+                    },
+                    value: familiars().swap_check_millis,
+                }
+
+                CharactersCheckbox {
+                    label: "Can swap rare familiars",
+                    disabled: !familiars().enable_familiars_swapping,
+                    on_checked: move |allowed| {
+                        let mut rarities = familiars.peek().swappable_rarities.clone();
+                        if allowed {
+                            rarities.insert(FamiliarRarity::Rare);
+                        } else {
+                            rarities.remove(&FamiliarRarity::Rare);
+                        }
+                        save_character(Character {
+                            familiars: Familiars {
+                                swappable_rarities: rarities,
+                                ..familiars.peek().clone()
+                            },
+                            ..character.peek().clone()
+                        });
+                    },
+                    checked: familiars().swappable_rarities.contains(&FamiliarRarity::Rare),
+                }
+                CharactersCheckbox {
+                    label: "Can swap epic familiars",
+                    disabled: !familiars().enable_familiars_swapping,
+                    on_checked: move |allowed| {
+                        let mut rarities = familiars.peek().swappable_rarities.clone();
+                        if allowed {
+                            rarities.insert(FamiliarRarity::Epic);
+                        } else {
+                            rarities.remove(&FamiliarRarity::Epic);
+                        }
+                        save_character(Character {
+                            familiars: Familiars {
+                                swappable_rarities: rarities,
+                                ..familiars.peek().clone()
+                            },
+                            ..character.peek().clone()
+                        });
+                    },
+                    checked: familiars().swappable_rarities.contains(&FamiliarRarity::Epic),
                 }
             }
         }

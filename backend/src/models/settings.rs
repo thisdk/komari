@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString};
 
@@ -28,7 +26,6 @@ pub struct Settings {
     #[serde(default)]
     pub discord_bot_access_token: String,
     pub notifications: Notifications,
-    pub familiars: Familiars,
     #[serde(default = "toggle_actions_key_default")]
     pub toggle_actions_key: KeyBindingConfiguration,
     #[serde(default = "platform_start_key_default")]
@@ -55,7 +52,6 @@ impl Default for Settings {
             cycle_stop_duration_millis: cycle_stop_duration_millis_default(),
             discord_bot_access_token: String::default(),
             notifications: Notifications::default(),
-            familiars: Familiars::default(),
             toggle_actions_key: toggle_actions_key_default(),
             platform_start_key: platform_start_key_default(),
             platform_end_key: platform_end_key_default(),
@@ -151,45 +147,4 @@ pub struct Notifications {
     pub notify_on_player_guildie_appear: bool,
     pub notify_on_player_stranger_appear: bool,
     pub notify_on_player_friend_appear: bool,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Familiars {
-    pub enable_familiars_swapping: bool,
-    #[serde(default = "familiars_swap_check_millis")]
-    pub swap_check_millis: u64,
-    pub swappable_familiars: SwappableFamiliars,
-    pub swappable_rarities: HashSet<FamiliarRarity>,
-}
-
-impl Default for Familiars {
-    fn default() -> Self {
-        Self {
-            enable_familiars_swapping: false,
-            swap_check_millis: familiars_swap_check_millis(),
-            swappable_familiars: SwappableFamiliars::default(),
-            swappable_rarities: HashSet::default(),
-        }
-    }
-}
-
-fn familiars_swap_check_millis() -> u64 {
-    300000
-}
-
-#[derive(
-    Clone, Copy, PartialEq, Default, Debug, Serialize, Deserialize, EnumIter, Display, EnumString,
-)]
-pub enum SwappableFamiliars {
-    #[default]
-    All,
-    Last,
-    SecondAndLast,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Default, Hash, Serialize, Deserialize)]
-pub enum FamiliarRarity {
-    #[default]
-    Rare,
-    Epic,
 }
