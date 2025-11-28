@@ -7,9 +7,8 @@ use super::{
     timeout::{Lifecycle, next_timeout_lifecycle},
 };
 use crate::{
-    ActionKeyDirection, ActionKeyWith, Class, LinkKeyBinding, Position,
+    ActionKeyDirection, ActionKeyWith, Class, LinkKeyBinding, Position, WaitAfterBuffered,
     bridge::{InputKeyDownOptions, KeyKind},
-    database::WaitAfterBuffered,
     ecs::Resources,
     minimap::Minimap,
     player::{
@@ -724,9 +723,8 @@ mod tests {
 
     use super::LinkKeyKind;
     use crate::{
-        ActionKeyDirection, ActionKeyWith,
+        ActionKeyDirection, ActionKeyWith, WaitAfterBuffered,
         bridge::{InputKeyDownOptions, KeyKind, MockInput},
-        database::WaitAfterBuffered,
         ecs::Resources,
         minimap::Minimap,
         player::{

@@ -12,8 +12,10 @@ use serde_json::Value;
 use strum::{Display, EnumIter, EnumString};
 use tokio::sync::broadcast::{Receiver, Sender, channel};
 
-use crate::models::{KeyBinding, KeyBindingConfiguration, Localization, Settings};
-use crate::{ExchangeHexaBoosterCondition, pathing};
+use crate::{
+    ExchangeHexaBoosterCondition, KeyBinding, KeyBindingConfiguration, Localization, Settings,
+    WaitAfterBuffered, pathing,
+};
 
 const MAPS: &str = "maps";
 const NAVIGATION_PATHS: &str = "navigation_paths";
@@ -617,15 +619,6 @@ impl Default for ActionKey {
             queue_to_front: None,
         }
     }
-}
-#[derive(
-    Clone, Copy, Display, EnumString, EnumIter, PartialEq, Debug, Serialize, Deserialize, Default,
-)]
-pub enum WaitAfterBuffered {
-    #[default]
-    None,
-    Interruptible,
-    Uninterruptible,
 }
 
 #[derive(

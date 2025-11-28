@@ -20,7 +20,8 @@ use tokio::sync::broadcast::Receiver;
 
 use crate::{
     ActionKeyDirection, ActionKeyWith, KeyBinding, LinkKeyBinding, NavigationPaths, Position,
-    database::{NavigationPath, NavigationTransition, WaitAfterBuffered, query_navigation_paths},
+    WaitAfterBuffered,
+    database::{NavigationPath, NavigationTransition, query_navigation_paths},
     detect::Detector,
     ecs::{Resources, WorldEvent},
     minimap::Minimap,

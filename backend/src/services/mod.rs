@@ -16,9 +16,9 @@ use tokio::{
 use crate::{
     ActionKeyDirection, ActionKeyWith, Character, GameState, GameTemplate, KeyBinding,
     LinkKeyBinding, Localization, Minimap, NavigationPath, RequestHandler, RotateKind, Settings,
+    WaitAfterBuffered,
     bridge::{Capture, DefaultInputReceiver, Input},
     control::{BotAction, BotCommandKind},
-    database::WaitAfterBuffered,
     detect::to_base64_from_mat,
     ecs::{Resources, World, WorldEvent},
     navigator::Navigator,
