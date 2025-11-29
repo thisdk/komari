@@ -21,10 +21,10 @@ use crate::{
     LinkKeyBinding, MobbingKey, Position, WaitAfterBuffered,
     array::Array,
     buff::{Buff, BuffKind},
-    database::{Action, ActionCondition, ActionKey, ActionMove, EliteBossBehavior},
     detect::{Detector, QuickSlotsHexaBooster, SolErda},
     ecs::{Resources, World},
     minimap::Minimap,
+    models::{Action, ActionCondition, ActionKey, ActionMove, EliteBossBehavior},
     player::{
         AutoMob, Booster, ExchangeBooster, FamiliarsSwap, GRAPPLING_THRESHOLD, Key, Panic, PanicTo,
         PingPong, PingPongDirection, PlayerAction, PlayerContext, PlayerEntity, Quadrant,

@@ -5,10 +5,17 @@ use strum::Display;
 
 use super::{Player, PlayerContext, use_key::UseKey};
 use crate::{
-    Action, ActionKey, ActionKeyDirection, ActionKeyWith, ActionMove, FamiliarRarity, KeyBinding,
-    Position, SwappableFamiliars, WaitAfterBuffered, array::Array, bridge::KeyKind,
-    database::LinkKeyBinding, ecs::Resources, minimap::Minimap, player::PlayerEntity,
-    run::MS_PER_TICK, transition, transition_if,
+    array::Array,
+    bridge::KeyKind,
+    ecs::Resources,
+    minimap::Minimap,
+    models::{
+        Action, ActionKey, ActionKeyDirection, ActionKeyWith, ActionMove, FamiliarRarity,
+        KeyBinding, LinkKeyBinding, Position, SwappableFamiliars, WaitAfterBuffered,
+    },
+    player::PlayerEntity,
+    run::MS_PER_TICK,
+    transition, transition_if,
 };
 
 /// The minimum x distance required to transition to [`Player::UseKey`] in auto mob action.
@@ -275,7 +282,7 @@ macro_rules! transition_to_moving_if {
 macro_rules! transition_from_action {
     ($player:expr, $state:expr) => {{
         use $crate::{
-            database::Position,
+            models::Position,
             player::{Key, PlayerAction},
         };
 
@@ -297,9 +304,10 @@ macro_rules! transition_from_action {
     }};
 
     ($player:expr, $state:expr, $is_terminal:expr) => {{
-        use $crate::database::Position;
-        use $crate::player::Key;
-        use $crate::player::PlayerAction;
+        use $crate::{
+            models::Position,
+            player::{Key, PlayerAction},
+        };
 
         if $is_terminal {
             match next_action(&$player.context).expect("has action") {

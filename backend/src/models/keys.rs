@@ -87,6 +87,40 @@ pub enum KeyBinding {
     Backspace,
 }
 
+#[derive(
+    Clone, Copy, Display, EnumString, EnumIter, PartialEq, Debug, Serialize, Deserialize, Default,
+)]
+pub enum LinkKeyBinding {
+    #[default]
+    None,
+    Before(KeyBinding),
+    AtTheSame(KeyBinding),
+    After(KeyBinding),
+    Along(KeyBinding),
+}
+
+impl LinkKeyBinding {
+    pub fn key(&self) -> Option<KeyBinding> {
+        match self {
+            LinkKeyBinding::Before(key)
+            | LinkKeyBinding::AtTheSame(key)
+            | LinkKeyBinding::After(key)
+            | LinkKeyBinding::Along(key) => Some(*key),
+            LinkKeyBinding::None => None,
+        }
+    }
+
+    pub fn with_key(&self, key: KeyBinding) -> Self {
+        match self {
+            LinkKeyBinding::Before(_) => LinkKeyBinding::Before(key),
+            LinkKeyBinding::AtTheSame(_) => LinkKeyBinding::AtTheSame(key),
+            LinkKeyBinding::After(_) => LinkKeyBinding::After(key),
+            LinkKeyBinding::Along(_) => LinkKeyBinding::Along(key),
+            LinkKeyBinding::None => LinkKeyBinding::None,
+        }
+    }
+}
+
 // TODO: Move to bridge.rs
 impl From<KeyKind> for KeyBinding {
     fn from(value: KeyKind) -> Self {

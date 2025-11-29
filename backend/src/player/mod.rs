@@ -22,9 +22,9 @@ use use_key::{UseKey, update_use_key_state};
 use crate::{
     bridge::KeyKind,
     buff::BuffEntities,
-    database::ActionKeyDirection,
     ecs::Resources,
     minimap::{Minimap, MinimapEntity},
+    models::ActionKeyDirection,
     player::{
         chat::{Chatting, update_chatting_state},
         exchange_booster::{ExchangingBooster, update_exchanging_booster_state},
