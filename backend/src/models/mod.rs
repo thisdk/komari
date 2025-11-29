@@ -1,13 +1,13 @@
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
 
-pub mod action;
-pub mod character;
-pub mod keys;
-pub mod localization;
-pub mod settings;
+mod actions;
+mod character;
+mod keys;
+mod localization;
+mod settings;
 
-pub use action::*;
+pub use actions::*;
 pub use character::*;
 pub use keys::*;
 pub use localization::*;

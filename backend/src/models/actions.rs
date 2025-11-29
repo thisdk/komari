@@ -3,16 +3,6 @@ use strum::{Display, EnumIter, EnumString};
 
 use super::{KeyBinding, LinkKeyBinding, deserialize_with_ok_or_default};
 
-#[derive(
-    Clone, Copy, Display, EnumString, EnumIter, PartialEq, Debug, Serialize, Deserialize, Default,
-)]
-pub enum WaitAfterBuffered {
-    #[default]
-    None,
-    Interruptible,
-    Uninterruptible,
-}
-
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize, EnumIter, Display, EnumString)]
 pub enum Action {
     Move(ActionMove),
@@ -135,4 +125,95 @@ pub enum ActionKeyDirection {
     Any,
     Left,
     Right,
+}
+
+#[derive(
+    Clone, Copy, Display, EnumString, EnumIter, PartialEq, Debug, Serialize, Deserialize, Default,
+)]
+pub enum WaitAfterBuffered {
+    #[default]
+    None,
+    Interruptible,
+    Uninterruptible,
+}
+
+#[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
+pub struct ActionConfiguration {
+    pub key: KeyBinding,
+    #[serde(default)]
+    pub key_hold_millis: u64,
+    #[serde(default)]
+    pub key_hold_buffered_to_wait_after: bool,
+    #[serde(default, deserialize_with = "deserialize_with_ok_or_default")]
+    pub link_key: LinkKeyBinding,
+    pub count: u32,
+    pub condition: ActionConfigurationCondition,
+    pub with: ActionKeyWith,
+    pub wait_before_millis: u64,
+    pub wait_before_millis_random_range: u64,
+    pub wait_after_millis: u64,
+    pub wait_after_millis_random_range: u64,
+    #[serde(default, deserialize_with = "deserialize_with_ok_or_default")]
+    pub wait_after_buffered: WaitAfterBuffered,
+    pub enabled: bool,
+}
+
+impl Default for ActionConfiguration {
+    fn default() -> Self {
+        // Template for a buff
+        Self {
+            key: KeyBinding::default(),
+            key_hold_millis: 0,
+            key_hold_buffered_to_wait_after: false,
+            link_key: LinkKeyBinding::None,
+            count: count_default(),
+            condition: ActionConfigurationCondition::default(),
+            with: ActionKeyWith::Stationary,
+            wait_before_millis: 500,
+            wait_before_millis_random_range: 0,
+            wait_after_millis: 500,
+            wait_after_millis_random_range: 0,
+            wait_after_buffered: WaitAfterBuffered::None,
+            enabled: false,
+        }
+    }
+}
+
+impl From<ActionConfiguration> for Action {
+    fn from(value: ActionConfiguration) -> Self {
+        Self::Key(ActionKey {
+            key: value.key,
+            key_hold_millis: value.key_hold_millis,
+            key_hold_buffered_to_wait_after: value.key_hold_buffered_to_wait_after,
+            link_key: value.link_key,
+            count: value.count,
+            position: None,
+            condition: match value.condition {
+                ActionConfigurationCondition::EveryMillis(millis) => {
+                    ActionCondition::EveryMillis(millis)
+                }
+                ActionConfigurationCondition::Linked => ActionCondition::Linked,
+            },
+            direction: ActionKeyDirection::Any,
+            with: value.with,
+            queue_to_front: Some(true),
+            wait_before_use_millis: value.wait_before_millis,
+            wait_before_use_millis_random_range: value.wait_before_millis_random_range,
+            wait_after_use_millis: value.wait_after_millis,
+            wait_after_use_millis_random_range: value.wait_after_millis_random_range,
+            wait_after_buffered: value.wait_after_buffered,
+        })
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize, EnumIter, Display, EnumString)]
+pub enum ActionConfigurationCondition {
+    EveryMillis(u64),
+    Linked,
+}
+
+impl Default for ActionConfigurationCondition {
+    fn default() -> Self {
+        ActionConfigurationCondition::EveryMillis(180000)
+    }
 }

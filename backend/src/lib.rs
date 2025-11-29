@@ -50,9 +50,9 @@ mod utils;
 
 pub use {
     database::{
-        ActionConfiguration, ActionConfigurationCondition, Bound, Character, Class, DatabaseEvent,
-        Minimap, MobbingKey, NavigationPath, NavigationPaths, NavigationPoint,
-        NavigationTransition, Platform, PotionMode, RotationMode, database_event_receiver,
+        Bound, Character, Class, DatabaseEvent, Minimap, MobbingKey, NavigationPath,
+        NavigationPaths, NavigationPoint, NavigationTransition, Platform, PotionMode, RotationMode,
+        database_event_receiver,
     },
     models::*,
     pathing::MAX_PLATFORMS_COUNT,
