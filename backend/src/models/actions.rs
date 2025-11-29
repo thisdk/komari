@@ -3,9 +3,12 @@ use strum::{Display, EnumIter, EnumString};
 
 use super::{KeyBinding, LinkKeyBinding, deserialize_with_ok_or_default};
 
+/// A persistent model representing a user-provided action for the bot to perform.
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize, EnumIter, Display, EnumString)]
 pub enum Action {
+    /// An action that moves to a specific location.
     Move(ActionMove),
+    /// An action that uses a specific key with or without a location.
     Key(ActionKey),
 }
 
@@ -31,6 +34,7 @@ impl Action {
     }
 }
 
+/// A persistent model for the [`Action::Move`] action.
 #[derive(Clone, Copy, Default, PartialEq, Debug, Serialize, Deserialize)]
 pub struct ActionMove {
     pub position: Position,
@@ -38,6 +42,7 @@ pub struct ActionMove {
     pub wait_after_move_millis: u64,
 }
 
+/// A persistent model for the [`Action::Key`] action.
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 pub struct ActionKey {
     pub key: KeyBinding,
