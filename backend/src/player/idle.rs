@@ -152,7 +152,7 @@ fn update_from_action(resources: &Resources, player: &mut PlayerEntity, minimap_
             context.last_destinations = Some(vec![rune]);
             transition_if!(
                 player,
-                Player::Moving(rune, true, None),
+                Player::Moving(rune, false, None),
                 !context.config.rune_platforms_pathing
             );
             transition_if!(!context.is_stationary);
@@ -177,7 +177,7 @@ fn update_from_action(resources: &Resources, player: &mut PlayerEntity, minimap_
                     let (point, exact) = intermediates.next().unwrap();
                     transition!(player, Player::Moving(point, exact, Some(intermediates)));
                 }
-                None => transition!(player, Player::Moving(rune, true, None)),
+                None => transition!(player, Player::Moving(rune, false, None)),
             }
         }
 

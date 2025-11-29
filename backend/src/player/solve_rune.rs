@@ -14,15 +14,15 @@ use crate::{
 /// Representing the current state of rune solving.
 #[derive(Debug, Clone, Copy)]
 pub enum State {
-    // Ensures stationary and all keys cleared before solving.
+    /// Ensures stationary and all keys cleared before solving.
     Precondition(Timeout),
-    // Calibrates rune arrows for possible spinning arrows.
+    /// Calibrates rune arrows for possible spinning arrows.
     Calibrating(ArrowsCalibrating, Timeout),
-    // Solves for the rune arrows that possibly include spinning arrows.
+    /// Solves for the rune arrows that possibly include spinning arrows.
     Solving(ArrowsCalibrating, Timeout),
-    // Presses the keys.
+    /// Presses the keys.
     PressKeys(Timeout, [KeyKind; 4], usize),
-    // Terminal stage.
+    /// Terminal stage.
     Completed,
 }
 
