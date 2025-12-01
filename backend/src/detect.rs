@@ -1838,15 +1838,9 @@ fn detect_rune_arrows(
 
     // Normal detection path
     let mut bgr = bgr.try_clone().unwrap();
-    if calibrating.spin_arrows.is_some() {
+    if let Some(spin_arrows) = calibrating.spin_arrows.as_ref() {
         //  Set all spin arrow regions to black pixels
-        for region in calibrating
-            .spin_arrows
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|arrow| arrow.region)
-        {
+        for region in spin_arrows.iter().map(|arrow| arrow.region) {
             bgr.roi_mut(region)?.set_scalar(Scalar::default())?;
         }
 
