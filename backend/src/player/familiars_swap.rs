@@ -138,9 +138,9 @@ pub fn update_familiars_swapping_state(resources: &Resources, player: &mut Playe
             let is_terminal = matches!(next, Player::Idle);
             if is_terminal {
                 if swapping.success {
-                    player.context.track_familiars_swap_fail_count();
-                } else {
                     player.context.clear_familiars_swap_fail_count();
+                } else {
+                    player.context.track_familiars_swap_fail_count();
                 }
             }
 
