@@ -50,8 +50,8 @@ mod utils;
 
 pub use {
     database::{
-        Bound, DatabaseEvent, Minimap, NavigationPath, NavigationPaths, NavigationPoint,
-        NavigationTransition, Platform, RotationMode, database_event_receiver,
+        DatabaseEvent, NavigationPath, NavigationPaths, NavigationPoint, NavigationTransition,
+        database_event_receiver,
     },
     models::*,
     pathing::MAX_PLATFORMS_COUNT,

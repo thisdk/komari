@@ -4,8 +4,8 @@ use std::fmt::Debug;
 use mockall::automock;
 
 use crate::{
-    database::Minimap as MinimapData,
     minimap::{Minimap, MinimapContext, MinimapEntity},
+    models::Minimap as MinimapData,
     pathing::Platform,
     player::PlayerContext,
 };

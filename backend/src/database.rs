@@ -1,18 +1,15 @@
 use std::{
-    collections::HashMap,
     env,
     sync::{LazyLock, Mutex},
 };
 
 use anyhow::{Result, bail};
-use opencv::core::Rect;
 use rusqlite::{Connection, Params, Statement, types::Null};
-use serde::{Deserialize, Deserializer, Serialize, de::DeserializeOwned};
-use serde_json::Value;
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use strum::{Display, EnumIter, EnumString};
 use tokio::sync::broadcast::{Receiver, Sender, channel};
 
-use crate::{models::*, pathing};
+use crate::models::*;
 
 const MAPS: &str = "maps";
 const NAVIGATION_PATHS: &str = "navigation_paths";
@@ -125,76 +122,7 @@ fn perlin_seed_default() -> u32 {
     rand::random()
 }
 
-#[derive(Clone, Copy, PartialEq, Default, Debug, Serialize, Deserialize)]
-pub struct Bound {
-    pub x: i32,
-    pub y: i32,
-    pub width: i32,
-    pub height: i32,
-}
-
-// TODO: Should be part of auto-mobbing or ping-pong logics, not here
-impl From<Bound> for Rect {
-    fn from(value: Bound) -> Self {
-        Self::new(value.x, value.y, value.width, value.height)
-    }
-}
-
-impl From<Rect> for Bound {
-    fn from(value: Rect) -> Self {
-        Self {
-            x: value.x,
-            y: value.y,
-            width: value.width,
-            height: value.height,
-        }
-    }
-}
-
-#[derive(
-    Clone, Copy, PartialEq, Default, Debug, Serialize, Deserialize, EnumIter, Display, EnumString,
-)]
-pub enum RotationMode {
-    StartToEnd,
-    #[default]
-    StartToEndThenReverse,
-    AutoMobbing,
-    PingPong,
-}
-
 impl_identifiable!(Character);
-
-#[derive(PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
-pub struct Minimap {
-    #[serde(skip_serializing)]
-    pub id: Option<i64>,
-    pub name: String,
-    pub width: i32,
-    pub height: i32,
-    #[serde(default, deserialize_with = "deserialize_with_ok_or_default")]
-    pub rotation_mode: RotationMode,
-    #[serde(default)]
-    pub rotation_ping_pong_bound: Bound,
-    #[serde(default)]
-    pub rotation_auto_mob_bound: Bound,
-    #[serde(default)]
-    pub rotation_mobbing_key: MobbingKey,
-    pub platforms: Vec<Platform>,
-    pub rune_platforms_pathing: bool,
-    pub rune_platforms_pathing_up_jump_only: bool,
-    pub auto_mob_platforms_pathing: bool,
-    pub auto_mob_platforms_pathing_up_jump_only: bool,
-    pub auto_mob_platforms_bound: bool,
-    #[serde(default)]
-    pub auto_mob_use_key_when_pathing: bool,
-    #[serde(default)]
-    pub auto_mob_use_key_when_pathing_update_millis: u64,
-    pub actions_any_reset_on_erda_condition: bool,
-    pub actions: HashMap<String, Vec<Action>>,
-    // Not FK, loose coupling to another navigation paths and its index
-    #[serde(default)]
-    pub paths_id_index: Option<(i64, usize)>,
-}
 
 impl_identifiable!(Minimap);
 
@@ -234,29 +162,6 @@ pub struct NavigationPoint {
 pub enum NavigationTransition {
     #[default]
     Portal,
-}
-
-fn deserialize_with_ok_or_default<'a, T, D>(deserializer: D) -> Result<T, D::Error>
-where
-    T: Deserialize<'a> + Default,
-    D: Deserializer<'a>,
-{
-    let value = Value::deserialize(deserializer)?;
-    Ok(T::deserialize(value).unwrap_or_default())
-}
-
-#[derive(Clone, Copy, PartialEq, Debug, Default, Serialize, Deserialize)]
-pub struct Platform {
-    pub x_start: i32,
-    pub x_end: i32,
-    pub y: i32,
-}
-
-// TODO: Should be part of pathing logics, not here
-impl From<Platform> for pathing::Platform {
-    fn from(value: Platform) -> Self {
-        Self::new(value.x_start..value.x_end, value.y)
-    }
 }
 
 pub fn database_event_receiver() -> Receiver<DatabaseEvent> {
