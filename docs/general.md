@@ -78,8 +78,7 @@ If the bot is close enough to the destination (within `25` units, subject to cha
 #### Character Sections
 
 1. `Key Bindings` – For general in-game key mappings.
-2. `Feed pet` – Configures feed pet.
-3. `Use potion` – Configures potion usage.
+3. `Use potion and feed pet` – Configures potion usage and pet feeding.
 4. `Use booster` – Configures Generic/HEXA booster usage.
 5. `Movement` – Movement settings.
 6. `Buffs` – For automatic buff setup.
@@ -122,6 +121,14 @@ There are two types of actions:
 - `Move` – Moves to a specific location on the map.  
 - `Key` – Uses a key (optionally with a position).
 
+Setup steps:  
+1. Can be accessed after creating the map you want to train in (e.g. see [Map](#map)).  
+2. Add `Normal`, `Erda Shower off cooldown`, or `Every milliseconds` actions to that map.  
+3. Configure each action as either `Move` or `Key` based on your needs.  
+4. Click `Start` below the minimap UI to begin.  
+5. Repeat for any additional maps you plan to train in.
+
+
 #### Normal and Priority
 
 Actions are categorized as either **normal** or **priority**:
@@ -146,7 +153,7 @@ For `Move` action:
 - `Adjust` – Ensures the actual position matches the target closely.  
   - When enabled, it overrides the `Disable walking` option and allows walking.  
 - `X` – Horizontal coordinate to move to.  
-- `X random range` – Adds randomization: `[x - range, x + range]`.  
+- `X range` – Adds randomization: `[x - range, x + range]`.  
 - `Y` – Vertical coordinate to move to.  
 - `Wait after move` – Delay (in milliseconds) after moving (e.g., for looting).  
 - `Linked action` – See [Linked Key & Linked Action](#linked-key--linked-action).  
@@ -154,9 +161,14 @@ For `Move` action:
 
 For `Key` action:
 - `Positioned` – Determines if the key action is position-dependent.  
-- `X / X random range / Y / Adjust / Linked action` – Same as Move Action.  
+- `X / X range / Y / Adjust / Linked action` – Same as Move Action.  
 - `Key` – The key to press.  
 - `Use count` – Number of times to use the key.  
+- `Hold for` – Duration (ms) to hold the key.  
+- `Holding buffered` – Buffers the hold duration on the last key use count.  
+  - Requires `Wait after buffered` enabled and no link key.  
+  - Allows holding the key while moving (e.g., Ren class).  
+  - Adds the hold duration to `Wait after use` when active.
 - `Has link key` – Enables link key (useful for combo classes).  
 - `Queue to front` – For priority actions only.  
   - Allows this action to override non-queue-to-front priority actions.  
@@ -170,6 +182,11 @@ For `Key` action:
   - `DoubleJump` – With double jump.  
 - `Wait before / Wait after` – Delay (ms) before/after using the key (applies to each repeat).  
 - `Wait random range` – Adds randomness to the wait time: `[delay - range, delay + range]`.
+- `Wait after buffered` – Buffers the post-use wait time on the last key use count to let the next action begin earlier.  
+  - `None` – No buffering; waits fully in place (default).  
+  - `Interruptible` – Next `Key` action can interrupt the buffered wait.  
+  - `Uninterruptible` – Next `Key` action waits until the buffered wait finishes.  
+  - In `Uninterruptible` mode, only user-defined actions are blocked - built-in bot actions (e.g., rune solving) may still interrupt.
 
 Actions can be reordered using the up/down icons.
 
