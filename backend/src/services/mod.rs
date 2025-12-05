@@ -15,7 +15,7 @@ use tokio::{
 
 use crate::{
     ActionKeyDirection, ActionKeyWith, Character, GameState, GameTemplate, KeyBinding,
-    Localization, Minimap, NavigationPath, RequestHandler, RotateKind, Settings, WaitAfterBuffered,
+    Localization, Map, NavigationPath, RequestHandler, RotateKind, Settings, WaitAfterBuffered,
     bridge::{Capture, DefaultInputReceiver, Input, KeyKind, LinkKeyKind},
     control::{BotAction, BotCommandKind},
     detect::to_base64_from_mat,
@@ -31,7 +31,7 @@ use crate::{
         control::ControlService,
         game::{DefaultGameService, GameEvent, GameService},
         localization::{DefaultLocalizationService, LocalizationService},
-        minimap::{DefaultMinimapService, MinimapService},
+        map::{DefaultMapService, MapService},
         navigator::{DefaultNavigatorService, NavigatorService},
         rotator::{DefaultRotatorService, RotatorService},
         settings::{DefaultSettingsService, SettingsService},
@@ -46,7 +46,7 @@ mod control;
 mod debug;
 mod game;
 mod localization;
-mod minimap;
+mod map;
 mod navigator;
 mod rotator;
 mod settings;
@@ -56,7 +56,7 @@ pub struct DefaultService {
     event_rx: Receiver<WorldEvent>,
     pending_halt: Option<JoinHandle<()>>,
     game: Box<dyn GameService>,
-    minimap: Box<dyn MinimapService>,
+    map: Box<dyn MapService>,
     character: Box<dyn CharacterService>,
     rotator: Box<dyn RotatorService>,
     navigator: Box<dyn NavigatorService>,
@@ -83,7 +83,7 @@ impl DefaultService {
             event_rx,
             pending_halt: None,
             game: Box::new(DefaultGameService::new(input_rx)),
-            minimap: Box::new(DefaultMinimapService::default()),
+            map: Box::new(DefaultMapService::default()),
             character: Box::new(DefaultCharacterService::default()),
             rotator: Box::new(DefaultRotatorService::default()),
             navigator: Box::new(DefaultNavigatorService),
@@ -147,10 +147,7 @@ impl DefaultRequestHandler<'_> {
 
     fn poll_game_events(&mut self) {
         let events = self.service.game.poll_events(
-            self.service
-                .minimap
-                .minimap()
-                .and_then(|character| character.id),
+            self.service.map.map().and_then(|character| character.id),
             self.service
                 .character
                 .character()
@@ -167,9 +164,7 @@ impl DefaultRequestHandler<'_> {
                     };
                     self.update_halting(kind);
                 }
-                GameEvent::MinimapUpdated(minimap) => {
-                    self.on_update_minimap(self.service.minimap.preset(), minimap)
-                }
+                GameEvent::MapUpdated(map) => self.on_update_map(self.service.map.preset(), map),
                 GameEvent::CharacterUpdated(character) => self.on_update_character(character),
                 GameEvent::SettingsUpdated(settings) => {
                     self.service.settings.update_settings(settings);
@@ -182,7 +177,7 @@ impl DefaultRequestHandler<'_> {
                     self.service.bot.update(&self.service.settings.settings());
                     self.service.rotator.apply(
                         self.rotator,
-                        self.service.minimap.minimap(),
+                        self.service.map.map(),
                         self.service.character.character(),
                         &self.service.settings.settings(),
                     );
@@ -272,7 +267,7 @@ impl DefaultRequestHandler<'_> {
                             .send(EditInteractionResponse::new().content("Bot already running."));
                         return;
                     }
-                    if self.service.minimap.minimap().is_none()
+                    if self.service.map.map().is_none()
                         || self.service.character.character().is_none()
                     {
                         let _ = command.sender.send(
@@ -397,11 +392,9 @@ impl DefaultRequestHandler<'_> {
     }
 
     fn broadcast_state(&self) {
-        self.service.game.broadcast_state(
-            self.resources,
-            self.world,
-            self.service.minimap.minimap(),
-        );
+        self.service
+            .game
+            .broadcast_state(self.resources, self.world, self.service.map.map());
     }
 
     fn update_halting(&mut self, kind: RotateKind) {
@@ -444,36 +437,35 @@ impl DefaultRequestHandler<'_> {
 
 impl RequestHandler for DefaultRequestHandler<'_> {
     fn on_rotate_actions(&mut self, kind: RotateKind) {
-        if self.service.minimap.minimap().is_none() || self.service.character.character().is_none()
-        {
+        if self.service.map.map().is_none() || self.service.character.character().is_none() {
             return;
         }
         self.update_halting(kind);
     }
 
-    fn on_create_minimap(&self, name: String) -> Option<Minimap> {
-        self.service.minimap.create(self.world.minimap.state, name)
+    fn on_create_map(&self, name: String) -> Option<Map> {
+        self.service.map.create(self.world.minimap.state, name)
     }
 
-    fn on_update_minimap(&mut self, preset: Option<String>, minimap: Option<Minimap>) {
-        self.service.minimap.update_minimap_preset(minimap, preset);
-        self.service.minimap.apply(
+    fn on_update_map(&mut self, preset: Option<String>, map: Option<Map>) {
+        self.service.map.update_map_preset(map, preset);
+        self.service.map.apply(
             &mut self.world.minimap.context,
             &mut self.world.player.context,
         );
-        let minimap = self.service.minimap.minimap();
+        let map = self.service.map.map();
         let character = self.service.character.character();
 
         self.service
             .rotator
-            .update_actions(minimap, self.service.minimap.preset(), character);
+            .update_actions(map, self.service.map.preset(), character);
 
         self.navigator
-            .mark_dirty_with_destination(minimap.and_then(|minimap| minimap.paths_id_index));
+            .mark_dirty_with_destination(map.and_then(|map| map.paths_id_index));
 
         self.service.rotator.apply(
             self.rotator,
-            minimap,
+            map,
             character,
             &self.service.settings.settings(),
         );
@@ -504,13 +496,11 @@ impl RequestHandler for DefaultRequestHandler<'_> {
             .apply_character(&mut self.world.player.context);
 
         let character = self.service.character.character();
-        let minimap = self.service.minimap.minimap();
-        let preset = self.service.minimap.preset();
+        let map = self.service.map.map();
+        let preset = self.service.map.preset();
         let settings = self.service.settings.settings();
 
-        self.service
-            .rotator
-            .update_actions(minimap, preset, character);
+        self.service.rotator.update_actions(map, preset, character);
         self.service.rotator.update_buffs(character);
         if let Some(character) = character {
             self.world.buffs.iter_mut().for_each(|buff| {
@@ -519,11 +509,11 @@ impl RequestHandler for DefaultRequestHandler<'_> {
         }
         self.service
             .rotator
-            .apply(self.rotator, minimap, character, &settings);
+            .apply(self.rotator, map, character, &settings);
     }
 
     fn on_redetect_minimap(&mut self) {
-        self.service.minimap.redetect(&mut self.world.minimap);
+        self.service.map.redetect(&mut self.world.minimap);
         self.navigator.mark_dirty(true);
     }
 

@@ -6,7 +6,7 @@
 use std::{env::current_exe, io::stdout, string::ToString, sync::LazyLock};
 
 use actions::ActionsScreen;
-use backend::{Character, Localization, Minimap, Settings};
+use backend::{Character, Localization, Map, Settings};
 use characters::CharactersScreen;
 #[cfg(debug_assertions)]
 use debug::DebugScreen;
@@ -96,8 +96,8 @@ fn main() {
 
 #[derive(Clone, Copy)]
 pub struct AppState {
-    minimap: Signal<Option<Minimap>>,
-    minimap_preset: Signal<Option<String>>,
+    map: Signal<Option<Map>>,
+    map_preset: Signal<Option<String>>,
     character: Signal<Option<Character>>,
     settings: Signal<Option<Settings>>,
     localization: Signal<Option<Localization>>,
@@ -110,8 +110,8 @@ fn App() -> Element {
     let mut script_loaded = use_signal(|| false);
 
     use_context_provider(|| AppState {
-        minimap: Signal::new(None),
-        minimap_preset: Signal::new(None),
+        map: Signal::new(None),
+        map_preset: Signal::new(None),
         character: Signal::new(None),
         settings: Signal::new(None),
         localization: Signal::new(None),

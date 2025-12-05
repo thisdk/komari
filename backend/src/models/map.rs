@@ -6,8 +6,9 @@ use strum::{Display, EnumIter, EnumString};
 
 use crate::{Action, MobbingKey, deserialize_with_ok_or_default, pathing};
 
+/// A persistent model representing a map-related data.
 #[derive(PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
-pub struct Minimap {
+pub struct Map {
     #[serde(skip_serializing)]
     pub id: Option<i64>,
     pub name: String,

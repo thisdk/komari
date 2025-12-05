@@ -6,8 +6,8 @@ use std::{
 
 use backend::{
     Action, ActionCondition, ActionKey, ActionKeyDirection, ActionKeyWith, ActionMove, Bound,
-    IntoEnumIterator, KeyBinding, LinkKeyBinding, Minimap, MobbingKey, Platform, Position,
-    RotationMode, WaitAfterBuffered, key_receiver, update_minimap, upsert_minimap,
+    IntoEnumIterator, KeyBinding, LinkKeyBinding, Map, MobbingKey, Platform, Position,
+    RotationMode, WaitAfterBuffered, key_receiver, update_map, upsert_map,
 };
 use dioxus::{html::FileData, prelude::*};
 use futures_util::StreamExt;
@@ -43,38 +43,38 @@ enum ActionsUpdate {
     Create(String),
     Delete,
     Update(Vec<Action>),
-    UpdateMinimap(Minimap),
+    UpdateMinimap(Map),
 }
 
 #[derive(PartialEq, Copy, Clone)]
 struct ActionsContext {
-    minimap: Memo<Minimap>,
-    save_minimap: Callback<Minimap>,
+    map: Memo<Map>,
+    save_map: Callback<Map>,
 }
 
 #[component]
 pub fn ActionsScreen() -> Element {
-    let mut minimap = use_context::<AppState>().minimap;
-    let mut minimap_preset = use_context::<AppState>().minimap_preset;
-    // Non-null view of minimap
-    let minimap_view = use_memo(move || minimap().unwrap_or_default());
-    // Maps currently selected `minimap` to presets
-    let minimap_presets = use_memo(move || {
-        minimap()
-            .map(|minimap| minimap.actions.into_keys().collect::<Vec<String>>())
+    let mut map = use_context::<AppState>().map;
+    let mut map_preset = use_context::<AppState>().map_preset;
+    // Non-null view of map
+    let map_view = use_memo(move || map().unwrap_or_default());
+    // Maps currently selected `map` to presets
+    let map_presets = use_memo(move || {
+        map()
+            .map(|map| map.actions.into_keys().collect::<Vec<String>>())
             .unwrap_or_default()
     });
-    // Maps currently selected `minimap_preset` to actions
-    let minimap_preset_actions = use_memo(move || {
-        minimap()
-            .zip(minimap_preset())
-            .and_then(|(minimap, preset)| minimap.actions.get(&preset).cloned())
+    // Maps currently selected `map_preset` to actions
+    let map_preset_actions = use_memo(move || {
+        map()
+            .zip(map_preset())
+            .and_then(|(map, preset)| map.actions.get(&preset).cloned())
             .unwrap_or_default()
     });
-    // Maps currently selected `minimap_preset` to the index in `minimap_presets`
-    let minimap_preset_index = use_memo(move || {
-        let presets = minimap_presets();
-        minimap_preset().and_then(|preset| {
+    // Maps currently selected `map_preset` to the index in `map_presets`
+    let map_preset_index = use_memo(move || {
+        let presets = map_presets();
+        map_preset().and_then(|preset| {
             presets
                 .into_iter()
                 .enumerate()
@@ -88,86 +88,86 @@ pub fn ActionsScreen() -> Element {
         while let Some(message) = rx.next().await {
             match message {
                 ActionsUpdate::Set => {
-                    update_minimap(minimap_preset(), minimap()).await;
+                    update_map(map_preset(), map()).await;
                 }
                 ActionsUpdate::Create(preset) => {
-                    let Some(mut current_minimap) = minimap() else {
+                    let Some(mut current_map) = map() else {
                         continue;
                     };
-                    if current_minimap
+                    if current_map
                         .actions
                         .try_insert(preset.clone(), vec![])
                         .is_err()
                     {
                         continue;
                     }
-                    if let Some(current_minimap) = upsert_minimap(current_minimap).await {
-                        minimap_preset.set(Some(preset));
-                        minimap.set(Some(current_minimap));
-                        update_minimap(minimap_preset(), minimap()).await;
+                    if let Some(current_map) = upsert_map(current_map).await {
+                        map_preset.set(Some(preset));
+                        map.set(Some(current_map));
+                        update_map(map_preset(), map()).await;
                     }
                 }
                 ActionsUpdate::Delete => {
-                    let Some(mut current_minimap) = minimap() else {
+                    let Some(mut current_map) = map() else {
                         continue;
                     };
-                    let Some(preset) = minimap_preset() else {
+                    let Some(preset) = map_preset() else {
                         continue;
                     };
 
-                    if current_minimap.actions.remove(&preset).is_none() {
+                    if current_map.actions.remove(&preset).is_none() {
                         continue;
                     }
-                    if let Some(current_minimap) = upsert_minimap(current_minimap).await {
-                        minimap_preset.set(current_minimap.actions.keys().next().cloned());
-                        minimap.set(Some(current_minimap));
-                        update_minimap(minimap_preset(), minimap()).await;
+                    if let Some(current_map) = upsert_map(current_map).await {
+                        map_preset.set(current_map.actions.keys().next().cloned());
+                        map.set(Some(current_map));
+                        update_map(map_preset(), map()).await;
                     }
                 }
                 ActionsUpdate::Update(actions) => {
-                    let Some(mut current_minimap) = minimap() else {
+                    let Some(mut current_map) = map() else {
                         continue;
                     };
-                    let Some(preset) = minimap_preset() else {
+                    let Some(preset) = map_preset() else {
                         continue;
                     };
 
-                    current_minimap.actions.insert(preset, actions);
-                    if let Some(current_minimap) = upsert_minimap(current_minimap).await {
-                        minimap.set(Some(current_minimap));
+                    current_map.actions.insert(preset, actions);
+                    if let Some(current_map) = upsert_map(current_map).await {
+                        map.set(Some(current_map));
                     }
                 }
-                ActionsUpdate::UpdateMinimap(new_minimap) => {
-                    if let Some(new_minimap) = upsert_minimap(new_minimap).await {
-                        minimap.set(Some(new_minimap));
+                ActionsUpdate::UpdateMinimap(new_map) => {
+                    if let Some(new_map) = upsert_map(new_map).await {
+                        map.set(Some(new_map));
                     }
                 }
             }
         }
     });
 
-    let save_minimap = use_callback(move |minimap: Minimap| {
-        coroutine.send(ActionsUpdate::UpdateMinimap(minimap));
+    let save_map = use_callback(move |map: Map| {
+        coroutine.send(ActionsUpdate::UpdateMinimap(map));
     });
     let select_preset = use_callback(move |index: usize| {
-        let selected = minimap_presets.peek().get(index).cloned().unwrap();
+        let selected = map_presets.peek().get(index).cloned().unwrap();
 
-        minimap_preset.set(Some(selected));
+        map_preset.set(Some(selected));
         coroutine.send(ActionsUpdate::Set);
     });
 
     use_context_provider(|| ActionsContext {
-        minimap: minimap_view,
-        save_minimap,
+        map: map_view,
+        save_map,
     });
 
     rsx! {
         div { class: "flex flex-col pb-15 h-full gap-3 overflow-y-auto pr-2",
-            SectionRotation { disabled: minimap().is_none() }
-            SectionPlatforms { disabled: minimap().is_none() }
+            SectionRotation { disabled: map().is_none() }
+            SectionPlatforms { disabled: map().is_none() }
             SectionActions {
-                actions: minimap_preset_actions,
-                disabled: minimap().is_none() || minimap_preset().is_none(),
+                actions: map_preset_actions,
+                disabled: map().is_none() || map_preset().is_none(),
             }
             SectionLegends {}
         }
@@ -181,19 +181,19 @@ pub fn ActionsScreen() -> Element {
                 on_delete: move |_| {
                     coroutine.send(ActionsUpdate::Delete);
                 },
-                disabled: minimap().is_none(),
-                delete_disabled: minimap_presets().is_empty(),
+                disabled: map().is_none(),
+                delete_disabled: map_presets().is_empty(),
 
                 Select::<usize> {
                     class: "w-full",
                     placeholder: "Create an actions preset for the selected map...",
-                    disabled: minimap_presets().is_empty(),
+                    disabled: map_presets().is_empty(),
                     on_selected: select_preset,
 
-                    for (i , name) in minimap_presets().into_iter().enumerate() {
+                    for (i , name) in map_presets().into_iter().enumerate() {
                         SelectOption::<usize> {
                             value: i,
-                            selected: minimap_preset_index() == Some(i),
+                            selected: map_preset_index() == Some(i),
                             label: name,
                         }
                     }
@@ -213,36 +213,36 @@ fn SectionRotation(disabled: bool) -> Element {
     }
 
     let context = use_context::<ActionsContext>();
-    let minimap = context.minimap;
-    let save_minimap = context.save_minimap;
+    let map = context.map;
+    let save_map = context.save_map;
 
     let update_mobbing_button_disabled = use_memo(move || {
         !matches!(
-            minimap().rotation_mode,
+            map().rotation_mode,
             RotationMode::AutoMobbing | RotationMode::PingPong
         )
     });
 
     let edit_mobbing_key = use_callback(move |rotation_mobbing_key| {
-        save_minimap(Minimap {
+        save_map(Map {
             rotation_mobbing_key,
-            ..minimap()
+            ..map()
         });
     });
 
     let edit_mobbing_bound = use_callback(move |bound| {
-        let mut minimap = minimap();
+        let mut map = map();
 
-        match minimap.rotation_mode {
+        match map.rotation_mode {
             RotationMode::StartToEnd | RotationMode::StartToEndThenReverse => return,
             RotationMode::AutoMobbing => {
-                minimap.rotation_auto_mob_bound = bound;
+                map.rotation_auto_mob_bound = bound;
             }
             RotationMode::PingPong => {
-                minimap.rotation_ping_pong_bound = bound;
+                map.rotation_ping_pong_bound = bound;
             }
         };
-        save_minimap(minimap);
+        save_map(map);
     });
 
     let mut popup_content = use_signal(|| PopupContent::None);
@@ -260,12 +260,12 @@ fn SectionRotation(disabled: bool) -> Element {
                         label: "Mode",
                         disabled,
                         on_selected: move |rotation_mode| {
-                            save_minimap(Minimap {
+                            save_map(Map {
                                 rotation_mode,
-                                ..minimap.peek().clone()
+                                ..map.peek().clone()
                             })
                         },
-                        selected: minimap().rotation_mode,
+                        selected: map().rotation_mode,
                     }
                     div {}
                     PopupTrigger {
@@ -274,13 +274,13 @@ fn SectionRotation(disabled: bool) -> Element {
                             class: "w-full",
                             disabled: disabled | update_mobbing_button_disabled(),
                             on_click: move |_| {
-                                let minimap = minimap.peek();
-                                let key = match minimap.rotation_mode {
+                                let map = map.peek();
+                                let key = match map.rotation_mode {
                                     RotationMode::StartToEnd | RotationMode::StartToEndThenReverse => {
                                         unreachable!()
                                     }
                                     RotationMode::AutoMobbing | RotationMode::PingPong => {
-                                        minimap.rotation_mobbing_key
+                                        map.rotation_mobbing_key
                                     }
                                 };
                                 popup_content.set(PopupContent::Key(key));
@@ -295,13 +295,13 @@ fn SectionRotation(disabled: bool) -> Element {
                             class: "w-full",
                             disabled: disabled || update_mobbing_button_disabled(),
                             on_click: move |_| {
-                                let minimap = minimap.peek();
-                                let bound = match minimap.rotation_mode {
+                                let map = map.peek();
+                                let bound = match map.rotation_mode {
                                     RotationMode::StartToEnd | RotationMode::StartToEndThenReverse => {
                                         unreachable!()
                                     }
-                                    RotationMode::AutoMobbing => minimap.rotation_auto_mob_bound,
-                                    RotationMode::PingPong => minimap.rotation_ping_pong_bound,
+                                    RotationMode::AutoMobbing => map.rotation_auto_mob_bound,
+                                    RotationMode::PingPong => map.rotation_ping_pong_bound,
                                 };
                                 popup_content.set(PopupContent::Bound(bound));
                             },
@@ -314,34 +314,34 @@ fn SectionRotation(disabled: bool) -> Element {
                         tooltip: "Pathing means when the player is moving from one quad to another.",
                         disabled,
                         on_checked: move |auto_mob_use_key_when_pathing| {
-                            save_minimap(Minimap {
+                            save_map(Map {
                                 auto_mob_use_key_when_pathing,
-                                ..minimap.peek().clone()
+                                ..map.peek().clone()
                             })
                         },
-                        checked: minimap().auto_mob_use_key_when_pathing,
+                        checked: map().auto_mob_use_key_when_pathing,
                     }
                     ActionsMillisInput {
                         label: "Detect mobs when pathing every",
                         disabled,
                         on_value: move |auto_mob_use_key_when_pathing_update_millis| {
-                            save_minimap(Minimap {
+                            save_map(Map {
                                 auto_mob_use_key_when_pathing_update_millis,
-                                ..minimap.peek().clone()
+                                ..map.peek().clone()
                             })
                         },
-                        value: minimap().auto_mob_use_key_when_pathing_update_millis,
+                        value: map().auto_mob_use_key_when_pathing_update_millis,
                     }
                     ActionsCheckbox {
                         label: "Reset normal actions on Erda Shower resets",
                         disabled,
                         on_checked: move |actions_any_reset_on_erda_condition| {
-                            save_minimap(Minimap {
+                            save_map(Map {
                                 actions_any_reset_on_erda_condition,
-                                ..minimap.peek().clone()
+                                ..map.peek().clone()
                             })
                         },
-                        checked: minimap().actions_any_reset_on_erda_condition,
+                        checked: map().actions_any_reset_on_erda_condition,
                     }
                 }
             }
@@ -427,29 +427,29 @@ fn SectionPlatforms(disabled: bool) -> Element {
     let position = use_context::<AppState>().position;
     let context = use_context::<ActionsContext>();
 
-    let minimap = context.minimap;
-    let save_minimap = context.save_minimap;
+    let map = context.map;
+    let save_map = context.save_map;
 
     let add_platform = use_callback(move |platform| {
-        let mut minimap = minimap();
+        let mut map = map();
 
-        minimap.platforms.push(platform);
-        coroutine.send(ActionsUpdate::UpdateMinimap(minimap));
+        map.platforms.push(platform);
+        coroutine.send(ActionsUpdate::UpdateMinimap(map));
     });
     let edit_platform = use_callback(move |(new_platform, index): (Platform, usize)| {
-        let mut minimap = minimap();
-        let Some(platform) = minimap.platforms.get_mut(index) else {
+        let mut map = map();
+        let Some(platform) = map.platforms.get_mut(index) else {
             return;
         };
 
         *platform = new_platform;
-        coroutine.send(ActionsUpdate::UpdateMinimap(minimap));
+        coroutine.send(ActionsUpdate::UpdateMinimap(map));
     });
     let delete_platform = use_callback(move |index| {
-        let mut minimap = minimap();
+        let mut map = map();
 
-        minimap.platforms.remove(index);
-        coroutine.send(ActionsUpdate::UpdateMinimap(minimap));
+        map.platforms.remove(index);
+        coroutine.send(ActionsUpdate::UpdateMinimap(map));
     });
 
     let mut popup_content = use_signal(|| PopupContent::None);
@@ -502,64 +502,64 @@ fn SectionPlatforms(disabled: bool) -> Element {
                         label: "Rune pathing",
                         disabled,
                         on_checked: move |rune_platforms_pathing| {
-                            save_minimap(Minimap {
+                            save_map(Map {
                                 rune_platforms_pathing,
-                                ..minimap.peek().clone()
+                                ..map.peek().clone()
                             })
                         },
-                        checked: minimap().rune_platforms_pathing,
+                        checked: map().rune_platforms_pathing,
                     }
                     ActionsCheckbox {
                         label: "Up jump only",
-                        disabled: disabled || !minimap().rune_platforms_pathing,
+                        disabled: disabled || !map().rune_platforms_pathing,
                         on_checked: move |rune_platforms_pathing_up_jump_only| {
-                            save_minimap(Minimap {
+                            save_map(Map {
                                 rune_platforms_pathing_up_jump_only,
-                                ..minimap.peek().clone()
+                                ..map.peek().clone()
                             })
                         },
-                        checked: minimap().rune_platforms_pathing_up_jump_only,
+                        checked: map().rune_platforms_pathing_up_jump_only,
                     }
                     div {}
                     ActionsCheckbox {
                         label: "Auto-mobbing pathing",
                         disabled,
                         on_checked: move |auto_mob_platforms_pathing| {
-                            save_minimap(Minimap {
+                            save_map(Map {
                                 auto_mob_platforms_pathing,
-                                ..minimap.peek().clone()
+                                ..map.peek().clone()
                             })
                         },
-                        checked: minimap().auto_mob_platforms_pathing,
+                        checked: map().auto_mob_platforms_pathing,
                     }
                     ActionsCheckbox {
                         label: "Up jump only",
-                        disabled: disabled || !minimap().auto_mob_platforms_pathing,
+                        disabled: disabled || !map().auto_mob_platforms_pathing,
                         on_checked: move |auto_mob_platforms_pathing_up_jump_only| {
-                            save_minimap(Minimap {
+                            save_map(Map {
                                 auto_mob_platforms_pathing_up_jump_only,
-                                ..minimap.peek().clone()
+                                ..map.peek().clone()
                             })
                         },
-                        checked: minimap().auto_mob_platforms_pathing_up_jump_only,
+                        checked: map().auto_mob_platforms_pathing_up_jump_only,
                     }
                     ActionsCheckbox {
                         label: "Bound by platforms",
                         tooltip: "Auto-mobbing bound is computed based on the provided platforms instead of the provided bound.",
                         disabled,
                         on_checked: move |auto_mob_platforms_bound| {
-                            save_minimap(Minimap {
+                            save_map(Map {
                                 auto_mob_platforms_bound,
-                                ..minimap.peek().clone()
+                                ..map.peek().clone()
                             })
                         },
-                        checked: minimap().auto_mob_platforms_bound,
+                        checked: map().auto_mob_platforms_bound,
                     }
                 }
-                if !minimap().platforms.is_empty() {
+                if !map().platforms.is_empty() {
                     div { class: "mt-2" }
                 }
-                for (index , platform) in minimap().platforms.into_iter().enumerate() {
+                for (index , platform) in map().platforms.into_iter().enumerate() {
                     PopupTrigger {
                         PlatformItem {
                             platform,
@@ -648,9 +648,9 @@ fn SectionActions(actions: Memo<Vec<Action>>, disabled: bool) -> Element {
     }
 
     let coroutine = use_coroutine_handle::<ActionsUpdate>();
-    let minimap = use_context::<ActionsContext>().minimap;
+    let map = use_context::<ActionsContext>().map;
 
-    let export_name = use_memo(move || format!("{}.json", minimap().name));
+    let export_name = use_memo(move || format!("{}.json", map().name));
     let export_content = move |_| serde_json::to_vec_pretty(&*actions.peek()).unwrap_or_default();
 
     let import_actions = use_callback(move |file: FileData| async move {

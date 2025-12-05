@@ -101,7 +101,7 @@ macro_rules! send_request {
 enum Request {
     RotateActions(RotateKind),
     CreateMinimap(String),
-    UpdateMinimap(Option<String>, Option<Minimap>),
+    UpdateMinimap(Option<String>, Option<Map>),
     CreateNavigationPath,
     RecaptureNavigationPath(NavigationPath),
     NavigationSnapshotAsGrayscale(String),
@@ -136,7 +136,7 @@ enum Request {
 #[derive(Debug)]
 enum Response {
     RotateActions,
-    CreateMinimap(Option<Minimap>),
+    CreateMinimap(Option<Map>),
     UpdateMinimap,
     CreateNavigationPath(Option<NavigationPath>),
     RecaptureNavigationPath(NavigationPath),
@@ -169,9 +169,9 @@ enum Response {
 pub(crate) trait RequestHandler {
     fn on_rotate_actions(&mut self, kind: RotateKind);
 
-    fn on_create_minimap(&self, name: String) -> Option<Minimap>;
+    fn on_create_map(&self, name: String) -> Option<Map>;
 
-    fn on_update_minimap(&mut self, preset: Option<String>, minimap: Option<Minimap>);
+    fn on_update_map(&mut self, preset: Option<String>, map: Option<Map>);
 
     fn on_create_navigation_path(&self) -> Option<NavigationPath>;
 
@@ -330,44 +330,40 @@ pub async fn upsert_settings(mut settings: Settings) -> Settings {
     .unwrap()
 }
 
-/// Queries minimaps from the database.
-pub async fn query_minimaps() -> Option<Vec<Minimap>> {
-    spawn_blocking(database::query_minimaps).await.unwrap().ok()
+/// Queries maps from the database.
+pub async fn query_maps() -> Option<Vec<Map>> {
+    spawn_blocking(database::query_maps).await.unwrap().ok()
 }
 
-/// Creates a new minimap from the currently detected minimap.
+/// Creates a new map from the currently detected map.
 ///
-/// This function does not insert the created minimap into the database.
-pub async fn create_minimap(name: String) -> Option<Minimap> {
-    send_request!(CreateMinimap(name) => (minimap))
+/// This function does not insert the created map into the database.
+pub async fn create_map(name: String) -> Option<Map> {
+    send_request!(CreateMinimap(name) => (map))
 }
 
-/// Upserts `minimap` to the database.
+/// Upserts `map` to the database.
 ///
-/// If `minimap` does not previously exist, a new one will be created and its `id` will
+/// If `map` does not previously exist, a new one will be created and its `id` will
 /// be updated.
 ///
 /// Returns the updated [`Minimap`] on success.
-pub async fn upsert_minimap(mut minimap: Minimap) -> Option<Minimap> {
-    spawn_blocking(move || {
-        database::upsert_minimap(&mut minimap)
-            .is_ok()
-            .then_some(minimap)
-    })
-    .await
-    .unwrap()
+pub async fn upsert_map(mut map: Map) -> Option<Map> {
+    spawn_blocking(move || database::upsert_map(&mut map).is_ok().then_some(map))
+        .await
+        .unwrap()
 }
 
-/// Updates the current minimap used by the main game loop.
-pub async fn update_minimap(preset: Option<String>, minimap: Option<Minimap>) {
-    send_request!(UpdateMinimap(preset, minimap))
+/// Updates the current map used by the main game loop.
+pub async fn update_map(preset: Option<String>, map: Option<Map>) {
+    send_request!(UpdateMinimap(preset, map))
 }
 
-/// Deletes `minimap` from the database.
+/// Deletes `map` from the database.
 ///
-/// Returns `true` if the minimap was deleted.
-pub async fn delete_minimap(minimap: Minimap) -> bool {
-    spawn_blocking(move || database::delete_minimap(&minimap).is_ok())
+/// Returns `true` if the map was deleted.
+pub async fn delete_map(map: Map) -> bool {
+    spawn_blocking(move || database::delete_map(&map).is_ok())
         .await
         .unwrap()
 }
@@ -380,7 +376,7 @@ pub async fn query_navigation_paths() -> Option<Vec<NavigationPaths>> {
         .ok()
 }
 
-/// Creates a navigation path from currently detected minimap.
+/// Creates a navigation path from currently detected map.
 pub async fn create_navigation_path() -> Option<NavigationPath> {
     send_request!(CreateNavigationPath => (path))
 }
@@ -400,10 +396,10 @@ pub async fn upsert_navigation_paths(mut paths: NavigationPaths) -> Option<Navig
 
 /// Recaptures snapshots for the provided `path`.
 ///
-/// Snapshots include name and minimap will be recaptured and re-assigned to the given `path` if
-/// the minimap is currently detected.
+/// Snapshots include name and map will be recaptured and re-assigned to the given `path` if
+/// the map is currently detected.
 ///
-/// Returns the updated [`NavigationPath`] or original if minimap is currently not detectable.
+/// Returns the updated [`NavigationPath`] or original if map is currently not detectable.
 pub async fn recapture_navigation_path(path: NavigationPath) -> NavigationPath {
     send_request!(RecaptureNavigationPath(path) => (path))
 }
@@ -532,11 +528,9 @@ pub(crate) fn poll_request(handler: &mut dyn RequestHandler) {
                 handler.on_rotate_actions(halting);
                 Response::RotateActions
             }
-            Request::CreateMinimap(name) => {
-                Response::CreateMinimap(handler.on_create_minimap(name))
-            }
-            Request::UpdateMinimap(preset, minimap) => {
-                handler.on_update_minimap(preset, minimap);
+            Request::CreateMinimap(name) => Response::CreateMinimap(handler.on_create_map(name)),
+            Request::UpdateMinimap(preset, map) => {
+                handler.on_update_map(preset, map);
                 Response::UpdateMinimap
             }
             Request::CreateNavigationPath => {

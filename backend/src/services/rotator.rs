@@ -7,7 +7,7 @@ use strum::IntoEnumIterator;
 use crate::bridge::KeyKind;
 use crate::rotator::Rotator;
 use crate::{
-    Action, Character, KeyBinding, Minimap, RotationMode, RotatorMode, Settings, buff::BuffKind,
+    Action, Character, KeyBinding, Map, RotationMode, RotatorMode, Settings, buff::BuffKind,
     rotator::RotatorBuildArgs,
 };
 use crate::{
@@ -20,7 +20,7 @@ pub trait RotatorService: Debug {
     /// Builds a new actions list to be used.
     fn update_actions<'a>(
         &mut self,
-        minimap: Option<&'a Minimap>,
+        map: Option<&'a Map>,
         preset: Option<String>,
         character: Option<&'a Character>,
     );
@@ -29,12 +29,12 @@ pub trait RotatorService: Debug {
     #[cfg_attr(test, concretize)]
     fn update_buffs(&mut self, character: Option<&Character>);
 
-    /// Updates `rotator` with data from `minimap`, `character`, `settings`, and the currently
+    /// Updates `rotator` with data from `map`, `character`, `settings`, and the currently
     /// in-use actions and buffs.
     fn apply<'a>(
         &self,
         rotator: &mut dyn Rotator,
-        minimap: Option<&'a Minimap>,
+        map: Option<&'a Map>,
         character: Option<&'a Character>,
         settings: &Settings,
     );
@@ -50,17 +50,17 @@ pub struct DefaultRotatorService {
 impl RotatorService for DefaultRotatorService {
     fn update_actions<'a>(
         &mut self,
-        minimap: Option<&'a Minimap>,
+        map: Option<&'a Map>,
         preset: Option<String>,
         character: Option<&'a Character>,
     ) {
         let character_actions = character.map(actions_from).unwrap_or_default();
-        let minimap_actions = minimap
+        let map_actions = map
             .zip(preset)
             .and_then(|(minimap, preset)| minimap.actions.get(&preset).cloned())
             .unwrap_or_default();
 
-        self.actions = [character_actions, minimap_actions].concat();
+        self.actions = [character_actions, map_actions].concat();
     }
 
     #[cfg_attr(test, concretize)]
@@ -71,13 +71,13 @@ impl RotatorService for DefaultRotatorService {
     fn apply<'a>(
         &self,
         rotator: &mut dyn Rotator,
-        minimap: Option<&'a Minimap>,
+        map: Option<&'a Map>,
         character: Option<&'a Character>,
         settings: &Settings,
     ) {
-        let mode = rotator_mode_from(minimap);
-        let reset_normal_actions_on_erda = minimap
-            .map(|minimap| minimap.actions_any_reset_on_erda_condition)
+        let mode = rotator_mode_from(map);
+        let reset_normal_actions_on_erda = map
+            .map(|map| map.actions_any_reset_on_erda_condition)
             .unwrap_or_default();
         let familiar_essence_key = character
             .map(|character| character.familiar_essence_key.key)
@@ -129,21 +129,18 @@ impl RotatorService for DefaultRotatorService {
 }
 
 #[inline]
-fn rotator_mode_from(minimap: Option<&Minimap>) -> RotatorMode {
-    minimap
-        .map(|minimap| match minimap.rotation_mode {
-            RotationMode::StartToEnd => RotatorMode::StartToEnd,
-            RotationMode::StartToEndThenReverse => RotatorMode::StartToEndThenReverse,
-            RotationMode::AutoMobbing => RotatorMode::AutoMobbing(
-                minimap.rotation_mobbing_key,
-                minimap.rotation_auto_mob_bound,
-            ),
-            RotationMode::PingPong => RotatorMode::PingPong(
-                minimap.rotation_mobbing_key,
-                minimap.rotation_ping_pong_bound,
-            ),
-        })
-        .unwrap_or_default()
+fn rotator_mode_from(map: Option<&Map>) -> RotatorMode {
+    map.map(|map| match map.rotation_mode {
+        RotationMode::StartToEnd => RotatorMode::StartToEnd,
+        RotationMode::StartToEndThenReverse => RotatorMode::StartToEndThenReverse,
+        RotationMode::AutoMobbing => {
+            RotatorMode::AutoMobbing(map.rotation_mobbing_key, map.rotation_auto_mob_bound)
+        }
+        RotationMode::PingPong => {
+            RotatorMode::PingPong(map.rotation_mobbing_key, map.rotation_ping_pong_bound)
+        }
+    })
+    .unwrap_or_default()
 }
 
 fn actions_from(character: &Character) -> Vec<Action> {
@@ -297,7 +294,7 @@ mod tests {
 
     #[test]
     fn update_rotator_mode() {
-        let mut minimap = Minimap {
+        let mut minimap = Map {
             rotation_auto_mob_bound: Bound {
                 x: 1,
                 y: 1,
@@ -445,7 +442,7 @@ mod tests {
 
     #[test]
     fn update_with_reset_normal_actions_on_erda() {
-        let minimap = Minimap {
+        let minimap = Map {
             actions_any_reset_on_erda_condition: true,
             ..Default::default()
         };
@@ -517,7 +514,7 @@ mod tests {
             ],
             ..Default::default()
         };
-        let mut minimap = Minimap::default();
+        let mut minimap = Map::default();
         minimap.actions.insert("preset".to_string(), actions);
         let mut service = DefaultRotatorService::default();
 
@@ -591,7 +588,7 @@ mod tests {
             ],
             ..Default::default()
         };
-        let mut minimap = Minimap::default();
+        let mut minimap = Map::default();
         minimap.actions.insert("preset".to_string(), actions);
         let mut service = DefaultRotatorService::default();
 

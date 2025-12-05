@@ -11,11 +11,11 @@ use tokio::{
 
 use crate::{
     BoundQuadrant, Character, DatabaseEvent, GameOperation, GameState, KeyBinding,
-    KeyBindingConfiguration, Localization, Minimap, Settings,
+    KeyBindingConfiguration, Localization, Map, Settings,
     bridge::InputReceiver,
     database_event_receiver,
     ecs::{Resources, World},
-    minimap,
+    minimap::Minimap,
     operation::Operation,
     player::Quadrant,
     skill::SkillKind,
@@ -25,7 +25,7 @@ use crate::{
 #[allow(clippy::large_enum_variant)]
 pub enum GameEvent {
     ToggleOperation,
-    MinimapUpdated(Option<Minimap>),
+    MapUpdated(Option<Map>),
     CharacterUpdated(Option<Character>),
     SettingsUpdated(Settings),
     LocalizationUpdated(Localization),
@@ -37,7 +37,7 @@ pub enum GameEvent {
 pub trait GameService: Debug {
     fn poll_events(
         &mut self,
-        minimap_id: Option<i64>,
+        map_id: Option<i64>,
         character_id: Option<i64>,
         settings: &Settings,
     ) -> Vec<GameEvent>;
@@ -47,7 +47,7 @@ pub trait GameService: Debug {
 
     /// Broadcasts game state to listeners.
     #[cfg_attr(test, concretize)]
-    fn broadcast_state(&self, resources: &Resources, world: &World, minimap: Option<&Minimap>);
+    fn broadcast_state(&self, resources: &Resources, world: &World, map: Option<&Map>);
 
     /// Subscribes to game state.
     fn subscribe_state(&self) -> Receiver<GameState>;
@@ -78,7 +78,7 @@ impl DefaultGameService {
 impl GameService for DefaultGameService {
     fn poll_events(
         &mut self,
-        minimap_id: Option<i64>,
+        map_id: Option<i64>,
         character_id: Option<i64>,
         settings: &Settings,
     ) -> Vec<GameEvent> {
@@ -87,7 +87,7 @@ impl GameService for DefaultGameService {
         if let Some(event) = poll_key(self, settings) {
             events.push(event);
         }
-        if let Some(event) = poll_database(self, minimap_id, character_id) {
+        if let Some(event) = poll_database(self, map_id, character_id) {
             events.push(event);
         }
 
@@ -99,12 +99,7 @@ impl GameService for DefaultGameService {
     }
 
     #[cfg_attr(test, concretize)]
-    fn broadcast_state(
-        &self,
-        resources: &Resources,
-        world: &World,
-        minimap_data: Option<&Minimap>,
-    ) {
+    fn broadcast_state(&self, resources: &Resources, world: &World, map_data: Option<&Map>) {
         if self.game_state_tx.is_empty() {
             let position = world
                 .player
@@ -137,12 +132,12 @@ impl GameService for DefaultGameService {
                 Operation::Running => GameOperation::Running,
                 Operation::RunUntil { instant, .. } => GameOperation::RunUntil(instant),
             };
-            let idle = if let minimap::Minimap::Idle(idle) = world.minimap.state {
+            let idle = if let Minimap::Idle(idle) = world.minimap.state {
                 Some(idle)
             } else {
                 None
             };
-            let platforms_bound = if minimap_data.is_some_and(|data| data.auto_mob_platforms_bound)
+            let platforms_bound = if map_data.is_some_and(|data| data.auto_mob_platforms_bound)
                 && let Some(idle) = idle
             {
                 idle.platforms_bound.map(|bound| bound.into())
@@ -240,24 +235,22 @@ fn poll_key(service: &mut DefaultGameService, settings: &Settings) -> Option<Gam
 #[inline]
 fn poll_database(
     service: &mut DefaultGameService,
-    minimap_id: Option<i64>,
+    map_id: Option<i64>,
     character_id: Option<i64>,
 ) -> Option<GameEvent> {
     let event = service.database_event_rx.try_recv().ok()?;
     debug!(target: "handler", "received database event {event:?}");
 
     match event {
-        DatabaseEvent::MinimapUpdated(minimap) => {
-            let id = minimap
-                .id
-                .expect("valid minimap id if updated from database");
-            if Some(id) == minimap_id {
-                return Some(GameEvent::MinimapUpdated(Some(minimap)));
+        DatabaseEvent::MapUpdated(map) => {
+            let id = map.id.expect("valid map id if updated from database");
+            if Some(id) == map_id {
+                return Some(GameEvent::MapUpdated(Some(map)));
             }
         }
-        DatabaseEvent::MinimapDeleted(deleted_id) => {
-            if Some(deleted_id) == minimap_id {
-                return Some(GameEvent::MinimapUpdated(None));
+        DatabaseEvent::MapDeleted(deleted_id) => {
+            if Some(deleted_id) == map_id {
+                return Some(GameEvent::MapUpdated(None));
             }
         }
         DatabaseEvent::NavigationPathsUpdated | DatabaseEvent::NavigationPathsDeleted => {

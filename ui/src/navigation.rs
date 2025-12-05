@@ -4,7 +4,7 @@ use backend::{
     DatabaseEvent, NavigationPath, NavigationPaths, NavigationPoint, NavigationTransition,
     create_navigation_path, database_event_receiver, delete_navigation_paths,
     navigation_snapshot_as_grayscale, query_navigation_paths, recapture_navigation_path,
-    upsert_minimap, upsert_navigation_paths,
+    upsert_map, upsert_navigation_paths,
 };
 use dioxus::prelude::*;
 use futures_util::StreamExt;
@@ -44,7 +44,7 @@ struct NavigationContext {
 
 #[component]
 pub fn NavigationScreen() -> Element {
-    let mut minimap = use_context::<AppState>().minimap;
+    let mut map = use_context::<AppState>().map;
 
     let mut path_groups = use_resource(async || query_navigation_paths().await.unwrap_or_default());
     let path_groups_view = use_memo(move || path_groups().unwrap_or_default());
@@ -85,12 +85,12 @@ pub fn NavigationScreen() -> Element {
                         }
                     }
                     NavigationUpdate::Attach(paths_id_index) => {
-                        let Some(mut current_minimap) = minimap() else {
+                        let Some(mut current_map) = map() else {
                             continue;
                         };
-                        current_minimap.paths_id_index = paths_id_index;
-                        if let Some(current_minimap) = upsert_minimap(current_minimap).await {
-                            minimap.set(Some(current_minimap));
+                        current_map.paths_id_index = paths_id_index;
+                        if let Some(current_map) = upsert_map(current_map).await {
+                            map.set(Some(current_map));
                         }
                     }
                 }
@@ -107,15 +107,15 @@ pub fn NavigationScreen() -> Element {
     use_effect(move || {
         let groups = path_groups_view();
         if !groups.is_empty() && selected_path_group.peek().is_none() {
-            let minimap_group_id = minimap
+            let map_group_id = map
                 .peek()
                 .as_ref()
-                .and_then(|minimap| minimap.paths_id_index)
+                .and_then(|map| map.paths_id_index)
                 .map(|(id, _)| id);
 
             if let Some(group) = groups
                 .iter()
-                .find(|group| group.id == minimap_group_id)
+                .find(|group| group.id == map_group_id)
                 .cloned()
             {
                 selected_path_group.set(Some(group));
@@ -152,18 +152,17 @@ pub fn NavigationScreen() -> Element {
 
 #[component]
 fn SectionSelectedMap() -> Element {
-    let minimap = use_context::<AppState>().minimap;
+    let map = use_context::<AppState>().map;
     let coroutine = use_coroutine_handle::<NavigationUpdate>();
 
     let context = use_context::<NavigationContext>();
     let path_groups = context.path_groups;
     let path_group_names = context.path_group_names;
 
-    let minimap_path_group_id_index =
-        use_memo(move || minimap().and_then(|minimap| minimap.paths_id_index));
-    let minimap_path_group_index = use_memo(move || {
+    let map_path_group_id_index = use_memo(move || map().and_then(|map| map.paths_id_index));
+    let map_path_group_index = use_memo(move || {
         let paths = path_groups();
-        minimap_path_group_id_index().and_then(|(id, _)| {
+        map_path_group_id_index().and_then(|(id, _)| {
             paths.into_iter().enumerate().find_map(|(index, path)| {
                 if path.id == Some(id) {
                     Some(index + 1) // + 1 for "None"
@@ -173,8 +172,8 @@ fn SectionSelectedMap() -> Element {
             })
         })
     });
-    let minimap_path_group_paths = use_memo(move || {
-        minimap_path_group_index()
+    let map_path_group_paths = use_memo(move || {
+        map_path_group_index()
             .map(|index| index - 1)
             .and_then(|index| {
                 path_groups
@@ -203,14 +202,14 @@ fn SectionSelectedMap() -> Element {
     });
 
     let select_path = use_callback(move |index: usize| {
-        let Some((id, _)) = *minimap_path_group_id_index.peek() else {
+        let Some((id, _)) = *map_path_group_id_index.peek() else {
             return;
         };
 
         coroutine.send(NavigationUpdate::Attach(Some((id, index))));
     });
 
-    let minimap_path_group_index_or_default = minimap_path_group_id_index()
+    let map_path_group_index_or_default = map_path_group_id_index()
         .map(|(_, index)| index)
         .unwrap_or_default();
 
@@ -219,20 +218,20 @@ fn SectionSelectedMap() -> Element {
             div { class: "grid grid-cols-2 gap-3",
                 Labeled { label: "Attached path group",
                     NavigationSelect::<String> {
-                        disabled: minimap().is_none(),
+                        disabled: map().is_none(),
                         options: [vec!["None".to_string()], path_group_names()].concat(),
                         on_selected: select_group,
-                        selected: minimap_path_group_index().unwrap_or_default(),
+                        selected: map_path_group_index().unwrap_or_default(),
                     }
                 }
 
                 Labeled { label: "Attached path",
                     NavigationSelect::<String> {
                         placeholder: "None",
-                        disabled: minimap_path_group_index().is_none(),
-                        options: minimap_path_group_paths(),
+                        disabled: map_path_group_index().is_none(),
+                        options: map_path_group_paths(),
                         on_selected: select_path,
-                        selected: minimap_path_group_index_or_default,
+                        selected: map_path_group_index_or_default,
                     }
                 }
             }

@@ -65,8 +65,8 @@ static EVENT: LazyLock<Sender<DatabaseEvent>> = LazyLock::new(|| channel(5).0);
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
 pub enum DatabaseEvent {
-    MinimapUpdated(Minimap),
-    MinimapDeleted(i64),
+    MapUpdated(Map),
+    MapDeleted(i64),
     NavigationPathsUpdated,
     NavigationPathsDeleted,
     SettingsUpdated(Settings),
@@ -106,6 +106,8 @@ pub struct Seeds {
     pub perlin_seed: u32,
 }
 
+impl_identifiable!(Seeds);
+
 impl Default for Seeds {
     fn default() -> Self {
         Self {
@@ -116,15 +118,13 @@ impl Default for Seeds {
     }
 }
 
-impl_identifiable!(Seeds);
-
 fn perlin_seed_default() -> u32 {
     rand::random()
 }
 
 impl_identifiable!(Character);
 
-impl_identifiable!(Minimap);
+impl_identifiable!(Map);
 
 #[derive(PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct NavigationPaths {
@@ -232,20 +232,20 @@ pub fn delete_character(character: &Character) -> Result<()> {
     })
 }
 
-pub fn query_minimaps() -> Result<Vec<Minimap>> {
+pub fn query_maps() -> Result<Vec<Map>> {
     query_from_table(MAPS)
 }
 
-pub fn upsert_minimap(minimap: &mut Minimap) -> Result<()> {
-    upsert_to_table(MAPS, minimap).inspect(|_| {
-        let _ = EVENT.send(DatabaseEvent::MinimapUpdated(minimap.clone()));
+pub fn upsert_map(map: &mut Map) -> Result<()> {
+    upsert_to_table(MAPS, map).inspect(|_| {
+        let _ = EVENT.send(DatabaseEvent::MapUpdated(map.clone()));
     })
 }
 
-pub fn delete_minimap(minimap: &Minimap) -> Result<()> {
-    delete_from_table(MAPS, minimap).inspect(|_| {
-        let _ = EVENT.send(DatabaseEvent::MinimapDeleted(
-            minimap.id.expect("valid id if deleted"),
+pub fn delete_map(map: &Map) -> Result<()> {
+    delete_from_table(MAPS, map).inspect(|_| {
+        let _ = EVENT.send(DatabaseEvent::MapDeleted(
+            map.id.expect("valid id if deleted"),
         ));
     })
 }
