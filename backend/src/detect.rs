@@ -155,8 +155,8 @@ pub enum SolErda {
 /// A trait for detecting objects from provided frame.
 #[cfg_attr(test, automock)]
 pub trait Detector: Debug + Send + Sync {
-    /// Gets the original [`OwnedMat`].
-    fn mat(&self) -> &OwnedMat;
+    /// Gets the original [`OwnedMat`] as a [`BoxedRef`].
+    fn mat(&self) -> BoxedRef<'_, Mat>;
 
     /// Gets the grayscale version.
     fn grayscale(&self) -> &Mat;
@@ -327,10 +327,11 @@ impl DefaultDetector {
         let bgra = Arc::new(mat);
 
         let cloned = bgra.clone();
-        let bgr = LazyLock::<Mat, MatFn>::new(Box::new(move || to_bgr(&*cloned)));
+        let bgr = LazyLock::<Mat, MatFn>::new(Box::new(move || to_bgr(&cloned.as_mat())));
 
         let cloned = bgra.clone();
-        let grayscale = LazyLock::<Mat, MatFn>::new(Box::new(move || to_grayscale(&*cloned, true)));
+        let grayscale =
+            LazyLock::<Mat, MatFn>::new(Box::new(move || to_grayscale(&cloned.as_mat(), true)));
 
         Self {
             bgra,
@@ -340,8 +341,8 @@ impl DefaultDetector {
         }
     }
 
-    fn bgra(&self) -> &OwnedMat {
-        &self.bgra
+    fn bgra(&self) -> BoxedRef<'_, Mat> {
+        self.bgra.as_mat()
     }
 
     fn bgr(&self) -> &Mat {
@@ -350,7 +351,7 @@ impl DefaultDetector {
 }
 
 impl Detector for DefaultDetector {
-    fn mat(&self) -> &OwnedMat {
+    fn mat(&self) -> BoxedRef<'_, Mat> {
         self.bgra()
     }
 
@@ -395,7 +396,7 @@ impl Detector for DefaultDetector {
         minimap_name_bbox: Rect,
     ) -> Result<f64> {
         detect_minimap_match(
-            self.bgra(),
+            &self.bgra(),
             self.grayscale(),
             minimap_snapshot,
             minimap_snapshot_grayscale,
@@ -500,7 +501,7 @@ impl Detector for DefaultDetector {
     }
 
     fn detect_familiar_scrollbar(&self) -> Result<Rect> {
-        detect_familiar_scrollbar(&to_grayscale(self.bgra(), false))
+        detect_familiar_scrollbar(&to_grayscale(&self.bgra(), false))
     }
 
     fn detect_familiar_menu_opened(&self) -> bool {

@@ -4,8 +4,8 @@ use std::fmt::Formatter;
 use std::time::Duration;
 use std::time::Instant;
 
+use crate::BotOperationUpdate;
 use crate::CycleRunStopMode;
-use crate::RotateKind;
 
 /// Current operating state of the bot.
 #[derive(Debug, Clone, Copy)]
@@ -40,36 +40,35 @@ impl Operation {
         )
     }
 
-    pub fn update_from_rotate_kind_and_mode(
+    pub fn update_from_bot_update_and_mode(
         self,
-        kind: RotateKind,
+        update: BotOperationUpdate,
         mode: CycleRunStopMode,
         run_duration_millis: u64,
         stop_duration_millis: u64,
     ) -> Operation {
-        match (kind, mode) {
-            (RotateKind::TemporaryHalt, CycleRunStopMode::None) | (RotateKind::Halt, _) => {
-                Operation::Halting
-            }
-            (RotateKind::TemporaryHalt, _) => {
+        match (update, mode) {
+            (BotOperationUpdate::TemporaryHalt, CycleRunStopMode::None)
+            | (BotOperationUpdate::Halt, _) => Operation::Halting,
+            (BotOperationUpdate::TemporaryHalt, _) => {
                 if let Operation::RunUntil {
                     instant,
                     run_duration_millis,
-                    stop_duration_millis,
+                    stop_duration_millis: update_from_bot_update_and_mode,
                     once,
                 } = self
                 {
                     Operation::TemporaryHalting {
                         resume: instant.saturating_duration_since(Instant::now()),
                         run_duration_millis,
-                        stop_duration_millis,
+                        stop_duration_millis: update_from_bot_update_and_mode,
                         once,
                     }
                 } else {
                     Operation::Halting
                 }
             }
-            (RotateKind::Run, CycleRunStopMode::Once | CycleRunStopMode::Repeat) => {
+            (BotOperationUpdate::Run, CycleRunStopMode::Once | CycleRunStopMode::Repeat) => {
                 if let Operation::TemporaryHalting {
                     resume,
                     run_duration_millis,
@@ -91,7 +90,7 @@ impl Operation {
                     )
                 }
             }
-            (RotateKind::Run, CycleRunStopMode::None) => Operation::Running,
+            (BotOperationUpdate::Run, CycleRunStopMode::None) => Operation::Running,
         }
     }
 

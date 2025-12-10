@@ -165,10 +165,14 @@ impl WgcCaptureInner {
                     );
                 }
             }
+            unsafe {
+                vec.set_len(capacity);
+            }
             vec
         } else {
             buffer.to_vec()
         };
+
         unsafe {
             self.d3d11_context.Unmap(texture, 0);
         };

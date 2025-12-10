@@ -23,8 +23,10 @@ use tokio::{
     time::{Instant, sleep, timeout},
 };
 
+use crate::services::Event;
+
 #[derive(Debug, Clone)]
-pub enum BotCommandKind {
+pub enum CommandKind {
     Start,
     Stop { go_to_town: bool },
     Suspend,
@@ -34,7 +36,7 @@ pub enum BotCommandKind {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, EnumIter, EnumString, EnumMessage, Display)]
-enum BotCommandKindInner {
+enum InnerCommandKind {
     #[strum(to_string = "start", message = "Start or resume the bot actions")]
     Start,
     #[strum(to_string = "stop", message = "Stop the bot actions")]
@@ -73,19 +75,21 @@ pub enum BotAction {
 }
 
 #[derive(Debug)]
-pub struct BotCommand {
-    pub kind: BotCommandKind,
+pub struct ControlEvent {
+    pub kind: CommandKind,
     pub sender: oneshot::Sender<EditInteractionResponse>,
 }
 
+impl Event for ControlEvent {}
+
 #[derive(Debug)]
 pub struct DiscordBot {
-    command_sender: Sender<BotCommand>,
+    command_sender: Sender<ControlEvent>,
     shard_manager: Option<Arc<ShardManager>>,
 }
 
 impl DiscordBot {
-    pub fn new() -> (Self, Receiver<BotCommand>) {
+    pub fn new() -> (Self, Receiver<ControlEvent>) {
         let (tx, rx) = channel(3);
         let bot = Self {
             command_sender: tx,
@@ -129,19 +133,19 @@ impl DiscordBot {
 
 #[derive(Debug)]
 struct DefaultEventHandler {
-    command_sender: Sender<BotCommand>,
+    command_sender: Sender<ControlEvent>,
     stream_handle: Arc<Mutex<Option<JoinHandle<()>>>>,
 }
 
 #[async_trait]
 impl EventHandler for DefaultEventHandler {
     async fn ready(&self, context: Context, _: Ready) {
-        let commands = BotCommandKindInner::iter()
+        let commands = InnerCommandKind::iter()
             .map(|kind| {
                 let command = CreateCommand::new(kind.to_string())
                     .description(kind.get_message().expect("message already set"));
                 match kind {
-                    BotCommandKindInner::Chat => command.add_option(
+                    InnerCommandKind::Chat => command.add_option(
                         CreateCommandOption::new(
                             CommandOptionType::String,
                             "message",
@@ -150,13 +154,13 @@ impl EventHandler for DefaultEventHandler {
                         .required(true)
                         .min_length(1),
                     ),
-                    BotCommandKindInner::Stop => command.add_option(CreateCommandOption::new(
+                    InnerCommandKind::Stop => command.add_option(CreateCommandOption::new(
                         CommandOptionType::Boolean,
                         "go-to-town",
                         "Whether to go to town when stopping",
                     )),
 
-                    BotCommandKindInner::Action => {
+                    InnerCommandKind::Action => {
                         let kind = BotAction::iter().fold(
                             CreateCommandOption::new(
                                 CommandOptionType::String,
@@ -180,11 +184,11 @@ impl EventHandler for DefaultEventHandler {
 
                         command.add_option(kind).add_option(count)
                     }
-                    BotCommandKindInner::StartStream
-                    | BotCommandKindInner::StopStream
-                    | BotCommandKindInner::Start
-                    | BotCommandKindInner::Suspend
-                    | BotCommandKindInner::Status => command,
+                    InnerCommandKind::StartStream
+                    | InnerCommandKind::StopStream
+                    | InnerCommandKind::Start
+                    | InnerCommandKind::Suspend
+                    | InnerCommandKind::Status => command,
                 }
             })
             .collect::<Vec<_>>();
@@ -200,7 +204,7 @@ impl EventHandler for DefaultEventHandler {
                 return;
             }
 
-            let kind = match command.data.name.parse::<BotCommandKindInner>() {
+            let kind = match command.data.name.parse::<InnerCommandKind>() {
                 Ok(kind) => kind,
                 Err(_) => {
                     response_with(&context, &command, "Ignored an unknown command.").await;
@@ -208,22 +212,17 @@ impl EventHandler for DefaultEventHandler {
                 }
             };
             match kind {
-                BotCommandKindInner::StartStream => {
+                InnerCommandKind::StartStream => {
                     start_stream_command(self, context, command).await;
                 }
-                BotCommandKindInner::StopStream => {
+                InnerCommandKind::StopStream => {
                     stop_stream_command(self, context, command).await;
                 }
-                BotCommandKindInner::Start => {
-                    single_command(
-                        &self.command_sender,
-                        &context,
-                        &command,
-                        BotCommandKind::Start,
-                    )
-                    .await;
+                InnerCommandKind::Start => {
+                    single_command(&self.command_sender, &context, &command, CommandKind::Start)
+                        .await;
                 }
-                BotCommandKindInner::Stop => {
+                InnerCommandKind::Stop => {
                     let go_to_town = command
                         .data
                         .options
@@ -234,29 +233,29 @@ impl EventHandler for DefaultEventHandler {
                         &self.command_sender,
                         &context,
                         &command,
-                        BotCommandKind::Stop { go_to_town },
+                        CommandKind::Stop { go_to_town },
                     )
                     .await;
                 }
-                BotCommandKindInner::Suspend => {
+                InnerCommandKind::Suspend => {
                     single_command(
                         &self.command_sender,
                         &context,
                         &command,
-                        BotCommandKind::Suspend,
+                        CommandKind::Suspend,
                     )
                     .await;
                 }
-                BotCommandKindInner::Status => {
+                InnerCommandKind::Status => {
                     single_command(
                         &self.command_sender,
                         &context,
                         &command,
-                        BotCommandKind::Status,
+                        CommandKind::Status,
                     )
                     .await;
                 }
-                BotCommandKindInner::Chat => {
+                InnerCommandKind::Chat => {
                     let content = command.data.options[0]
                         .value
                         .as_str()
@@ -266,11 +265,11 @@ impl EventHandler for DefaultEventHandler {
                         &self.command_sender,
                         &context,
                         &command,
-                        BotCommandKind::Chat { content },
+                        CommandKind::Chat { content },
                     )
                     .await;
                 }
-                BotCommandKindInner::Action => {
+                InnerCommandKind::Action => {
                     let action = BotAction::from_str(
                         command.data.options[0].value.as_str().expect("has option"),
                     )
@@ -285,7 +284,7 @@ impl EventHandler for DefaultEventHandler {
                         &self.command_sender,
                         &context,
                         &command,
-                        BotCommandKind::Action { action, count },
+                        CommandKind::Action { action, count },
                     )
                     .await;
                 }
@@ -295,13 +294,13 @@ impl EventHandler for DefaultEventHandler {
 }
 
 async fn single_command(
-    sender: &Sender<BotCommand>,
+    sender: &Sender<ControlEvent>,
     context: &Context,
     command: &CommandInteraction,
-    kind: BotCommandKind,
+    kind: CommandKind,
 ) {
     let (tx, rx) = oneshot::channel();
-    let inner = BotCommand { kind, sender: tx };
+    let inner = ControlEvent { kind, sender: tx };
     if sender.send(inner).await.is_err() {
         response_with(context, command, "Command failed, please try again.").await;
         return;
@@ -337,7 +336,7 @@ async fn start_stream_command(
         let start_time = Instant::now();
         let max_duration = Duration::from_mins(15);
         while start_time.elapsed() < max_duration {
-            single_command(&sender, &context, &command, BotCommandKind::Status).await;
+            single_command(&sender, &context, &command, CommandKind::Status).await;
             sleep(Duration::from_millis(500)).await;
         }
         response_with(&context, &command, "Streaming finished.").await;

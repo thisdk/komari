@@ -1,5 +1,6 @@
 #![feature(new_range_api)]
 #![feature(slice_pattern)]
+#![feature(box_into_inner)]
 #![feature(map_try_insert)]
 #![feature(variant_count)]
 #![feature(iter_array_chunks)]
@@ -60,11 +61,11 @@ pub use {
     strum::{EnumMessage, IntoEnumIterator, ParseError},
 };
 
-type RequestItem = (Request, Sender<Response>);
+type PendingRequest = (Request, Sender<Response>);
 
 static REQUESTS: LazyLock<(
-    mpsc::UnboundedSender<RequestItem>,
-    Mutex<mpsc::UnboundedReceiver<RequestItem>>,
+    mpsc::UnboundedSender<PendingRequest>,
+    Mutex<mpsc::UnboundedReceiver<PendingRequest>>,
 )> = LazyLock::new(|| {
     let (tx, rx) = mpsc::unbounded_channel();
     (tx, Mutex::new(rx))
@@ -99,7 +100,7 @@ macro_rules! send_request {
 /// Represents request from UI.
 #[derive(Debug)]
 enum Request {
-    RotateActions(RotateKind),
+    UpdateOperation(BotOperationUpdate),
     CreateMinimap(String),
     UpdateMinimap(Option<String>, Option<Map>),
     CreateNavigationPath,
@@ -135,7 +136,7 @@ enum Request {
 /// or appropriate counterparts before passing to UI.
 #[derive(Debug)]
 enum Response {
-    RotateActions,
+    UpdateOperation,
     CreateMinimap(Option<Map>),
     UpdateMinimap,
     CreateNavigationPath(Option<NavigationPath>),
@@ -163,59 +164,6 @@ enum Response {
     RecordImages,
     #[cfg(debug_assertions)]
     TestSpinRune,
-}
-
-/// Request handler of incoming requests from UI.
-pub(crate) trait RequestHandler {
-    fn on_rotate_actions(&mut self, kind: RotateKind);
-
-    fn on_create_map(&self, name: String) -> Option<Map>;
-
-    fn on_update_map(&mut self, preset: Option<String>, map: Option<Map>);
-
-    fn on_create_navigation_path(&self) -> Option<NavigationPath>;
-
-    fn on_recapture_navigation_path(&self, path: NavigationPath) -> NavigationPath;
-
-    fn on_navigation_snapshot_as_grayscale(&self, base64: String) -> String;
-
-    fn on_update_character(&mut self, character: Option<Character>);
-
-    fn on_redetect_minimap(&mut self);
-
-    fn on_game_state_receiver(&self) -> broadcast::Receiver<GameState>;
-
-    fn on_key_receiver(&self) -> broadcast::Receiver<KeyBinding>;
-
-    fn on_refresh_capture_handles(&mut self);
-
-    fn on_query_capture_handles(&self) -> (Vec<String>, Option<usize>);
-
-    fn on_select_capture_handle(&mut self, index: Option<usize>);
-
-    fn on_query_template(&self, template: GameTemplate) -> String;
-
-    fn on_convert_image_to_base64(&self, image: Vec<u8>, is_grayscale: bool) -> Option<String>;
-
-    fn on_save_capture_image(&self, is_grayscale: bool);
-
-    #[cfg(debug_assertions)]
-    fn on_debug_state_receiver(&self) -> broadcast::Receiver<DebugState>;
-
-    #[cfg(debug_assertions)]
-    fn on_auto_save_rune(&self, auto_save: bool);
-
-    #[cfg(debug_assertions)]
-    fn on_infer_rune(&mut self);
-
-    #[cfg(debug_assertions)]
-    fn on_infer_minimap(&self);
-
-    #[cfg(debug_assertions)]
-    fn on_record_images(&mut self, start: bool);
-
-    #[cfg(debug_assertions)]
-    fn on_test_spin_rune(&self);
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -266,7 +214,7 @@ pub struct GameState {
     pub priority_action: Option<String>,
     pub erda_shower_state: String,
     pub destinations: Vec<(i32, i32)>,
-    pub operation: GameOperation,
+    pub operation: BotOperation,
     pub frame: Option<(Vec<u8>, usize, usize)>,
     pub platforms_bound: Option<Bound>,
     pub portals: Vec<Bound>,
@@ -274,7 +222,7 @@ pub struct GameState {
 }
 
 #[derive(PartialEq, Clone, Copy, Debug)]
-pub enum GameOperation {
+pub enum BotOperation {
     Halting,
     TemporaryHalting(Duration),
     HaltUntil(Instant),
@@ -283,15 +231,15 @@ pub enum GameOperation {
 }
 
 #[derive(PartialEq, Clone, Copy, Debug)]
-pub enum RotateKind {
+pub enum BotOperationUpdate {
     Halt,
     TemporaryHalt,
     Run,
 }
 
-/// Starts or stops rotating the actions.
-pub async fn rotate_actions(kind: RotateKind) {
-    send_request!(RotateActions(kind))
+/// Updates the bot current's operation.
+pub async fn update_operation(update: BotOperationUpdate) {
+    send_request!(UpdateOperation(update))
 }
 
 /// Queries localization from the database.
@@ -521,92 +469,6 @@ pub async fn test_spin_rune() {
     send_request!(TestSpinRune)
 }
 
-pub(crate) fn poll_request(handler: &mut dyn RequestHandler) {
-    if let Ok((request, sender)) = LazyLock::force(&REQUESTS).1.lock().unwrap().try_recv() {
-        let result = match request {
-            Request::RotateActions(halting) => {
-                handler.on_rotate_actions(halting);
-                Response::RotateActions
-            }
-            Request::CreateMinimap(name) => Response::CreateMinimap(handler.on_create_map(name)),
-            Request::UpdateMinimap(preset, map) => {
-                handler.on_update_map(preset, map);
-                Response::UpdateMinimap
-            }
-            Request::CreateNavigationPath => {
-                Response::CreateNavigationPath(handler.on_create_navigation_path())
-            }
-            Request::RecaptureNavigationPath(path) => {
-                Response::RecaptureNavigationPath(handler.on_recapture_navigation_path(path))
-            }
-            Request::NavigationSnapshotAsGrayscale(base64) => {
-                Response::NavigationSnapshotAsGrayscale(
-                    handler.on_navigation_snapshot_as_grayscale(base64),
-                )
-            }
-            Request::UpdateCharacter(character) => {
-                handler.on_update_character(character);
-                Response::UpdateCharacter
-            }
-            Request::RedetectMinimap => {
-                handler.on_redetect_minimap();
-                Response::RedetectMinimap
-            }
-            Request::GameStateReceiver => {
-                Response::GameStateReceiver(handler.on_game_state_receiver())
-            }
-            Request::KeyReceiver => Response::KeyReceiver(handler.on_key_receiver()),
-            Request::RefreshCaptureHandles => {
-                handler.on_refresh_capture_handles();
-                Response::RefreshCaptureHandles
-            }
-            Request::QueryCaptureHandles => {
-                Response::QueryCaptureHandles(handler.on_query_capture_handles())
-            }
-            Request::SelectCaptureHandle(index) => {
-                handler.on_select_capture_handle(index);
-                Response::SelectCaptureHandle
-            }
-            Request::QueryTemplate(template) => {
-                Response::QueryTemplate(handler.on_query_template(template))
-            }
-            Request::ConvertImageToBase64(image, is_grayscale) => Response::ConvertImageToBase64(
-                handler.on_convert_image_to_base64(image, is_grayscale),
-            ),
-            Request::SaveCaptureImage(is_grayscale) => {
-                handler.on_save_capture_image(is_grayscale);
-                Response::SaveCaptureImage
-            }
-            #[cfg(debug_assertions)]
-            Request::DebugStateReceiver => {
-                Response::DebugStateReceiver(handler.on_debug_state_receiver())
-            }
-            #[cfg(debug_assertions)]
-            Request::AutoSaveRune(auto_save) => {
-                handler.on_auto_save_rune(auto_save);
-                Response::AutoSaveRune
-            }
-            #[cfg(debug_assertions)]
-            Request::InferRune => {
-                handler.on_infer_rune();
-                Response::InferRune
-            }
-            #[cfg(debug_assertions)]
-            Request::InferMinimap => {
-                handler.on_infer_minimap();
-                Response::InferMinimap
-            }
-            #[cfg(debug_assertions)]
-            Request::RecordImages(start) => {
-                handler.on_record_images(start);
-                Response::RecordImages
-            }
-            #[cfg(debug_assertions)]
-            Request::TestSpinRune => {
-                handler.on_test_spin_rune();
-                Response::TestSpinRune
-            }
-        };
-        let _ = sender.send(result);
-    }
+fn poll_request() -> Option<PendingRequest> {
+    LazyLock::force(&REQUESTS).1.lock().unwrap().try_recv().ok()
 }

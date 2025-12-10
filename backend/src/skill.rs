@@ -85,7 +85,8 @@ fn update_idle_state(
     anchor_point: Point,
     anchor_pixel: Vec4b,
 ) {
-    let result = resources.detector().mat().at_pt::<Vec4b>(anchor_point);
+    let mat = resources.detector().mat();
+    let result = mat.at_pt::<Vec4b>(anchor_point);
     let pixel = try_ok_transition!(skill, Skill::Detecting, result);
 
     transition_if!(
@@ -104,7 +105,7 @@ fn update_detection_state(resources: &Resources, skill: &mut SkillEntity) {
         let bbox = match kind {
             SkillKind::ErdaShower => detector.detect_erda_shower()?,
         };
-        Ok(get_anchor(detector.mat(), bbox))
+        Ok(get_anchor(&detector.mat(), bbox))
     });
 
     match update {
@@ -144,6 +145,7 @@ mod tests {
     use std::time::Duration;
 
     use anyhow::{Context as AnyhowContext, anyhow};
+    use opencv::boxed_ref::BoxedRef;
     use opencv::core::{CV_8UC4, Mat, MatExprTraitConst, MatTrait, Rect, Vec4b};
     use tokio::time::advance;
 
@@ -163,7 +165,9 @@ mod tests {
         let mut detector = MockDetector::new();
         let (mat, rect) = create_test_mat_bbox(center_pixel);
 
-        detector.expect_mat().return_const(mat.into());
+        detector
+            .expect_mat()
+            .returning(move || BoxedRef::from(mat.clone()));
         detector.expect_detect_erda_shower().returning(move || {
             if let Some(error) = error {
                 Err(anyhow!("error")).context(error)

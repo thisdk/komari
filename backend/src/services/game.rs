@@ -9,15 +9,17 @@ use tokio::{
     sync::broadcast::{self, Receiver, Sender},
 };
 
+use super::EventContext;
 use crate::{
-    BoundQuadrant, Character, DatabaseEvent, GameOperation, GameState, KeyBinding,
-    KeyBindingConfiguration, Localization, Map, Settings,
+    BotOperation, BotOperationUpdate, BoundQuadrant, Character, DatabaseEvent, GameState,
+    KeyBinding, KeyBindingConfiguration, Localization, Map, Settings,
     bridge::InputReceiver,
     database_event_receiver,
     ecs::{Resources, World},
     minimap::Minimap,
     operation::Operation,
     player::Quadrant,
+    services::{Event, EventHandler},
     skill::SkillKind,
 };
 
@@ -32,14 +34,17 @@ pub enum GameEvent {
     NavigationPathsUpdated,
 }
 
+impl Event for GameEvent {}
+
 /// A service to handle state broadcasting and event polling.
 #[cfg_attr(test, automock)]
 pub trait GameService: Debug {
-    fn poll_events(
+    /// Polls for pending [`GameEvent`]s.
+    fn poll(
         &mut self,
+        settings: &Settings,
         map_id: Option<i64>,
         character_id: Option<i64>,
-        settings: &Settings,
     ) -> Vec<GameEvent>;
 
     /// Gets a mutable reference to [`InputReceiver`].
@@ -76,21 +81,19 @@ impl DefaultGameService {
 }
 
 impl GameService for DefaultGameService {
-    fn poll_events(
+    fn poll(
         &mut self,
+        settings: &Settings,
         map_id: Option<i64>,
         character_id: Option<i64>,
-        settings: &Settings,
     ) -> Vec<GameEvent> {
         let mut events = Vec::new();
-
         if let Some(event) = poll_key(self, settings) {
             events.push(event);
         }
         if let Some(event) = poll_database(self, map_id, character_id) {
             events.push(event);
         }
-
         events
     }
 
@@ -124,13 +127,13 @@ impl GameService for DefaultGameService {
                 })
                 .unwrap_or_default();
             let operation = match resources.operation {
-                Operation::HaltUntil { instant, .. } => GameOperation::HaltUntil(instant),
+                Operation::HaltUntil { instant, .. } => BotOperation::HaltUntil(instant),
                 Operation::TemporaryHalting { resume, .. } => {
-                    GameOperation::TemporaryHalting(resume)
+                    BotOperation::TemporaryHalting(resume)
                 }
-                Operation::Halting => GameOperation::Halting,
-                Operation::Running => GameOperation::Running,
-                Operation::RunUntil { instant, .. } => GameOperation::RunUntil(instant),
+                Operation::Halting => BotOperation::Halting,
+                Operation::Running => BotOperation::Running,
+                Operation::RunUntil { instant, .. } => BotOperation::RunUntil(instant),
             };
             let idle = if let Minimap::Idle(idle) = world.minimap.state {
                 Some(idle)
@@ -171,7 +174,7 @@ impl GameService for DefaultGameService {
 
             spawn(async move {
                 let frame = if let Some((detector, idle)) = detector.zip(idle) {
-                    Some(minimap_frame_from(idle.bbox, detector.mat()))
+                    Some(minimap_frame_from(idle.bbox, &detector.mat()))
                 } else {
                     None
                 };
@@ -200,6 +203,57 @@ impl GameService for DefaultGameService {
 
     fn subscribe_key(&self) -> Receiver<KeyBinding> {
         self.key_tx.subscribe()
+    }
+}
+
+pub struct GameEventHandler;
+
+impl EventHandler<GameEvent> for GameEventHandler {
+    fn handle(&mut self, context: &mut EventContext<'_>, event: GameEvent) {
+        match event {
+            GameEvent::ToggleOperation => {
+                let update = if context.resources.operation.halting() {
+                    BotOperationUpdate::Run
+                } else {
+                    BotOperationUpdate::TemporaryHalt
+                };
+                context.operation_service.apply(
+                    context.resources,
+                    context.world,
+                    context.rotator,
+                    &context.settings_service.settings(),
+                    update,
+                );
+            }
+            GameEvent::MapUpdated(map) => context
+                .map_service
+                .update_map_preset(map, context.map_service.preset()),
+            GameEvent::CharacterUpdated(character) => {
+                context.ui_service.queue_update_character(character)
+            }
+            GameEvent::SettingsUpdated(settings) => {
+                let settings_service = &mut context.settings_service;
+                settings_service.update_settings(settings);
+                settings_service.apply_settings(
+                    &mut context.resources.operation,
+                    context.resources.input.as_mut(),
+                    context.game_service.input_receiver_mut(),
+                    context.capture,
+                );
+
+                context.control_service.update(&settings_service.settings());
+                context.rotator_service.apply(
+                    context.rotator,
+                    context.map_service.map(),
+                    context.character_service.character(),
+                    &settings_service.settings(),
+                );
+            }
+            GameEvent::LocalizationUpdated(localization) => context
+                .localization_service
+                .update_localization(localization),
+            GameEvent::NavigationPathsUpdated => context.navigator.mark_dirty(true),
+        }
     }
 }
 

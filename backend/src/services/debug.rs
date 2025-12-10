@@ -48,7 +48,7 @@ impl DebugService {
     pub fn poll(&mut self, resources: &Resources) {
         if let Some(id) = self.recording_id.clone() {
             utils::save_image_to(
-                resources.detector().mat(),
+                &resources.detector().mat(),
                 DatasetDir::Root,
                 PathBuf::from(id),
             );
@@ -109,7 +109,7 @@ impl DebugService {
         if let Some(detector) = resources.detector.as_ref()
             && let Some(bbox) = detector.detect_minimap(160).ok()
         {
-            save_minimap_for_training(detector.mat(), bbox);
+            save_minimap_for_training(&detector.mat(), bbox);
         }
     }
 

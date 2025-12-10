@@ -11,7 +11,7 @@ use anyhow::{Error, Ok, bail};
 use bit_vec::BitVec;
 use log::{debug, error};
 use opencv::{
-    core::{Vector, VectorToVec},
+    core::{ToInputArray, Vector, VectorToVec},
     imgcodecs::imencode_def,
 };
 use reqwest::Url;
@@ -21,7 +21,7 @@ use tokio::{
     time::{Instant, sleep},
 };
 
-use crate::{Settings, mat::OwnedMat};
+use crate::Settings;
 
 static TRUE: bool = true;
 static FALSE: bool = false;
@@ -237,9 +237,9 @@ impl DiscordNotification {
         Ok(())
     }
 
-    pub fn update(&self, frame: Option<&OwnedMat>) {
+    pub fn update(&self, frame: Option<impl ToInputArray>) {
         #[inline]
-        fn to_png(frame: Option<&OwnedMat>) -> Option<Vec<u8>> {
+        fn to_png(frame: Option<&impl ToInputArray>) -> Option<Vec<u8>> {
             let frame = frame?;
             let mut bytes = Vector::new();
             imencode_def(".png", frame, &mut bytes).ok()?;
@@ -256,7 +256,7 @@ impl DiscordNotification {
             for (item_frame, deadline) in item.frames.iter_mut() {
                 if elapsed_secs <= *deadline {
                     if item_frame.is_none() {
-                        *item_frame = to_png(frame);
+                        *item_frame = to_png(frame.as_ref());
                     }
                     break;
                 }
@@ -370,9 +370,9 @@ mod test {
 
         advance(Duration::from_secs(4)).await;
         // Skip frame 1 because deadline passed to frame 2
-        noti.update(Some(&OwnedMat::from(
-            Mat::zeros(1, 1, CV_8UC3).unwrap().to_mat().unwrap(),
-        )));
+        noti.update(Some(
+            &OwnedMat::from(Mat::zeros(1, 1, CV_8UC3).unwrap().to_mat().unwrap()).as_mat(),
+        ));
         let scheduled_guard = noti.scheduled.lock().unwrap();
         let scheduled = scheduled_guard.first().unwrap();
         assert!(scheduled.frames[0].0.is_none());
@@ -382,9 +382,9 @@ mod test {
 
         // Frame 3
         advance(Duration::from_secs(4)).await;
-        noti.update(Some(&OwnedMat::from(
-            Mat::zeros(1, 1, CV_8UC3).unwrap().to_mat().unwrap(),
-        )));
+        noti.update(Some(
+            &OwnedMat::from(Mat::zeros(1, 1, CV_8UC3).unwrap().to_mat().unwrap()).as_mat(),
+        ));
         let scheduled = noti.scheduled.lock().unwrap();
         let scheduled = scheduled.first().unwrap();
         assert!(scheduled.frames[0].0.is_none());

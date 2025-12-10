@@ -4,6 +4,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use crate::services::Event;
 #[cfg(test)]
 use crate::{Settings, bridge::MockInput, detect::MockDetector};
 use crate::{
@@ -117,7 +118,7 @@ impl Debug {
             .as_ref()
             .zip(*self.last_rune_result.borrow())
         {
-            save_rune_for_training(detector.mat(), result);
+            save_rune_for_training(&detector.mat(), result);
         }
     }
 
@@ -195,6 +196,8 @@ pub enum WorldEvent {
     MinimapChanged,
     CaptureFailed,
 }
+
+impl Event for WorldEvent {}
 
 /// A container for entities.
 #[derive(Debug)]

@@ -33,7 +33,6 @@ impl CharacterService for DefaultCharacterService {
         self.character = character;
     }
 
-    /// Updates `state` from currently using `[Character]`.
     fn apply_character(&self, player_context: &mut PlayerContext) {
         player_context.reset();
         if let Some(character) = self.character.as_ref() {

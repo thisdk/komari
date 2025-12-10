@@ -235,8 +235,8 @@ fn update_detecting_state(resources: &Resources, minimap: &mut MinimapEntity) {
         move |detector| {
             let bbox = detector.detect_minimap(MINIMAP_BORDER_WHITENESS_THRESHOLD)?;
             let size = bbox.width.min(bbox.height) as usize;
-            let tl = anchor_at(detector.mat(), bbox.tl(), size, 1)?;
-            let br = anchor_at(detector.mat(), bbox.br(), size, -1)?;
+            let tl = anchor_at(&detector.mat(), bbox.tl(), size, 1)?;
+            let br = anchor_at(&detector.mat(), bbox.br(), size, -1)?;
             let anchors = Anchors { tl, br };
 
             debug!(target: "minimap", "anchor points: {anchors:?}");
@@ -296,12 +296,12 @@ fn update_idle_state(
     let tl_pixel = try_some_transition!(
         minimap,
         Minimap::Detecting,
-        pixel_at(detector.mat(), anchors.tl.0)
+        pixel_at(&detector.mat(), anchors.tl.0)
     );
     let br_pixel = try_some_transition!(
         minimap,
         Minimap::Detecting,
-        pixel_at(detector.mat(), anchors.br.0)
+        pixel_at(&detector.mat(), anchors.br.0)
     );
     let tl_match = anchor_match(anchors.tl.1, tl_pixel);
     let br_match = anchor_match(anchors.br.1, br_pixel);
@@ -653,7 +653,10 @@ mod tests {
     use std::{assert_matches::assert_matches, time::Duration};
 
     use mockall::predicate::eq;
-    use opencv::core::{Mat, MatExprTraitConst, MatTrait, Point, Rect, Vec4b};
+    use opencv::{
+        boxed_ref::BoxedRef,
+        core::{Mat, MatExprTraitConst, MatTrait, Point, Rect, Vec4b},
+    };
     use tokio::time;
 
     use super::*;
@@ -697,7 +700,9 @@ mod tests {
             .expect_detect_minimap()
             .with(eq(MINIMAP_BORDER_WHITENESS_THRESHOLD))
             .returning(move |_| Ok(bbox));
-        detector.expect_mat().return_const(mat.into());
+        detector
+            .expect_mat()
+            .returning(move || BoxedRef::from(mat.clone()));
         (detector, bbox, anchors, rune_bbox)
     }
 

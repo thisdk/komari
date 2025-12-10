@@ -71,7 +71,7 @@ impl LocalizationService for DefaultLocalizationService {
             if is_grayscale {
                 utils::save_image_to_default(detector.grayscale(), DatasetDir::Root);
             } else {
-                utils::save_image_to_default(detector.mat(), DatasetDir::Root);
+                utils::save_image_to_default(&detector.mat(), DatasetDir::Root);
             }
         }
     }

@@ -96,7 +96,8 @@ fn extract_minimap_and_name_base64(
         imencode_def(".png", &name, &mut name_bytes).ok()?;
         let name_base64 = BASE64_STANDARD.encode(name_bytes);
 
-        let minimap = detector.mat().roi(idle.bbox).ok()?;
+        let mat = detector.mat();
+        let minimap = mat.roi(idle.bbox).ok()?;
         let mut minimap_bytes = Vector::new();
         imencode_def(".png", &minimap, &mut minimap_bytes).ok()?;
         let minimap_base64 = BASE64_STANDARD.encode(minimap_bytes);

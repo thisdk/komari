@@ -30,7 +30,7 @@ use crate::{
     player::{self, Player, PlayerContext, PlayerEntity},
     rng::Rng,
     rotator::{DefaultRotator, Rotator},
-    services::DefaultService,
+    services::Services,
     skill::{self, Skill, SkillContext, SkillEntity, SkillKind},
 };
 
@@ -80,15 +80,14 @@ fn systems_loop() {
     let rng = Rng::new(seeds.rng_seed, seeds.perlin_seed);
     let (event_tx, event_rx) = channel::<WorldEvent>(5);
 
-    let mut service =
-        DefaultService::new(settings.clone(), localization.clone(), event_tx.subscribe());
+    let mut service = Services::new(settings.clone(), localization.clone(), event_tx.subscribe());
     let window = service.selected_window();
     let mut input = DefaultInput::new(
         InputMethod::Default(window, InputKind::Focused),
         rng.clone(),
     );
     let mut capture = DefaultCapture::new(window);
-    service.update_input_and_capture(&mut input, &mut capture);
+    service.update_window(&mut input, &mut capture);
 
     let mut rotator = DefaultRotator::default();
     let mut navigator = DefaultNavigator::new(event_rx);
@@ -142,7 +141,7 @@ fn systems_loop() {
     loop_with_fps(FPS, || {
         let detector = capture
             .grab()
-            .map(OwnedMat::new_from_frame)
+            .and_then(|frame| OwnedMat::new(frame).map_err(|_| Error::WindowInvalidSize))
             .map(|mat| DefaultDetector::new(mat, localization.borrow().clone()));
         let was_capturing_normally = is_capturing_normally;
         let player_in_cash_shop = matches!(world.player.state, Player::CashShopThenExit(_));
@@ -201,6 +200,7 @@ fn systems_loop() {
         resources
             .notification
             .update(resources.detector.as_ref().map(|detector| detector.mat()));
+
         service.poll(
             &mut resources,
             &mut world,

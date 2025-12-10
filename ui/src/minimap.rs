@@ -4,9 +4,9 @@ use std::{
 };
 
 use backend::{
-    Action, ActionKey, ActionMove, DatabaseEvent, GameOperation, Map, Position, RotateKind,
+    Action, ActionKey, ActionMove, BotOperation, BotOperationUpdate, DatabaseEvent, Map, Position,
     RotationMode, create_map, database_event_receiver, delete_map, game_state_receiver, query_maps,
-    redetect_minimap, rotate_actions, update_map, upsert_map,
+    redetect_minimap, update_map, update_operation, upsert_map,
 };
 use dioxus::{document::EvalError, html::FileData, prelude::*};
 use futures_util::StreamExt;
@@ -292,7 +292,7 @@ struct MinimapState {
     normal_action: Option<String>,
     priority_action: Option<String>,
     erda_shower_state: String,
-    operation: GameOperation,
+    operation: BotOperation,
     detected_size: Option<(usize, usize)>,
 }
 
@@ -628,9 +628,9 @@ fn Info(state: ReadSignal<Option<MinimapState>>, map: ReadSignal<Option<Map>>) -
             info.state = state.state;
             info.erda_shower_state = state.erda_shower_state;
             info.cycle_duration = match state.operation {
-                GameOperation::Halting | GameOperation::Running => "None".to_string(),
-                GameOperation::TemporaryHalting(duration) => duration_from(duration),
-                GameOperation::HaltUntil(instant) | GameOperation::RunUntil(instant) => {
+                BotOperation::Halting | BotOperation::Running => "None".to_string(),
+                BotOperation::TemporaryHalting(duration) => duration_from(duration),
+                BotOperation::HaltUntil(instant) | BotOperation::RunUntil(instant) => {
                     duration_from(instant.saturating_duration_since(Instant::now()))
                 }
             };
@@ -682,19 +682,22 @@ fn Buttons(state: ReadSignal<Option<MinimapState>>, map: ReadSignal<Option<Map>>
     let kind = use_memo(move || {
         state()
             .map(|state| match state.operation {
-                GameOperation::Halting => RotateKind::Halt,
-                GameOperation::TemporaryHalting(_) => RotateKind::TemporaryHalt,
-                GameOperation::HaltUntil(_)
-                | GameOperation::Running
-                | GameOperation::RunUntil(_) => RotateKind::Run,
+                BotOperation::Halting => BotOperationUpdate::Halt,
+                BotOperation::TemporaryHalting(_) => BotOperationUpdate::TemporaryHalt,
+                BotOperation::HaltUntil(_) | BotOperation::Running | BotOperation::RunUntil(_) => {
+                    BotOperationUpdate::Run
+                }
             })
-            .unwrap_or(RotateKind::Halt)
+            .unwrap_or(BotOperationUpdate::Halt)
     });
     let character = use_context::<AppState>().character;
     let disabled = use_memo(move || map().is_none() || character().is_none());
 
     let start_stop_text = use_memo(move || {
-        if matches!(kind(), RotateKind::Run | RotateKind::TemporaryHalt) {
+        if matches!(
+            kind(),
+            BotOperationUpdate::Run | BotOperationUpdate::TemporaryHalt
+        ) {
             "Stop"
         } else {
             "Start"
@@ -703,11 +706,11 @@ fn Buttons(state: ReadSignal<Option<MinimapState>>, map: ReadSignal<Option<Map>>
     let suspend_resume_text = use_memo(move || {
         state()
             .map(|state| match state.operation {
-                GameOperation::TemporaryHalting(_) => "Resume",
-                GameOperation::Halting
-                | GameOperation::HaltUntil(_)
-                | GameOperation::Running
-                | GameOperation::RunUntil(_) => "Suspend",
+                BotOperation::TemporaryHalting(_) => "Resume",
+                BotOperation::Halting
+                | BotOperation::HaltUntil(_)
+                | BotOperation::Running
+                | BotOperation::RunUntil(_) => "Suspend",
             })
             .unwrap_or("Suspend")
     });
@@ -719,7 +722,7 @@ fn Buttons(state: ReadSignal<Option<MinimapState>>, map: ReadSignal<Option<Map>>
             .map(|state| {
                 !matches!(
                     state.operation,
-                    GameOperation::TemporaryHalting(_) | GameOperation::RunUntil(_)
+                    BotOperation::TemporaryHalting(_) | BotOperation::RunUntil(_)
                 )
             })
             .unwrap_or_default()
@@ -733,10 +736,12 @@ fn Buttons(state: ReadSignal<Option<MinimapState>>, map: ReadSignal<Option<Map>>
                 disabled: disabled(),
                 on_click: move || async move {
                     let kind = match *kind.peek() {
-                        RotateKind::Halt => RotateKind::Run,
-                        RotateKind::TemporaryHalt | RotateKind::Run => RotateKind::Halt,
+                        BotOperationUpdate::Halt => BotOperationUpdate::Run,
+                        BotOperationUpdate::TemporaryHalt | BotOperationUpdate::Run => {
+                            BotOperationUpdate::Halt
+                        }
                     };
-                    rotate_actions(kind).await;
+                    update_operation(kind).await;
                 },
                 {start_stop_text()}
             }
@@ -746,10 +751,12 @@ fn Buttons(state: ReadSignal<Option<MinimapState>>, map: ReadSignal<Option<Map>>
                 disabled: suspend_resume_disabled(),
                 on_click: move || async move {
                     let kind = match *kind.peek() {
-                        RotateKind::Run => RotateKind::TemporaryHalt,
-                        RotateKind::TemporaryHalt | RotateKind::Halt => RotateKind::Run,
+                        BotOperationUpdate::Run => BotOperationUpdate::TemporaryHalt,
+                        BotOperationUpdate::TemporaryHalt | BotOperationUpdate::Halt => {
+                            BotOperationUpdate::Run
+                        }
                     };
-                    rotate_actions(kind).await;
+                    update_operation(kind).await;
                 },
                 {suspend_resume_text()}
             }
