@@ -38,6 +38,97 @@ pub enum NotificationKind {
     PlayerIsDead,
 }
 
+impl NotificationKind {
+    fn enabled(&self, settings: &Settings) -> bool {
+        match self {
+            NotificationKind::FailOrMapChange => {
+                settings.notifications.notify_on_fail_or_change_map
+            }
+            NotificationKind::RuneAppear => settings.notifications.notify_on_rune_appear,
+            NotificationKind::EliteBossAppear => settings.notifications.notify_on_elite_boss_appear,
+            NotificationKind::PlayerIsDead => settings.notifications.notify_on_player_die,
+            NotificationKind::PlayerGuildieAppear => {
+                settings.notifications.notify_on_player_guildie_appear
+            }
+            NotificationKind::PlayerStrangerAppear => {
+                settings.notifications.notify_on_player_stranger_appear
+            }
+            NotificationKind::PlayerFriendAppear => {
+                settings.notifications.notify_on_player_friend_appear
+            }
+        }
+    }
+
+    fn content(&self, settings: &Settings) -> String {
+        let user_id = settings
+            .notifications
+            .discord_user_id
+            .is_empty()
+            .not()
+            .then_some(format!("<@{}> ", settings.notifications.discord_user_id))
+            .unwrap_or_default();
+
+        match self {
+            NotificationKind::FailOrMapChange => {
+                if settings.stop_on_fail_or_change_map {
+                    format!(
+                        "{user_id}Bot stopped because it has failed to detect or the map has changed"
+                    )
+                } else {
+                    format!("{user_id}Bot has failed to detect or the map has changed")
+                }
+            }
+            NotificationKind::RuneAppear => {
+                format!("{user_id}Bot has detected a rune on map")
+            }
+            NotificationKind::EliteBossAppear => {
+                format!("{user_id}Elite boss spawned")
+            }
+            NotificationKind::PlayerIsDead => {
+                format!("{user_id}The player is dead")
+            }
+            NotificationKind::PlayerGuildieAppear => {
+                format!("{user_id}Bot has detected guildie player(s)")
+            }
+            NotificationKind::PlayerStrangerAppear => {
+                format!("{user_id}Bot has detected stranger player(s)")
+            }
+            NotificationKind::PlayerFriendAppear => {
+                format!("{user_id}Bot has detected friend player(s)")
+            }
+        }
+    }
+
+    fn scheduled_frames(&self) -> Vec<ScheduledFrame> {
+        match self {
+            NotificationKind::FailOrMapChange => vec![
+                ScheduledFrame::new_deadline(2),
+                ScheduledFrame::new_deadline(4),
+            ],
+            NotificationKind::EliteBossAppear
+            | NotificationKind::PlayerIsDead
+            | NotificationKind::PlayerGuildieAppear
+            | NotificationKind::PlayerStrangerAppear
+            | NotificationKind::PlayerFriendAppear
+            | NotificationKind::RuneAppear => vec![ScheduledFrame::new_deadline(2)],
+        }
+    }
+
+    fn schedule_delay_duration(&self) -> Duration {
+        let secs = match self {
+            NotificationKind::FailOrMapChange => 5,
+            NotificationKind::EliteBossAppear
+            | NotificationKind::PlayerIsDead
+            | NotificationKind::PlayerGuildieAppear
+            | NotificationKind::PlayerStrangerAppear
+            | NotificationKind::PlayerFriendAppear
+            | NotificationKind::RuneAppear => 3,
+        };
+
+        Duration::from_secs(secs)
+    }
+}
+
 impl From<NotificationKind> for usize {
     fn from(kind: NotificationKind) -> Self {
         kind as usize
@@ -75,7 +166,22 @@ struct ScheduledNotification {
     /// deadline will try to capture the image from current game state. This is useful for showing
     /// `before and after` when map changes. So frame that cannot capture when the deadline is
     /// reached will be skipped.
-    frames: Vec<(Option<Vec<u8>>, u32)>,
+    frames: Vec<ScheduledFrame>,
+}
+
+#[derive(Debug)]
+struct ScheduledFrame {
+    inner: Option<Vec<u8>>,
+    deadline_secs: u32,
+}
+
+impl ScheduledFrame {
+    fn new_deadline(deadline_secs: u32) -> Self {
+        Self {
+            inner: None,
+            deadline_secs,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -104,133 +210,61 @@ impl DiscordNotification {
 
     pub fn schedule_notification(&self, kind: NotificationKind) -> Result<(), Error> {
         let settings = self.settings.borrow();
-        let is_enabled = match kind {
-            NotificationKind::FailOrMapChange => {
-                settings.notifications.notify_on_fail_or_change_map
-            }
-            NotificationKind::RuneAppear => settings.notifications.notify_on_rune_appear,
-            NotificationKind::EliteBossAppear => settings.notifications.notify_on_elite_boss_appear,
-            NotificationKind::PlayerIsDead => settings.notifications.notify_on_player_die,
-            NotificationKind::PlayerGuildieAppear => {
-                settings.notifications.notify_on_player_guildie_appear
-            }
-            NotificationKind::PlayerStrangerAppear => {
-                settings.notifications.notify_on_player_stranger_appear
-            }
-            NotificationKind::PlayerFriendAppear => {
-                settings.notifications.notify_on_player_friend_appear
-            }
-        };
-        if !is_enabled {
+        if !kind.enabled(&settings) {
             bail!("notification not enabled");
         }
         if settings.notifications.discord_webhook_url.is_empty() {
             bail!("webhook url not provided");
         }
 
-        let mut pending = self.pending.lock().unwrap();
-        if pending[kind] {
-            bail!("notification is already sending");
+        {
+            let mut pending = self.pending.lock().unwrap();
+            if pending[kind] {
+                bail!("notification is already sending");
+            }
+
+            let url = settings.notifications.discord_webhook_url.clone();
+            if Url::try_from(url.as_str()).is_err() {
+                bail!("failed to parse webhook url");
+            }
+
+            let content = kind.content(&settings);
+            let frames = kind.scheduled_frames();
+            let mut scheduled = self.scheduled.lock().unwrap();
+            scheduled.push(ScheduledNotification {
+                instant: Instant::now(),
+                kind,
+                url,
+                content,
+                username: "maple-bot",
+                frames,
+            });
+            pending.set(kind.into(), true);
         }
 
-        let url = settings.notifications.discord_webhook_url.clone();
-        if Url::try_from(url.as_str()).is_err() {
-            bail!("failed to parse webhook url");
-        }
-
-        let user_id = settings
-            .notifications
-            .discord_user_id
-            .is_empty()
-            .not()
-            .then_some(format!("<@{}> ", settings.notifications.discord_user_id))
-            .unwrap_or_default();
-        let content = match kind {
-            NotificationKind::FailOrMapChange => {
-                if self.settings.borrow().stop_on_fail_or_change_map {
-                    format!(
-                        "{user_id}Bot stopped because it has failed to detect or the map has changed"
-                    )
-                } else {
-                    format!("{user_id}Bot has failed to detect or the map has changed")
-                }
-            }
-            NotificationKind::RuneAppear => {
-                format!("{user_id}Bot has detected a rune on map")
-            }
-            NotificationKind::EliteBossAppear => {
-                format!("{user_id}Elite boss spawned")
-            }
-            NotificationKind::PlayerIsDead => {
-                format!("{user_id}The player is dead")
-            }
-            NotificationKind::PlayerGuildieAppear => {
-                format!("{user_id}Bot has detected guildie player(s)")
-            }
-            NotificationKind::PlayerStrangerAppear => {
-                format!("{user_id}Bot has detected stranger player(s)")
-            }
-            NotificationKind::PlayerFriendAppear => {
-                format!("{user_id}Bot has detected friend player(s)")
-            }
-        };
-        let frames = match kind {
-            NotificationKind::FailOrMapChange => vec![(None, 2), (None, 4)],
-            NotificationKind::EliteBossAppear
-            | NotificationKind::PlayerIsDead
-            | NotificationKind::PlayerGuildieAppear
-            | NotificationKind::PlayerStrangerAppear
-            | NotificationKind::PlayerFriendAppear
-            | NotificationKind::RuneAppear => vec![(None, 2)],
-        };
-        let delay = match kind {
-            NotificationKind::FailOrMapChange => 5,
-            NotificationKind::EliteBossAppear
-            | NotificationKind::PlayerIsDead
-            | NotificationKind::PlayerGuildieAppear
-            | NotificationKind::PlayerStrangerAppear
-            | NotificationKind::PlayerFriendAppear
-            | NotificationKind::RuneAppear => 3,
-        };
-
-        let mut scheduled = self.scheduled.lock().unwrap();
-        scheduled.push(ScheduledNotification {
-            instant: Instant::now(),
-            kind,
-            url,
-            content,
-            username: "maple-bot",
-            frames,
-        });
-        pending.set(kind.into(), true);
-
+        let delay = kind.schedule_delay_duration();
         let pending = self.pending.clone();
         let scheduled = self.scheduled.clone();
         spawn(async move {
-            sleep(Duration::from_secs(delay)).await;
+            sleep(delay).await;
 
-            let notification = scheduled
-                .lock()
-                .ok()
-                .map(|mut scheduled| {
-                    // Inside closure or compiler will complain about MutexGuard not being Send
-                    let (index, _) = scheduled
-                        .iter()
-                        .enumerate()
-                        .find(|(_, item)| item.kind == kind)
-                        .unwrap();
-                    scheduled.remove(index)
-                })
-                .unwrap();
-            let kind = notification.kind;
-            debug_assert!(
-                pending
-                    .lock()
-                    .unwrap()
-                    .get(notification.kind.into())
-                    .unwrap()
-            );
-            pending.lock().unwrap().set(kind.into(), false);
+            let notification = {
+                let mut scheduled = scheduled.lock().unwrap();
+                let (index, _) = scheduled
+                    .iter()
+                    .enumerate()
+                    .find(|(_, item)| item.kind == kind)
+                    .unwrap();
+                let notification = scheduled.remove(index);
+                let kind = notification.kind;
+
+                let mut pending = pending.lock().unwrap();
+                assert!(pending.get(kind.into()).unwrap());
+                pending.set(kind.into(), false);
+
+                notification
+            };
+
             let _ = post_notification(notification).await;
         });
 
@@ -253,10 +287,10 @@ impl DiscordNotification {
 
         for item in scheduled.iter_mut() {
             let elapsed_secs = item.instant.elapsed().as_secs() as u32;
-            for (item_frame, deadline) in item.frames.iter_mut() {
-                if elapsed_secs <= *deadline {
-                    if item_frame.is_none() {
-                        *item_frame = to_png(frame.as_ref());
+            for scheduled_frame in item.frames.iter_mut() {
+                if elapsed_secs <= scheduled_frame.deadline_secs {
+                    if scheduled_frame.inner.is_none() {
+                        scheduled_frame.inner = to_png(frame.as_ref());
                     }
                     break;
                 }
@@ -271,7 +305,7 @@ async fn post_notification(notification: ScheduledNotification) -> Result<(), Er
     let files = notification
         .frames
         .into_iter()
-        .filter_map(|(frame, _)| frame)
+        .filter_map(|frame| frame.inner)
         .enumerate()
         .map(|(index, frame)| {
             CreateAttachment::bytes(frame, format!("image_{index}.png"))
@@ -303,7 +337,7 @@ mod test {
     use tokio::time::{Instant, advance};
 
     use super::{DiscordNotification, NotificationKind, ScheduledNotification};
-    use crate::{Notifications, Settings, mat::OwnedMat};
+    use crate::{Notifications, Settings, mat::OwnedMat, notification::ScheduledFrame};
 
     #[tokio::test(start_paused = true)]
     async fn schedule_kind_unique() {
@@ -365,7 +399,11 @@ mod test {
             url: "https://example.com".into(),
             content: "content".into(),
             username: "username",
-            frames: vec![(None, 3), (None, 6), (None, 9)],
+            frames: vec![
+                ScheduledFrame::new_deadline(3),
+                ScheduledFrame::new_deadline(6),
+                ScheduledFrame::new_deadline(9),
+            ],
         });
 
         advance(Duration::from_secs(4)).await;
@@ -375,9 +413,9 @@ mod test {
         ));
         let scheduled_guard = noti.scheduled.lock().unwrap();
         let scheduled = scheduled_guard.first().unwrap();
-        assert!(scheduled.frames[0].0.is_none());
-        assert!(scheduled.frames[1].0.is_some());
-        assert!(scheduled.frames[2].0.is_none());
+        assert!(scheduled.frames[0].inner.is_none());
+        assert!(scheduled.frames[1].inner.is_some());
+        assert!(scheduled.frames[2].inner.is_none());
         drop(scheduled_guard);
 
         // Frame 3
@@ -387,8 +425,8 @@ mod test {
         ));
         let scheduled = noti.scheduled.lock().unwrap();
         let scheduled = scheduled.first().unwrap();
-        assert!(scheduled.frames[0].0.is_none());
-        assert!(scheduled.frames[1].0.is_some());
-        assert!(scheduled.frames[2].0.is_some());
+        assert!(scheduled.frames[0].inner.is_none());
+        assert!(scheduled.frames[1].inner.is_some());
+        assert!(scheduled.frames[2].inner.is_some());
     }
 }
