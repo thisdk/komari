@@ -320,6 +320,19 @@ fn SectionControlAndNotifications() -> Element {
                     },
                     checked: notifications().notify_on_fail_or_change_map,
                 }
+                SettingsCheckbox {
+                    label: "Lie detector appears",
+                    on_checked: move |notify_on_lie_detector_appear| {
+                        save_settings(Settings {
+                            notifications: Notifications {
+                                notify_on_lie_detector_appear,
+                                ..notifications.peek().clone()
+                            },
+                            ..settings.peek().clone()
+                        });
+                    },
+                    checked: notifications().notify_on_lie_detector_appear,
+                }
             }
         }
     }

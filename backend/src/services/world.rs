@@ -111,6 +111,12 @@ impl EventHandler<WorldEvent> for WorldEventHandler {
                     .notification
                     .schedule_notification(NotificationKind::FailOrMapChange);
             }
+            WorldEvent::LieDetectorAppeared => {
+                let _ = context
+                    .resources
+                    .notification
+                    .schedule_notification(NotificationKind::LieDetectorAppear);
+            }
         }
     }
 }

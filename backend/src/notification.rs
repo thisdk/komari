@@ -36,6 +36,7 @@ pub enum NotificationKind {
     PlayerStrangerAppear,
     PlayerFriendAppear,
     PlayerIsDead,
+    LieDetectorAppear,
 }
 
 impl NotificationKind {
@@ -55,6 +56,9 @@ impl NotificationKind {
             }
             NotificationKind::PlayerFriendAppear => {
                 settings.notifications.notify_on_player_friend_appear
+            }
+            NotificationKind::LieDetectorAppear => {
+                settings.notifications.notify_on_lie_detector_appear
             }
         }
     }
@@ -96,6 +100,9 @@ impl NotificationKind {
             NotificationKind::PlayerFriendAppear => {
                 format!("{user_id}Bot has detected friend player(s)")
             }
+            NotificationKind::LieDetectorAppear => {
+                format!("{user_id}Bot has detected the lie detector")
+            }
         }
     }
 
@@ -111,6 +118,7 @@ impl NotificationKind {
             | NotificationKind::PlayerStrangerAppear
             | NotificationKind::PlayerFriendAppear
             | NotificationKind::RuneAppear => vec![ScheduledFrame::new_deadline(2)],
+            NotificationKind::LieDetectorAppear => vec![ScheduledFrame::new_deadline(1)],
         }
     }
 
@@ -123,6 +131,7 @@ impl NotificationKind {
             | NotificationKind::PlayerStrangerAppear
             | NotificationKind::PlayerFriendAppear
             | NotificationKind::RuneAppear => 3,
+            NotificationKind::LieDetectorAppear => 2,
         };
 
         Duration::from_secs(secs)

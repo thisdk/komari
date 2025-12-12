@@ -288,6 +288,9 @@ pub trait Detector: Debug + Send + Sync {
     /// Detects whether there is a timer (e.g. from using booster).
     fn detect_timer_visible(&self) -> bool;
 
+    /// Detects whether there is a lie detector.
+    fn detect_lie_detector_visible(&self) -> bool;
+
     /// Detects the state for HEXA Booster in the quick slots.
     fn detect_quick_slots_hexa_booster(&self) -> Result<QuickSlotsHexaBooster>;
 
@@ -526,6 +529,10 @@ impl Detector for DefaultDetector {
 
     fn detect_timer_visible(&self) -> bool {
         detect_timer_visible(self.grayscale(), &self.localization)
+    }
+
+    fn detect_lie_detector_visible(&self) -> bool {
+        detect_lie_detector_visible(self.bgr())
     }
 
     fn detect_quick_slots_hexa_booster(&self) -> Result<QuickSlotsHexaBooster> {
@@ -2397,6 +2404,14 @@ fn detect_timer_visible(grayscale: &impl ToInputArray, localization: &Localizati
         0.75,
     )
     .is_ok()
+}
+
+fn detect_lie_detector_visible(bgr: &impl ToInputArray) -> bool {
+    static TEMPLATE: LazyLock<Mat> = LazyLock::new(|| {
+        imgcodecs::imdecode(include_bytes!(env!("LIE_DETECTOR_TEMPLATE")), IMREAD_COLOR).unwrap()
+    });
+
+    detect_template(bgr, &*TEMPLATE, Point::default(), 0.75).is_ok()
 }
 
 fn detect_quick_slots_hexa_booster<T: MatTraitConst + ToInputArray>(

@@ -10,6 +10,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use anyhow::Result;
 use platforms::{Error, input::InputKind};
 use strum::IntoEnumIterator;
 use tokio::sync::broadcast::channel;
@@ -32,6 +33,7 @@ use crate::{
     rotator::{DefaultRotator, Rotator},
     services::Services,
     skill::{self, Skill, SkillContext, SkillEntity, SkillKind},
+    task::{Task, Update, update_detection_task},
 };
 
 /// The FPS the bot runs at.
@@ -138,6 +140,10 @@ fn systems_loop() {
     };
     let mut is_capturing_normally = false;
 
+    // TODO: Move this to a more appropriate place.
+    let mut was_lie_detector_visible = false;
+    let mut lie_detector_visible_task: Option<Task<Result<bool>>> = None;
+
     loop_with_fps(FPS, || {
         let detector = capture
             .grab()
@@ -189,6 +195,22 @@ fn systems_loop() {
             let minimap_detecting = matches!(world.minimap.state, Minimap::Detecting);
             if was_minimap_idle && minimap_detecting {
                 let _ = event_tx.send(WorldEvent::MinimapChanged);
+            }
+
+            // TODO: Move this to a more appropriate place.
+            match update_detection_task(
+                &resources,
+                2500,
+                &mut lie_detector_visible_task,
+                |detector| Ok(detector.detect_lie_detector_visible()),
+            ) {
+                Update::Ok(is_visible) => {
+                    if is_visible && !was_lie_detector_visible {
+                        let _ = event_tx.send(WorldEvent::LieDetectorAppeared);
+                    }
+                    was_lie_detector_visible = is_visible;
+                }
+                Update::Err(_) | Update::Pending => (),
             }
         }
 

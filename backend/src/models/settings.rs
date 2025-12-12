@@ -147,4 +147,6 @@ pub struct Notifications {
     pub notify_on_player_guildie_appear: bool,
     pub notify_on_player_stranger_appear: bool,
     pub notify_on_player_friend_appear: bool,
+    #[serde(default)]
+    pub notify_on_lie_detector_appear: bool,
 }

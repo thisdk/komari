@@ -37,6 +37,7 @@ fn main() {
     let chat_menu = dir.join("chat_menu_ideal_ratio.png");
     let admin = dir.join("admin_ideal_ratio.png");
     let timer = dir.join("timer_ideal_ratio.png");
+    let lie_detector = dir.join("lie_detector_ideal_ratio.png");
 
     let rune = dir.join("rune_ideal_ratio.png");
     let rune_mask = dir.join("rune_mask_ideal_ratio.png");
@@ -226,6 +227,10 @@ fn main() {
         chat_menu.to_str().unwrap()
     );
     println!("cargo:rustc-env=TIMER_TEMPLATE={}", timer.to_str().unwrap());
+    println!(
+        "cargo:rustc-env=LIE_DETECTOR_TEMPLATE={}",
+        lie_detector.to_str().unwrap()
+    );
     println!("cargo:rustc-env=ADMIN_TEMPLATE={}", admin.to_str().unwrap());
 
     println!("cargo:rustc-env=RUNE_TEMPLATE={}", rune.to_str().unwrap());

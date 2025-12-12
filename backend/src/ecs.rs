@@ -195,6 +195,7 @@ pub enum WorldEvent {
     PlayerDied,
     MinimapChanged,
     CaptureFailed,
+    LieDetectorAppeared,
 }
 
 impl Event for WorldEvent {}
