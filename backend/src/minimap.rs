@@ -40,7 +40,7 @@ impl Hash for HashedRect {
     }
 }
 
-// A minimap entity.
+/// A minimap entity.
 #[derive(Debug)]
 pub struct MinimapEntity {
     pub state: Minimap,
@@ -134,10 +134,6 @@ pub struct MinimapIdle {
     ///
     /// The rune position is in player-relative coordinate, which is bottom-left.
     rune: Threshold<Point>,
-    /// Whether there is an elite boss.
-    ///
-    /// TODO: This does not belong to minimap.
-    has_elite_boss: Threshold<()>,
     /// Whether there is a guildie.
     has_guildie_player: Threshold<()>,
     /// Whether there is a stranger.
@@ -172,16 +168,6 @@ impl MinimapIdle {
     #[inline]
     pub fn portals(&self) -> Array<Rect, MAX_PORTALS_COUNT> {
         self.portals
-    }
-
-    #[inline]
-    pub fn has_elite_boss(&self) -> bool {
-        self.has_elite_boss.value.is_some()
-    }
-
-    #[cfg(test)]
-    pub fn set_has_elite_boss(&mut self, has_elite_boss: bool) {
-        self.has_elite_boss.value = has_elite_boss.then_some(());
     }
 
     #[inline]
@@ -260,7 +246,6 @@ fn update_detecting_state(resources: &Resources, minimap: &mut MinimapEntity) {
         bbox,
         partially_overlapping: false,
         rune: Threshold::new(3),
-        has_elite_boss: Threshold::new(2),
         has_guildie_player: Threshold::new(2),
         has_stranger_player: Threshold::new(2),
         has_friend_player: Threshold::new(2),
@@ -282,7 +267,6 @@ fn update_idle_state(
         anchors,
         bbox,
         rune,
-        has_elite_boss,
         has_guildie_player,
         has_stranger_player,
         has_friend_player,
@@ -322,11 +306,6 @@ fn update_idle_state(
         bbox,
         player_state,
         rune,
-    );
-    let has_elite_boss = update_elite_boss_task(
-        resources,
-        &mut minimap.context.has_elite_boss_task,
-        has_elite_boss,
     );
     let has_guildie_player = update_other_player_task(
         resources,
@@ -368,7 +347,6 @@ fn update_idle_state(
     minimap.state = Minimap::Idle(MinimapIdle {
         partially_overlapping,
         rune,
-        has_elite_boss,
         has_guildie_player,
         has_stranger_player,
         has_friend_player,
@@ -428,31 +406,6 @@ fn update_rune_task(
             .schedule_notification(NotificationKind::RuneAppear);
     }
     rune
-}
-
-#[inline]
-fn update_elite_boss_task(
-    resources: &Resources,
-    task: &mut Option<Task<Result<()>>>,
-    has_elite_boss: Threshold<()>,
-) -> Threshold<()> {
-    let did_have_elite_boss = has_elite_boss.value.is_some();
-    let has_elite_boss =
-        update_threshold_detection(resources, 5000, has_elite_boss, task, move |detector| {
-            if detector.detect_elite_boss_bar() {
-                Ok(())
-            } else {
-                Err(anyhow!("no elite boss detected"))
-            }
-        });
-
-    if !resources.operation.halting() && !did_have_elite_boss && has_elite_boss.value.is_some() {
-        info!(target: "minimap", "sending elite boss notification...");
-        let _ = resources
-            .notification
-            .schedule_notification(NotificationKind::EliteBossAppear);
-    }
-    has_elite_boss
 }
 
 #[inline]
@@ -744,7 +697,6 @@ mod tests {
                 assert_eq!(idle.bbox, bbox);
                 assert!(!idle.partially_overlapping);
                 assert_eq!(idle.rune.value, None);
-                assert!(!idle.has_elite_boss());
                 assert!(!idle.has_any_other_player());
                 assert!(idle.portals.is_empty());
 
@@ -769,7 +721,6 @@ mod tests {
             bbox,
             partially_overlapping: false,
             rune: Threshold::new(3),
-            has_elite_boss: Threshold::default(),
             has_guildie_player: Threshold::default(),
             has_stranger_player: Threshold::default(),
             has_friend_player: Threshold::default(),

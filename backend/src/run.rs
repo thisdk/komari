@@ -13,7 +13,7 @@ use std::{
 use anyhow::Result;
 use platforms::{Error, input::InputKind};
 use strum::IntoEnumIterator;
-use tokio::sync::broadcast::channel;
+use tokio::sync::broadcast::{Sender, channel};
 
 #[cfg(debug_assertions)]
 use crate::ecs::Debug;
@@ -21,7 +21,7 @@ use crate::{
     bridge::{Capture, DefaultCapture, DefaultInput, InputMethod},
     buff::{self, Buff, BuffContext, BuffEntity, BuffKind},
     database::{query_and_upsert_seeds, query_or_upsert_localization, query_settings},
-    detect::DefaultDetector,
+    detect::{DefaultDetector, Detector},
     ecs::{Resources, World, WorldEvent},
     mat::OwnedMat,
     minimap::{self, Minimap, MinimapContext, MinimapEntity},
@@ -140,9 +140,16 @@ fn systems_loop() {
     };
     let mut is_capturing_normally = false;
 
-    // TODO: Move this to a more appropriate place.
-    let mut was_lie_detector_visible = false;
-    let mut lie_detector_visible_task: Option<Task<Result<bool>>> = None;
+    let mut lie_detector_event_task = event_task(
+        WorldEvent::LieDetectorAppeared,
+        event_tx.clone(),
+        |detector| detector.detect_lie_detector_visible(),
+    );
+    let mut elite_boss_event_task = event_task(
+        WorldEvent::EliteBossAppeared,
+        event_tx.clone(),
+        |detector| detector.detect_elite_boss_bar(),
+    );
 
     loop_with_fps(FPS, || {
         let detector = capture
@@ -197,21 +204,8 @@ fn systems_loop() {
                 let _ = event_tx.send(WorldEvent::MinimapChanged);
             }
 
-            // TODO: Move this to a more appropriate place.
-            match update_detection_task(
-                &resources,
-                2500,
-                &mut lie_detector_visible_task,
-                |detector| Ok(detector.detect_lie_detector_visible()),
-            ) {
-                Update::Ok(is_visible) => {
-                    if is_visible && !was_lie_detector_visible {
-                        let _ = event_tx.send(WorldEvent::LieDetectorAppeared);
-                    }
-                    was_lie_detector_visible = is_visible;
-                }
-                Update::Err(_) | Update::Pending => (),
-            }
+            lie_detector_event_task(&resources);
+            elite_boss_event_task(&resources);
         }
 
         if was_capturing_normally && !is_capturing_normally {
@@ -231,6 +225,32 @@ fn systems_loop() {
             &mut capture,
         );
     });
+}
+
+fn event_task(
+    event: WorldEvent,
+    event_tx: Sender<WorldEvent>,
+    detect_fn: fn(Arc<dyn Detector>) -> bool,
+) -> impl FnMut(&Resources) {
+    let mut previous = false;
+    let mut task: Option<Task<Result<bool>>> = None;
+    let task_fn = move |detector: Arc<dyn Detector>| -> Result<bool> { Ok(detect_fn(detector)) };
+
+    move |resources| {
+        if resources.detector.is_none() {
+            return;
+        }
+
+        match update_detection_task(resources, 5000, &mut task, task_fn) {
+            Update::Ok(current) => {
+                if current && !previous {
+                    let _ = event_tx.send(event);
+                }
+                previous = current;
+            }
+            Update::Err(_) | Update::Pending => (),
+        }
+    }
 }
 
 #[inline]

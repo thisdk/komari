@@ -1321,19 +1321,15 @@ fn panic_priority_action() -> PriorityAction {
 
 #[inline]
 fn elite_boss_change_channel_priority_action() -> PriorityAction {
+    let mut condition = elite_boss_condition();
+
     PriorityAction {
-        condition: Condition(Box::new(|_, world, info| {
+        condition: Condition(Box::new(move |resources, _, info| {
             if !at_least_millis_passed_since(info.last_queued_time, 15000) {
                 return ConditionResult::Skip;
             }
 
-            if let Minimap::Idle(idle) = world.minimap.state
-                && idle.has_elite_boss()
-            {
-                ConditionResult::Queue
-            } else {
-                ConditionResult::Skip
-            }
+            condition(resources)
         })),
         condition_kind: None,
         inner: RotatorAction::Single(PlayerAction::Panic(Panic {
@@ -1347,19 +1343,15 @@ fn elite_boss_change_channel_priority_action() -> PriorityAction {
 
 #[inline]
 fn elite_boss_use_key_priority_action(key: KeyKind) -> PriorityAction {
+    let mut condition = elite_boss_condition();
+
     PriorityAction {
-        condition: Condition(Box::new(|_, world, info| {
+        condition: Condition(Box::new(move |resources, _, info| {
             if !at_least_millis_passed_since(info.last_queued_time, 15000) {
                 return ConditionResult::Skip;
             }
 
-            if let Minimap::Idle(idle) = world.minimap.state
-                && idle.has_elite_boss()
-            {
-                ConditionResult::Queue
-            } else {
-                ConditionResult::Skip
-            }
+            condition(resources)
         })),
         condition_kind: None,
         inner: RotatorAction::Single(PlayerAction::Key(Key {
@@ -1380,6 +1372,24 @@ fn elite_boss_use_key_priority_action(key: KeyKind) -> PriorityAction {
         metadata: None,
         queue_to_front: true,
         queue_info: PriorityActionQueueInfo::default(),
+    }
+}
+
+fn elite_boss_condition() -> impl FnMut(&Resources) -> ConditionResult {
+    let mut task: Option<Task<Result<bool>>> = None;
+    let task_fn =
+        move |detector: Arc<dyn Detector>| -> Result<bool> { Ok(detector.detect_elite_boss_bar()) };
+
+    move |resources| {
+        if resources.detector.is_none() {
+            return ConditionResult::Ignore;
+        }
+
+        match update_detection_task(resources, 5000, &mut task, task_fn) {
+            Update::Ok(true) => ConditionResult::Queue,
+            Update::Err(_) | Update::Ok(false) => ConditionResult::Ignore,
+            Update::Pending => ConditionResult::Skip,
+        }
     }
 }
 

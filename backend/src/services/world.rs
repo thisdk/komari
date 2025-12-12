@@ -112,10 +112,20 @@ impl EventHandler<WorldEvent> for WorldEventHandler {
                     .schedule_notification(NotificationKind::FailOrMapChange);
             }
             WorldEvent::LieDetectorAppeared => {
-                let _ = context
-                    .resources
-                    .notification
-                    .schedule_notification(NotificationKind::LieDetectorAppear);
+                if !context.resources.operation.halting() {
+                    let _ = context
+                        .resources
+                        .notification
+                        .schedule_notification(NotificationKind::LieDetectorAppear);
+                }
+            }
+            WorldEvent::EliteBossAppeared => {
+                if !context.resources.operation.halting() {
+                    let _ = context
+                        .resources
+                        .notification
+                        .schedule_notification(NotificationKind::EliteBossAppear);
+                }
             }
         }
     }

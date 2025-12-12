@@ -196,6 +196,7 @@ pub enum WorldEvent {
     MinimapChanged,
     CaptureFailed,
     LieDetectorAppeared,
+    EliteBossAppeared,
 }
 
 impl Event for WorldEvent {}
