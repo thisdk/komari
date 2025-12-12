@@ -37,6 +37,8 @@ pub enum NotificationKind {
     PlayerFriendAppear,
     PlayerIsDead,
     LieDetectorAppear,
+    CycledToHalt,
+    CycledToRun,
 }
 
 impl NotificationKind {
@@ -59,6 +61,9 @@ impl NotificationKind {
             }
             NotificationKind::LieDetectorAppear => {
                 settings.notifications.notify_on_lie_detector_appear
+            }
+            NotificationKind::CycledToHalt | NotificationKind::CycledToRun => {
+                settings.notifications.notify_on_cycle_run_stop
             }
         }
     }
@@ -103,6 +108,12 @@ impl NotificationKind {
             NotificationKind::LieDetectorAppear => {
                 format!("{user_id}Bot has detected the lie detector")
             }
+            NotificationKind::CycledToRun => {
+                format!("{user_id}Bot has cycled to run.")
+            }
+            NotificationKind::CycledToHalt => {
+                format!("{user_id}Bot has cycled to stop.")
+            }
         }
     }
 
@@ -112,20 +123,25 @@ impl NotificationKind {
                 ScheduledFrame::new_deadline(2),
                 ScheduledFrame::new_deadline(4),
             ],
-            NotificationKind::EliteBossAppear
+            NotificationKind::CycledToHalt
+            | NotificationKind::CycledToRun
+            | NotificationKind::EliteBossAppear
             | NotificationKind::PlayerIsDead
             | NotificationKind::PlayerGuildieAppear
             | NotificationKind::PlayerStrangerAppear
-            | NotificationKind::PlayerFriendAppear
-            | NotificationKind::RuneAppear => vec![ScheduledFrame::new_deadline(2)],
-            NotificationKind::LieDetectorAppear => vec![ScheduledFrame::new_deadline(1)],
+            | NotificationKind::PlayerFriendAppear => vec![ScheduledFrame::new_deadline(2)],
+            NotificationKind::RuneAppear | NotificationKind::LieDetectorAppear => {
+                vec![ScheduledFrame::new_deadline(1)]
+            }
         }
     }
 
     fn schedule_delay_duration(&self) -> Duration {
         let secs = match self {
             NotificationKind::FailOrMapChange => 5,
-            NotificationKind::EliteBossAppear
+            NotificationKind::CycledToHalt
+            | NotificationKind::CycledToRun
+            | NotificationKind::EliteBossAppear
             | NotificationKind::PlayerIsDead
             | NotificationKind::PlayerGuildieAppear
             | NotificationKind::PlayerStrangerAppear

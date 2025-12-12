@@ -333,6 +333,19 @@ fn SectionControlAndNotifications() -> Element {
                     },
                     checked: notifications().notify_on_lie_detector_appear,
                 }
+                SettingsCheckbox {
+                    label: "Run/stop cycles",
+                    on_checked: move |notify_on_cycle_run_stop| {
+                        save_settings(Settings {
+                            notifications: Notifications {
+                                notify_on_cycle_run_stop,
+                                ..notifications.peek().clone()
+                            },
+                            ..settings.peek().clone()
+                        });
+                    },
+                    checked: notifications().notify_on_cycle_run_stop,
+                }
             }
         }
     }

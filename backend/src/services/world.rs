@@ -46,6 +46,31 @@ impl EventHandler<WorldEvent> for WorldEventHandler {
                     context.rotator,
                     true,
                 );
+
+                if context
+                    .settings_service
+                    .settings()
+                    .notifications
+                    .notify_on_cycle_run_stop
+                {
+                    let _ = context
+                        .resources
+                        .notification
+                        .schedule_notification(NotificationKind::CycledToHalt);
+                }
+            }
+            WorldEvent::CycledToRun => {
+                if context
+                    .settings_service
+                    .settings()
+                    .notifications
+                    .notify_on_cycle_run_stop
+                {
+                    let _ = context
+                        .resources
+                        .notification
+                        .schedule_notification(NotificationKind::CycledToRun);
+                }
             }
             WorldEvent::PlayerDied => {
                 if context.settings_service.settings().stop_on_player_die {

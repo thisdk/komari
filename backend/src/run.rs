@@ -168,6 +168,7 @@ fn systems_loop() {
         resources.tick += 1;
         if let Ok(detector) = detector {
             let was_running_cycle = matches!(resources.operation, Operation::RunUntil { .. });
+            let was_stopping_cycle = matches!(resources.operation, Operation::HaltUntil { .. });
             let was_player_alive = !world.player.context.is_dead();
             let was_minimap_idle = matches!(world.minimap.state, Minimap::Idle(_));
 
@@ -189,9 +190,13 @@ fn systems_loop() {
             }
 
             let did_cycled_to_stop = resources.operation.halting();
+            let did_cycled_to_run = matches!(resources.operation, Operation::RunUntil { .. });
             // Go to town on stop cycle
             if was_running_cycle && did_cycled_to_stop {
                 let _ = event_tx.send(WorldEvent::CycledToHalt);
+            }
+            if was_stopping_cycle && did_cycled_to_run {
+                let _ = event_tx.send(WorldEvent::CycledToRun);
             }
 
             let player_died = was_player_alive && world.player.context.is_dead();

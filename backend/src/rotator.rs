@@ -2159,11 +2159,11 @@ mod tests {
 
     #[tokio::test]
     async fn elite_boss_use_key_priority_action_triggers_when_elite_present() {
-        let resources = Resources::new(None, None);
-        let mut idle = MinimapIdle::default();
-        idle.set_has_elite_boss(true);
-        let mut world = mock_world();
-        world.minimap.state = Minimap::Idle(idle);
+        let detector = mock_detector(|detector| {
+            detector.expect_detect_elite_boss_bar().return_const(true);
+        });
+        let resources = Resources::new(None, Some(detector));
+        let world = mock_world();
 
         let mut action = elite_boss_use_key_priority_action(KeyKind::A);
         let info = PriorityActionQueueInfo::default();

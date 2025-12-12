@@ -192,6 +192,7 @@ impl Resources {
 #[derive(Debug, Clone, Copy)]
 pub enum WorldEvent {
     CycledToHalt,
+    CycledToRun,
     PlayerDied,
     MinimapChanged,
     CaptureFailed,
