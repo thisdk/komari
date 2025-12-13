@@ -16,8 +16,8 @@ use crate::{
     ecs::Resources,
     minimap::Minimap,
     player::{
-        ChattingContent, PlayerEntity, chat::Chatting, exchange_booster::ExchangingBooster,
-        unstuck::Unstucking, use_booster::UsingBooster,
+        ChattingContent, PlayerEntity, SolvingShape, chat::Chatting,
+        exchange_booster::ExchangingBooster, unstuck::Unstucking, use_booster::UsingBooster,
     },
     rng::Rng,
     transition, transition_from_action, transition_if,
@@ -219,6 +219,10 @@ fn update_from_action(resources: &Resources, player: &mut PlayerEntity, minimap_
 
         Some(PlayerAction::Unstuck) => {
             transition!(player, Player::Unstucking(Unstucking::new_esc()))
+        }
+
+        Some(PlayerAction::SolveShape) => {
+            transition!(player, Player::SolvingShape(SolvingShape::default()))
         }
 
         None => (),

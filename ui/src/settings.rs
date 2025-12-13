@@ -516,6 +516,16 @@ fn SectionOthers() -> Element {
                     checked: settings().enable_rune_solving,
                 }
                 SettingsCheckbox {
+                    label: "Enable transparent shape solving",
+                    on_checked: move |enable_transparent_shape_solving| {
+                        save_settings(Settings {
+                            enable_transparent_shape_solving,
+                            ..settings.peek().clone()
+                        });
+                    },
+                    checked: settings().enable_transparent_shape_solving,
+                }
+                SettingsCheckbox {
                     label: "Enable panic mode",
                     on_checked: move |enable_panic_mode| {
                         save_settings(Settings {
@@ -545,6 +555,7 @@ fn SectionOthers() -> Element {
                     },
                     checked: settings().stop_on_player_die,
                 }
+                div {}
                 FileInput {
                     class: "flex-grow",
                     on_file: move |file| async move {

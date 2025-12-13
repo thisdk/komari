@@ -8,6 +8,8 @@ tokio = { workspace = true }
 tonic = "0.13.1"
 bit-vec = "0.8"
 base64 = "0.22.1"
+nalgebra = "0.34.1"
+lapjv = "0.3.0"
 prost = "0.13.5"
 platforms = { workspace = true }
 ort = { version = "2.0.0-rc.10", default-features = false, features = [
@@ -42,3 +44,4 @@ mockall = { version = "0.13.1", features = ["nightly"] }
 
 [features]
 gpu = []
+debug_transparent_shape = []

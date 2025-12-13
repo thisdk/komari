@@ -9,8 +9,10 @@ pub struct Settings {
     #[serde(skip_serializing, default)]
     pub id: Option<i64>,
     pub capture_mode: CaptureMode,
-    #[serde(default = "enable_rune_solving_default")]
+    #[serde(default = "enable_solving_default")]
     pub enable_rune_solving: bool,
+    #[serde(default = "enable_solving_default")]
+    pub enable_transparent_shape_solving: bool,
     pub enable_panic_mode: bool,
     pub stop_on_fail_or_change_map: bool,
     #[serde(default = "stop_on_player_die_default")]
@@ -41,7 +43,8 @@ impl Default for Settings {
         Self {
             id: None,
             capture_mode: CaptureMode::default(),
-            enable_rune_solving: enable_rune_solving_default(),
+            enable_rune_solving: enable_solving_default(),
+            enable_transparent_shape_solving: enable_solving_default(),
             enable_panic_mode: false,
             input_method: InputMethod::default(),
             input_method_rpc_server_url: String::default(),
@@ -74,7 +77,7 @@ fn cycle_stop_duration_millis_default() -> u64 {
     3600000 // 1 hour
 }
 
-fn enable_rune_solving_default() -> bool {
+fn enable_solving_default() -> bool {
     true
 }
 

@@ -153,6 +153,7 @@ pub struct RotatorBuildArgs<'a> {
     pub hexa_booster_exchange_all: bool,
     pub enable_panic_mode: bool,
     pub enable_rune_solving: bool,
+    pub enable_transparent_shape_solving: bool,
     pub enable_reset_normal_actions_on_erda: bool,
     pub enable_using_generic_booster: bool,
     pub enable_using_hexa_booster: bool,
@@ -829,6 +830,7 @@ impl Rotator for DefaultRotator {
             hexa_booster_exchange_all,
             enable_panic_mode,
             enable_rune_solving,
+            enable_transparent_shape_solving,
             enable_reset_normal_actions_on_erda,
             enable_using_generic_booster,
             enable_using_hexa_booster,
@@ -914,6 +916,10 @@ impl Rotator for DefaultRotator {
         if enable_rune_solving {
             self.priority_actions
                 .insert(next_action_id(), solve_rune_priority_action());
+        }
+        if enable_transparent_shape_solving {
+            self.priority_actions
+                .insert(next_action_id(), solve_transparent_shape_priority_action());
         }
 
         match elite_boss_behavior {
@@ -1204,6 +1210,33 @@ fn solve_rune_priority_action() -> PriorityAction {
         condition_kind: None,
         metadata: None,
         inner: RotatorAction::Single(PlayerAction::SolveRune),
+        queue_to_front: true,
+        queue_info: PriorityActionQueueInfo::default(),
+    }
+}
+
+#[inline]
+fn solve_transparent_shape_priority_action() -> PriorityAction {
+    let mut task: Option<Task<Result<bool>>> = None;
+    let task_fn = move |detector: Arc<dyn Detector>| -> Result<bool> {
+        Ok(detector.detect_lie_detector().is_ok())
+    };
+
+    PriorityAction {
+        condition: Condition(Box::new(move |resources, _, _| {
+            if resources.detector.is_none() {
+                return ConditionResult::Ignore;
+            }
+
+            match update_detection_task(resources, 3000, &mut task, task_fn) {
+                Update::Ok(true) => ConditionResult::Queue,
+                Update::Err(_) | Update::Ok(false) => ConditionResult::Ignore,
+                Update::Pending => ConditionResult::Skip,
+            }
+        })),
+        condition_kind: None,
+        metadata: None,
+        inner: RotatorAction::Single(PlayerAction::SolveShape),
         queue_to_front: true,
         queue_info: PriorityActionQueueInfo::default(),
     }
@@ -1708,13 +1741,14 @@ mod tests {
             hexa_booster_exchange_all: false,
             enable_panic_mode: true,
             enable_rune_solving: true,
+            enable_transparent_shape_solving: true,
             enable_reset_normal_actions_on_erda: false,
             enable_using_generic_booster: false,
             enable_using_hexa_booster: false,
         };
 
         rotator.build_actions(args);
-        assert_eq!(rotator.priority_actions.len(), 9);
+        assert_eq!(rotator.priority_actions.len(), 10);
         assert_eq!(rotator.normal_actions.len(), 2);
     }
 

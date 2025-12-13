@@ -119,6 +119,7 @@ impl RotatorService for DefaultRotatorService {
             hexa_booster_exchange_all,
             enable_panic_mode: settings.enable_panic_mode,
             enable_rune_solving: settings.enable_rune_solving,
+            enable_transparent_shape_solving: settings.enable_transparent_shape_solving,
             enable_reset_normal_actions_on_erda: reset_normal_actions_on_erda,
             enable_using_generic_booster,
             enable_using_hexa_booster,

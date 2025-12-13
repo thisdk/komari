@@ -218,6 +218,8 @@ pub enum PlayerAction {
     Move(Move),
     /// Solves rune action.
     SolveRune,
+    /// Solves the lie detector's transparent shape.
+    SolveShape,
     /// Auto-mobbing action.
     #[strum(to_string = "AutoMob({0})")]
     AutoMob(AutoMob),

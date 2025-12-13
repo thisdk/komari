@@ -38,6 +38,7 @@ fn main() {
     let admin = dir.join("admin_ideal_ratio.png");
     let timer = dir.join("timer_ideal_ratio.png");
     let lie_detector = dir.join("lie_detector_ideal_ratio.png");
+    let lie_detector_in_progress = dir.join("lie_detector_in_progress_ideal_ratio.png");
 
     let rune = dir.join("rune_ideal_ratio.png");
     let rune_mask = dir.join("rune_mask_ideal_ratio.png");
@@ -121,6 +122,7 @@ fn main() {
     let rune_model = dir.join("rune_nms.onnx");
     let rune_spin_model = dir.join("rune_spin_nms.onnx");
     let minimap_model = dir.join("minimap_nms.onnx");
+    let transparent_shape_model = dir.join("transparent_shape_nms.onnx");
     let text_detection_model = dir.join("text_detection.onnx");
     let text_recognition_model = dir.join("text_recognition.onnx");
     let text_alphabet_txt = dir.join("alphabet_94.txt");
@@ -230,6 +232,10 @@ fn main() {
     println!(
         "cargo:rustc-env=LIE_DETECTOR_TEMPLATE={}",
         lie_detector.to_str().unwrap()
+    );
+    println!(
+        "cargo:rustc-env=LIE_DETECTOR_IN_PROGRESS_TEMPLATE={}",
+        lie_detector_in_progress.to_str().unwrap()
     );
     println!("cargo:rustc-env=ADMIN_TEMPLATE={}", admin.to_str().unwrap());
 
@@ -557,6 +563,10 @@ fn main() {
     println!(
         "cargo:rustc-env=MINIMAP_MODEL={}",
         minimap_model.to_str().unwrap()
+    );
+    println!(
+        "cargo:rustc-env=TRANSPARENT_SHAPE_MODEL={}",
+        transparent_shape_model.to_str().unwrap()
     );
     println!(
         "cargo:rustc-env=RUNE_MODEL={}",
