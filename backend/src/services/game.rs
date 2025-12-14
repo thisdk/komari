@@ -226,8 +226,8 @@ impl EventHandler<GameEvent> for GameEventHandler {
                 );
             }
             GameEvent::MapUpdated(map) => context
-                .map_service
-                .update_map_preset(map, context.map_service.preset()),
+                .ui_service
+                .queue_update_map(context.map_service.preset(), map),
             GameEvent::CharacterUpdated(character) => {
                 context.ui_service.queue_update_character(character)
             }

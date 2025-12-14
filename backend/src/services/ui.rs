@@ -1,4 +1,4 @@
-use std::{fmt::Debug, ops::DerefMut};
+use std::{collections::VecDeque, fmt::Debug, ops::DerefMut};
 
 use opencv::{
     core::Vector,
@@ -35,28 +35,37 @@ pub trait UiService: Debug {
     /// Polls for any pending [`UiEvent`].
     fn poll(&mut self) -> Option<UiEvent>;
 
-    /// Queues a character update that results in a [`UiEvent::Internal`].
+    /// Queues a [`UiEvent`] for character update.
     fn queue_update_character(&mut self, character: Option<Character>);
+
+    /// Queues a [`UiEvent`] for map update.
+    fn queue_update_map(&mut self, preset: Option<String>, map: Option<Map>);
 }
 
 #[derive(Debug, Default)]
 pub struct DefaultUiService {
-    pending_character_update: Option<Option<Character>>,
+    pending_events: VecDeque<UiEvent>,
 }
 
 impl UiService for DefaultUiService {
     fn poll(&mut self) -> Option<UiEvent> {
-        if let Some(character) = self.pending_character_update.take() {
-            return Some(UiEvent::Internal {
-                request: Request::UpdateCharacter(character),
-            });
+        if let Some(event) = self.pending_events.pop_front() {
+            return Some(event);
         }
 
         poll_request().map(|(request, response)| UiEvent::External { request, response })
     }
 
     fn queue_update_character(&mut self, character: Option<Character>) {
-        self.pending_character_update = Some(character);
+        self.pending_events.push_back(UiEvent::Internal {
+            request: Request::UpdateCharacter(character),
+        });
+    }
+
+    fn queue_update_map(&mut self, preset: Option<String>, map: Option<Map>) {
+        self.pending_events.push_back(UiEvent::Internal {
+            request: Request::UpdateMap(preset, map),
+        });
     }
 }
 
@@ -74,9 +83,9 @@ impl EventHandler<UiEvent> for UiEventHandler {
                 Response::UpdateOperation
             }
             Request::CreateMinimap(name) => Response::CreateMinimap(create_map(context, name)),
-            Request::UpdateMinimap(preset, map) => {
+            Request::UpdateMap(preset, map) => {
                 update_map(context, preset, map);
-                Response::UpdateMinimap
+                Response::UpdateMap
             }
             Request::CreateNavigationPath => {
                 Response::CreateNavigationPath(create_navigation_path(context))

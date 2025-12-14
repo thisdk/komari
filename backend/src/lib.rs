@@ -102,7 +102,7 @@ macro_rules! send_request {
 enum Request {
     UpdateOperation(BotOperationUpdate),
     CreateMinimap(String),
-    UpdateMinimap(Option<String>, Option<Map>),
+    UpdateMap(Option<String>, Option<Map>),
     CreateNavigationPath,
     RecaptureNavigationPath(NavigationPath),
     NavigationSnapshotAsGrayscale(String),
@@ -138,7 +138,7 @@ enum Request {
 enum Response {
     UpdateOperation,
     CreateMinimap(Option<Map>),
-    UpdateMinimap,
+    UpdateMap,
     CreateNavigationPath(Option<NavigationPath>),
     RecaptureNavigationPath(NavigationPath),
     NavigationSnapshotAsGrayscale(String),
@@ -304,7 +304,7 @@ pub async fn upsert_map(mut map: Map) -> Option<Map> {
 
 /// Updates the current map used by the main game loop.
 pub async fn update_map(preset: Option<String>, map: Option<Map>) {
-    send_request!(UpdateMinimap(preset, map))
+    send_request!(UpdateMap(preset, map))
 }
 
 /// Deletes `map` from the database.
