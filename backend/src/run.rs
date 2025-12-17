@@ -143,7 +143,7 @@ fn systems_loop() {
     let mut lie_detector_event_task = event_task(
         WorldEvent::LieDetectorAppeared,
         event_tx.clone(),
-        |detector| detector.detect_lie_detector_visible(),
+        |detector| detector.detect_lie_detector().is_ok(),
     );
     let mut elite_boss_event_task = event_task(
         WorldEvent::EliteBossAppeared,

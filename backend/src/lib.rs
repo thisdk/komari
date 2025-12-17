@@ -47,6 +47,7 @@ mod run;
 mod services;
 mod skill;
 mod task;
+mod tracker;
 mod utils;
 
 pub use {

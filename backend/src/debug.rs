@@ -1,11 +1,13 @@
 use opencv::core::Point;
+use opencv::core::Point2d;
 use opencv::core::Rect;
 use opencv::core::Scalar;
 use opencv::core::Size;
 use opencv::core::{Mat, ToInputArray};
 use opencv::core::{MatTraitConst, Vector};
-use opencv::highgui::destroy_all_windows;
+use opencv::highgui::destroy_window;
 use opencv::highgui::{imshow, wait_key};
+use opencv::imgproc::arrowed_line;
 use opencv::imgproc::draw_contours_def;
 use opencv::imgproc::line_def;
 use opencv::imgproc::polylines;
@@ -16,6 +18,7 @@ use rand::distr::{Alphanumeric, SampleString};
 
 use crate::bridge::KeyKind;
 use crate::detect::ArrowsComplete;
+use crate::tracker::STrack;
 use crate::utils::{self, DatasetDir};
 
 #[allow(unused)]
@@ -130,6 +133,60 @@ pub fn debug_pathing_points(mat: &impl MatTraitConst, minimap: Rect, points: &[P
 }
 
 #[allow(unused)]
+pub fn debug_tracks(
+    mat: &impl MatTraitConst,
+    tracks: Vec<STrack>,
+    cursor: Point,
+    bg_direction: Point2d,
+) {
+    let bboxes = tracks
+        .into_iter()
+        .map(|track| (track.kalman_rect(), format!("Track {}", track.track_id())))
+        .collect::<Vec<_>>();
+
+    let mut mat = mat.try_clone().unwrap();
+    let arrow_start = Point::new(mat.cols() / 2, mat.rows() / 2);
+    let arrow_end = Point::new(
+        (arrow_start.x as f64 + bg_direction.x * 60.0) as i32,
+        (arrow_start.y as f64 + bg_direction.y * 60.0) as i32,
+    );
+
+    let _ = circle_def(&mut mat, cursor, 3, Scalar::new(0.0, 0.0, 255.0, 0.0));
+    let _ = arrowed_line(
+        &mut mat,
+        arrow_start,
+        arrow_end,
+        Scalar::new(255.0, 0.0, 0.0, 0.0),
+        2,
+        LINE_8,
+        0,
+        0.25,
+    );
+
+    for (bbox, text) in bboxes {
+        let _ = rectangle(
+            &mut mat,
+            bbox,
+            Scalar::new(255.0, 0.0, 0.0, 0.0),
+            1,
+            LINE_8,
+            0,
+        );
+        let _ = put_text_def(
+            &mut mat,
+            &text,
+            bbox.tl() - Point::new(0, 10),
+            FONT_HERSHEY_SIMPLEX,
+            0.9,
+            Scalar::new(0.0, 255.0, 0.0, 0.0),
+        );
+    }
+
+    imshow("Tracks", &mat).unwrap();
+    wait_key(1).unwrap();
+}
+
+#[allow(unused)]
 pub fn debug_mat(
     name: &str,
     mat: &impl MatTraitConst,
@@ -157,7 +214,9 @@ pub fn debug_mat(
     }
     imshow(name, &mat).unwrap();
     let result = wait_key(wait_ms).unwrap();
-    destroy_all_windows().unwrap();
+    if result == 81 {
+        destroy_window(name).unwrap();
+    }
     result
 }
 

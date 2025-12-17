@@ -29,6 +29,7 @@ use crate::{
         chat::{Chatting, update_chatting_state},
         exchange_booster::{ExchangingBooster, update_exchanging_booster_state},
         grapple::Grappling,
+        solve_shape::{SolvingShape, update_solving_shape_state},
         unstuck::Unstucking,
         use_booster::{UsingBooster, update_using_booster_state},
     },
@@ -49,6 +50,7 @@ mod jump;
 mod moving;
 mod panic;
 mod solve_rune;
+mod solve_shape;
 mod stall;
 mod state;
 mod timeout;
@@ -108,6 +110,8 @@ pub enum Player {
     Stalling(Timeout, u32),
     /// Tries to solve a rune.
     SolvingRune(SolvingRune),
+    /// Tries to solve lie detector's transparent shape.
+    SolvingShape(SolvingShape),
     /// Enters the cash shop then exit after 10 seconds.
     CashShopThenExit(CashShop),
     #[strum(to_string = "FamiliarsSwapping({0})")]
@@ -160,6 +164,7 @@ impl Player {
             | Player::Panicking(_)
             | Player::UsingBooster(_)
             | Player::ExchangingBooster(_)
+            | Player::SolvingShape(_)
             | Player::Stalling(_, _) => false,
         }
     }
@@ -267,6 +272,7 @@ fn update_non_positional_state(
 
             update_solving_rune_state(resources, player);
         }
+        Player::SolvingShape(_) => update_solving_shape_state(resources, player),
         Player::CashShopThenExit(cash_shop) => {
             update_cash_shop_state(resources, player, cash_shop, failed_to_detect_player);
         }
@@ -320,6 +326,7 @@ fn update_positional_state(
         | Player::Chatting(_)
         | Player::UsingBooster(_)
         | Player::ExchangingBooster(_)
+        | Player::SolvingShape(_)
         | Player::CashShopThenExit(_) => unreachable!(),
     }
 }

@@ -288,8 +288,10 @@ pub trait Detector: Debug + Send + Sync {
     /// Detects whether there is a timer (e.g. from using booster).
     fn detect_timer_visible(&self) -> bool;
 
-    /// Detects whether there is a lie detector.
-    fn detect_lie_detector_visible(&self) -> bool;
+    /// Detects the lie detector popup.
+    fn detect_lie_detector(&self) -> Result<Rect>;
+
+    fn detect_lie_detector_in_progress(&self) -> Result<Rect>;
 
     /// Detects the state for HEXA Booster in the quick slots.
     fn detect_quick_slots_hexa_booster(&self) -> Result<QuickSlotsHexaBooster>;
@@ -311,6 +313,11 @@ pub trait Detector: Debug + Send + Sync {
 
     /// Detects the Sol Erda state from the tracker menu.
     fn detect_hexa_sol_erda(&self) -> Result<SolErda>;
+
+    /// Detects a list of transparent shapes during lie detector event.
+    ///
+    /// The returned [`Rect`]s have coordinates relative to `region`.
+    fn detect_transparent_shapes(&self, region: Rect) -> Vec<Rect>;
 }
 
 type MatFn = Box<dyn FnOnce() -> Mat + Send>;
@@ -531,8 +538,12 @@ impl Detector for DefaultDetector {
         detect_timer_visible(self.grayscale(), &self.localization)
     }
 
-    fn detect_lie_detector_visible(&self) -> bool {
-        detect_lie_detector_visible(self.bgr())
+    fn detect_lie_detector(&self) -> Result<Rect> {
+        detect_lie_detector(self.bgr())
+    }
+
+    fn detect_lie_detector_in_progress(&self) -> Result<Rect> {
+        detect_lie_detector_in_progress(self.bgr())
     }
 
     fn detect_quick_slots_hexa_booster(&self) -> Result<QuickSlotsHexaBooster> {
@@ -561,6 +572,10 @@ impl Detector for DefaultDetector {
 
     fn detect_hexa_sol_erda(&self) -> Result<SolErda> {
         detect_hexa_sol_erda(self.grayscale())
+    }
+
+    fn detect_transparent_shapes(&self, region: Rect) -> Vec<Rect> {
+        detect_transparent_shapes(&self.bgr().roi(region).unwrap())
     }
 }
 
@@ -2406,12 +2421,24 @@ fn detect_timer_visible(grayscale: &impl ToInputArray, localization: &Localizati
     .is_ok()
 }
 
-fn detect_lie_detector_visible(bgr: &impl ToInputArray) -> bool {
+fn detect_lie_detector(bgr: &impl ToInputArray) -> Result<Rect> {
     static TEMPLATE: LazyLock<Mat> = LazyLock::new(|| {
         imgcodecs::imdecode(include_bytes!(env!("LIE_DETECTOR_TEMPLATE")), IMREAD_COLOR).unwrap()
     });
 
-    detect_template(bgr, &*TEMPLATE, Point::default(), 0.75).is_ok()
+    detect_template(bgr, &*TEMPLATE, Point::default(), 0.75)
+}
+
+fn detect_lie_detector_in_progress(bgr: &impl ToInputArray) -> Result<Rect> {
+    static TEMPLATE: LazyLock<Mat> = LazyLock::new(|| {
+        imgcodecs::imdecode(
+            include_bytes!(env!("LIE_DETECTOR_IN_PROGRESS_TEMPLATE")),
+            IMREAD_COLOR,
+        )
+        .unwrap()
+    });
+
+    detect_template(bgr, &*TEMPLATE, Point::default(), 0.75)
 }
 
 fn detect_quick_slots_hexa_booster<T: MatTraitConst + ToInputArray>(
@@ -2654,6 +2681,28 @@ fn detect_hexa_sol_erda(grayscale: &impl ToInputArray) -> Result<SolErda> {
     };
 
     bail!("sol erda tracker menu not visible")
+}
+
+fn detect_transparent_shapes(bgr: &impl MatTraitConst) -> Vec<Rect> {
+    static MODEL: LazyLock<Mutex<Session>> = LazyLock::new(|| {
+        Mutex::new(
+            build_session(include_bytes!(env!("TRANSPARENT_SHAPE_MODEL")))
+                .expect("build transparent shape detection session successfully"),
+        )
+    });
+
+    let size = bgr.size().unwrap();
+    let (mat_in, w_ratio, h_ratio, left, top) = preprocess_for_yolo(bgr);
+    let mut model = MODEL.lock().unwrap();
+    let result = model.run([to_input_value(&mat_in)]).unwrap();
+    let mat_out = from_output_value(&result);
+
+    (0..mat_out.rows())
+        // SAFETY: 0..result.rows() is within Mat bounds
+        .map(|i| unsafe { mat_out.at_row_unchecked::<f32>(i).unwrap() })
+        .filter(|pred| pred[4] > 0.0)
+        .map(|pred| remap_from_yolo(pred, size, w_ratio, h_ratio, left, top))
+        .collect()
 }
 
 /// Detects a single match from `template` with the given BGR image `Mat`.
