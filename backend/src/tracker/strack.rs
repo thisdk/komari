@@ -19,9 +19,9 @@ pub enum TrackState {
 #[derive(Debug, Clone)]
 pub struct STrack {
     pub(super) track_id: u64,
+    pub(super) frame_id: u64,
     pub(super) state: TrackState,
     pub(super) kalman: KalmanXYAH,
-    pub(super) frame_id: u64,
     pub(super) tlwh: [f32; 4],
 }
 
@@ -36,9 +36,9 @@ impl STrack {
 
         Self {
             track_id: 0,
+            frame_id: 0,
             state: TrackState::Lost,
             kalman: KalmanXYAH::new(),
-            frame_id: 0,
             tlwh,
         }
     }

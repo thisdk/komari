@@ -10,7 +10,7 @@ type Matrix4x8<T> = Matrix<T, U4, U8, ArrayStorage<T, 4, 8>>;
 #[derive(Debug, Clone)]
 pub struct KalmanXYAH {
     pub(super) mean: Vector8<f32>,
-    pub(super) covariance: Matrix8<f32>,
+    covariance: Matrix8<f32>,
     motion_mat: Matrix8<f32>,
     update_mat: Matrix4x8<f32>,
     std_weight_pos: f32,
@@ -126,6 +126,10 @@ impl KalmanXYAH {
         let chol = cov_xy.cholesky().expect("SPD");
         let z = chol.solve(&diff_xy);
         z.dot(&z)
+    }
+
+    pub fn gating_threshold(&self) -> f32 {
+        5.9915
     }
 
     pub fn tlwh(&self) -> [f32; 4] {

@@ -1,15 +1,26 @@
+use std::mem;
+
 use crate::tracker::{
     Detection,
     strack::{STrack, TrackState},
     tlwh_to_xyah,
 };
 
+#[derive(Debug)]
+struct AssociatedTrackedAndLost {
+    activated: Vec<STrack>,
+    lost: Vec<STrack>,
+    unmatched_detections: Vec<usize>,
+}
+
 /// An extended [BYTETracker] implementation by GPT-5.
 ///
 /// [BYTETracker]: https://github.com/ultralytics/ultralytics/blob/004d9730060e560c86ad79aaa1ab97167443be25/ultralytics/trackers/byte_tracker.py#L231
 #[derive(Debug)]
 pub struct ByteTracker {
+    initialized: bool,
     tracked: Vec<STrack>,
+    unconfirmed: Vec<STrack>,
     lost: Vec<STrack>,
     frame_id: u64,
     max_time_lost: u64,
@@ -18,8 +29,10 @@ pub struct ByteTracker {
 impl ByteTracker {
     pub fn new(frame_rate: u32) -> Self {
         Self {
-            tracked: Vec::new(),
-            lost: Vec::new(),
+            initialized: false,
+            tracked: vec![],
+            unconfirmed: vec![],
+            lost: vec![],
             frame_id: 0,
             max_time_lost: frame_rate as u64,
         }
@@ -32,79 +45,145 @@ impl ByteTracker {
     pub fn update(&mut self, detections: Vec<Detection>) -> Vec<STrack> {
         self.frame_id += 1;
 
-        // 1. Predict all tracks
+        self.predict();
+
+        let detection_tracks: Vec<STrack> = detections
+            .into_iter()
+            .map(|detection| STrack::new(detection.bbox))
+            .collect();
+        if self.init(&detection_tracks) {
+            return self.tracked.clone();
+        }
+
+        let mut associated = self.associate_tracked_and_lost(&detection_tracks);
+
+        let unmatched_detection_tracks = associated
+            .unmatched_detections
+            .into_iter()
+            .map(|i| detection_tracks[i].clone())
+            .collect::<Vec<STrack>>();
+        let unconfirmed =
+            self.associate_unconfirmed(unmatched_detection_tracks, &mut associated.activated);
+
+        self.tracked = associated.activated;
+        self.lost = associated
+            .lost
+            .into_iter()
+            .filter(|track| self.frame_id - track.frame_id <= self.max_time_lost)
+            .collect();
+        self.unconfirmed = unconfirmed;
+
+        self.tracked.clone()
+    }
+
+    fn predict(&mut self) {
         for track in &mut self.tracked {
             track.predict();
         }
         for track in &mut self.lost {
             track.predict();
         }
+        for track in &mut self.unconfirmed {
+            track.predict();
+        }
+    }
 
-        // 2. Convert detections to STrack (unactivated)
-        let detection_tracks: Vec<STrack> = detections
-            .into_iter()
-            .map(|d| STrack::new(d.bbox))
-            .collect();
-        if self.tracked.is_empty() && self.lost.is_empty() {
-            self.tracked = detection_tracks
-                .into_iter()
-                .map(|mut track| {
-                    track.activate(self.frame_id);
-                    track
-                })
-                .collect();
-            return self.tracked.clone();
+    fn init(&mut self, detection_tracks: &[STrack]) -> bool {
+        if self.initialized {
+            return false;
         }
 
-        // 3. Match `tracked` and `lost` to detections
-        let mut current_tracks = Vec::new();
+        self.initialized = true;
+        self.tracked = detection_tracks
+            .iter()
+            .cloned()
+            .map(|mut track| {
+                track.activate(self.frame_id);
+                track
+            })
+            .collect();
+
+        true
+    }
+
+    fn associate_tracked_and_lost(
+        &mut self,
+        detection_tracks: &[STrack],
+    ) -> AssociatedTrackedAndLost {
+        let mut current_tracks = vec![];
         current_tracks.append(&mut self.tracked);
         current_tracks.append(&mut self.lost);
 
-        let cost = iou_distance(&current_tracks, &detection_tracks);
+        let cost = iou_distance(&current_tracks, detection_tracks);
         let (matches, unmatched_tracks, unmatched_detections) = linear_assignment(cost, 0.5);
 
-        let mut activated = Vec::new();
-        let mut reactivated = Vec::new();
-        let mut lost = Vec::new();
+        let mut activated = vec![];
+        let mut lost = vec![];
 
-        // 4. Update matched tracks
         for (ci, di) in matches {
             let mut track = current_tracks[ci].clone();
             let det = &detection_tracks[di];
 
-            if track.state == TrackState::Tracked {
-                track.update(det.tlwh, self.frame_id);
-                activated.push(track);
-            } else {
-                track.reactivate(det.tlwh, self.frame_id);
-                reactivated.push(track);
+            match track.state {
+                TrackState::Tracked => {
+                    track.update(det.tlwh, self.frame_id);
+                    activated.push(track);
+                }
+                TrackState::Lost => {
+                    track.reactivate(det.tlwh, self.frame_id);
+                    activated.push(track);
+                }
             }
         }
 
-        // 5. Unmatched tracks to `lost`
         for ci in unmatched_tracks {
             let mut track = current_tracks[ci].clone();
             track.mark_lost();
             lost.push(track);
         }
 
-        // 6. New tracks from unmatched detections
-        for di in unmatched_detections {
-            let mut track = detection_tracks[di].clone();
-            track.activate(self.frame_id);
+        AssociatedTrackedAndLost {
+            activated,
+            lost,
+            unmatched_detections,
+        }
+    }
+
+    fn associate_unconfirmed(
+        &mut self,
+        detection_tracks: Vec<STrack>,
+        activated: &mut Vec<STrack>,
+    ) -> Vec<STrack> {
+        if self.unconfirmed.is_empty() {
+            return detection_tracks
+                .into_iter()
+                .map(|mut track| {
+                    track.activate(self.frame_id);
+                    track
+                })
+                .collect();
+        }
+
+        let current_unconfirmed = mem::take(&mut self.unconfirmed);
+        let cost = iou_distance(&current_unconfirmed, &detection_tracks);
+        let (matches, _, unmatched_detections) = linear_assignment(cost, 0.5);
+
+        for (ui, di) in matches {
+            let mut track = current_unconfirmed[ui].clone();
+            let detection = &detection_tracks[di];
+
+            track.update(detection.tlwh, self.frame_id);
             activated.push(track);
         }
 
-        // 7. Update state lists
-        self.tracked = activated;
-        self.tracked.extend(reactivated);
-        self.lost = lost
+        unmatched_detections
             .into_iter()
-            .filter(|track| self.frame_id - track.frame_id <= self.max_time_lost)
-            .collect();
-
-        self.tracked.clone()
+            .map(|di| {
+                let mut track = detection_tracks[di].clone();
+                track.activate(self.frame_id);
+                track
+            })
+            .collect()
     }
 }
 
@@ -135,8 +214,6 @@ fn iou_tlwh(a: [f32; 4], b: [f32; 4]) -> f32 {
 }
 
 fn iou_distance(tracks: &[STrack], detections: &[STrack]) -> Vec<Vec<f32>> {
-    const GATING_THRESHOLD: f32 = 9.4877;
-
     let mut cost = vec![vec![0.0; detections.len()]; tracks.len()];
 
     for (i, t) in tracks.iter().enumerate() {
@@ -144,7 +221,7 @@ fn iou_distance(tracks: &[STrack], detections: &[STrack]) -> Vec<Vec<f32>> {
             let meas = tlwh_to_xyah(d.tlwh);
             let gate = t.kalman.gating_distance(meas);
 
-            if gate > GATING_THRESHOLD {
+            if gate > t.kalman.gating_threshold() {
                 cost[i][j] = 1e6; // forbid
             } else {
                 cost[i][j] = 1.0 - iou_tlwh(t.kalman_tlwh(), d.tlwh);

@@ -196,7 +196,7 @@ fn perform_solving(
             let Some(last_cursor) = solving_shape.last_cursor else {
                 return;
             };
-            let scaled = solving_shape.bg_direction * 5.0;
+            let scaled = solving_shape.bg_direction * 4.0;
             let next_cursor =
                 last_cursor + Point::new(-scaled.x.round() as i32, -scaled.y.round() as i32);
             let absolute_next_cursor = next_cursor + region.tl();
