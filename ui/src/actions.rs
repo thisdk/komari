@@ -1120,6 +1120,7 @@ fn PopupMobbingKeyInputContent(
 ) -> Element {
     let key = ActionKey {
         key: value.key,
+        key_hold_millis: value.key_hold_millis,
         link_key: value.link_key,
         count: value.count,
         with: value.with,
