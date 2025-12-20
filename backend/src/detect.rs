@@ -1,4 +1,3 @@
-use core::slice::SlicePattern;
 use std::{
     collections::HashMap,
     env,
@@ -2901,7 +2900,7 @@ fn extract_text_bboxes(
         .clone_pointee();
     // remove last channel (not sure what other way to do it without clone_pointee first)
     let text_score = text_score
-        .reshape_nd(1, &text_score.mat_size().as_slice()[..2])
+        .reshape_nd(1, &text_score.mat_size()[..2])
         .unwrap();
 
     let mut text_low_score = Mat::default();
@@ -3301,7 +3300,7 @@ fn to_input_value(mat: &impl MatTraitConst) -> SessionInputValue<'_> {
     let mut mat_t = Mat::default();
     transpose_nd(&mat, &Vector::from_slice(&[0, 3, 1, 2]), &mut mat_t).unwrap();
     let shape = mat_t.mat_size();
-    let input = (shape.as_slice(), mat_t.data_typed::<f32>().unwrap());
+    let input = (shape.to_vec(), mat_t.data_typed::<f32>().unwrap());
     let tensor = TensorRef::from_array_view(input).unwrap();
     SessionInputValue::Owned(tensor.clone().into_dyn())
 }
