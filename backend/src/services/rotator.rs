@@ -5,9 +5,9 @@ use mockall::{automock, concretize};
 use strum::IntoEnumIterator;
 
 use crate::bridge::KeyKind;
-use crate::rotator::Rotator;
+use crate::rotator::{Rotator, RotatorMode};
 use crate::{
-    Action, Character, KeyBinding, Map, RotationMode, RotatorMode, Settings, buff::BuffKind,
+    Action, Character, KeyBinding, Map, RotationMode, Settings, buff::BuffKind,
     rotator::RotatorBuildArgs,
 };
 use crate::{

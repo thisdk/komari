@@ -54,7 +54,6 @@ pub use {
     database::{DatabaseEvent, database_event_receiver},
     models::*,
     pathing::MAX_PLATFORMS_COUNT,
-    rotator::RotatorMode,
     run::init,
     strum::{EnumMessage, IntoEnumIterator, ParseError},
 };
