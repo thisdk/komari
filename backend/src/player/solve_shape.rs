@@ -231,7 +231,11 @@ fn debug_transparent_shapes(
             .mat()
             .roi(solving_shape.lie_detector_region.unwrap())
             .unwrap(),
-        tracks.to_vec(),
+        tracks
+            .iter()
+            .filter(|track| Some(track.track_id()) == solving_shape.current_track_id)
+            .cloned()
+            .collect::<Vec<_>>(),
         solving_shape.last_cursor.unwrap(),
         solving_shape.bg_direction,
     );
@@ -252,19 +256,8 @@ fn select_best_track<'a>(
     current_frame_id: u64,
     tracks: &'a [STrack],
 ) -> SelectedTrack<'a> {
-    /// Threshold at which to reject the current track.
-    ///
-    /// It is currently chosen to account for background direction estimation can be unstable.
-    const REJECT_COUNT_THRESHOLD: u32 = 5;
-
-    /// The threshold for motion score.
-    ///
-    /// The score is currently the negative of the dot product of the background direction and
-    /// the track motion direction. The true transparent object moves in the
-    /// opposite background direction.
-    const MOTION_SCORE_THRESHOLD: f64 = 0.2;
-
-    /// Frames to wait before rejecting the current lost track.
+    const REJECT_COUNT_THRESHOLD: u32 = 8;
+    const DOT_PRODUCT_THRESHOLD: f64 = 0.5;
     const TRACK_AGE_THRESHOLD: u64 = 2;
 
     let Some(current_track_id) = solving_shape.current_track_id else {
@@ -277,20 +270,21 @@ fn select_best_track<'a>(
     let current_track = tracks
         .iter()
         .find(|track| track.track_id() == current_track_id);
-    if let Some(track) = current_track {
-        let score = motion_background_score(track, bg_direction);
-        let above_threshold = score >= MOTION_SCORE_THRESHOLD;
-        let count = if above_threshold {
+    let mut was_rejected = solving_shape.current_track_rejected_count > REJECT_COUNT_THRESHOLD;
+    if !was_rejected && let Some(track) = current_track {
+        let dot = track_background_dot(track, bg_direction);
+        let count = if dot <= DOT_PRODUCT_THRESHOLD {
             0
         } else {
             solving_shape.current_track_rejected_count + 1
         };
 
         if count > REJECT_COUNT_THRESHOLD {
-            debug!(target: "player", "rejecting current track {current_track_id} with score {score:.2})");
+            debug!(target: "player", "rejecting current track {current_track_id} with dot {dot:.2})");
+            was_rejected = true;
         }
 
-        if count <= REJECT_COUNT_THRESHOLD {
+        if !was_rejected {
             return SelectedTrack {
                 new_track: Some(track),
                 new_rejected_count: Some(count),
@@ -298,28 +292,43 @@ fn select_best_track<'a>(
         }
     }
 
-    let last_frame_id = solving_shape
-        .current_track_last_frame_id
-        .expect("set if id is set");
-    let age = current_frame_id - last_frame_id;
-    if age <= TRACK_AGE_THRESHOLD {
-        return SelectedTrack {
-            new_track: None,
-            new_rejected_count: None,
-        };
+    if !was_rejected {
+        let last_frame_id = solving_shape
+            .current_track_last_frame_id
+            .expect("set if id is set");
+        let age = current_frame_id - last_frame_id;
+        if age <= TRACK_AGE_THRESHOLD {
+            return SelectedTrack {
+                new_track: None,
+                new_rejected_count: None,
+            };
+        }
     }
 
-    let scored_track = tracks
+    #[cfg(debug_assertions)]
+    let mut dots = vec![];
+    let min_track = tracks
         .iter()
-        .filter(|track| track.track_id() != current_track_id)
-        .map(|track| (track, motion_background_score(track, bg_direction)))
-        .filter(|(_, score)| *score >= MOTION_SCORE_THRESHOLD)
-        .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+        .map(|track| {
+            let dot = track_background_dot(track, bg_direction);
+            #[cfg(debug_assertions)]
+            dots.push(dot);
+            (track, dot)
+        })
+        .filter(|(_, dot)| *dot <= DOT_PRODUCT_THRESHOLD)
+        .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
         .map(|(track, _)| track);
 
+    #[cfg(debug_assertions)]
+    {
+        let len = dots.len() as f64;
+        let average = dots.iter().fold(0.0, |acc, dot| acc + dot) / len;
+        debug!(target: "player", "shapes average dot {average} {:?}", dots);
+    }
+
     SelectedTrack {
-        new_track: scored_track,
-        new_rejected_count: Some(0),
+        new_track: min_track,
+        new_rejected_count: min_track.is_some().then_some(0),
     }
 }
 
@@ -337,8 +346,8 @@ fn predicted_center(track: &STrack) -> Point {
     )
 }
 
-fn motion_background_score(track: &STrack, bg_direction: Point2d) -> f64 {
-    -track_motion(track).dot(bg_direction)
+fn track_background_dot(track: &STrack, bg_direction: Point2d) -> f64 {
+    track_motion(track).dot(bg_direction)
 }
 
 fn estimate_background_direction(tracks: &[STrack]) -> Option<Point2d> {
