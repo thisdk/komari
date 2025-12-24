@@ -1,10 +1,10 @@
 use std::{fmt::Display, mem};
 
 use backend::{
-    ActionConfiguration, ActionConfigurationCondition, ActionKeyWith, Character, Class,
-    EliteBossBehavior, ExchangeHexaBoosterCondition, FamiliarRarity, Familiars, IntoEnumIterator,
-    KeyBinding, KeyBindingConfiguration, LinkKeyBinding, PotionMode, SwappableFamiliars,
-    WaitAfterBuffered, delete_character, query_characters, update_character, upsert_character,
+    ActionConfiguration, ActionConfigurationCondition, ActionKeyWith, Character, EliteBossBehavior,
+    ExchangeHexaBoosterCondition, FamiliarRarity, Familiars, IntoEnumIterator, KeyBinding,
+    KeyBindingConfiguration, LinkKeyBinding, PotionMode, SwappableFamiliars, WaitAfterBuffered,
+    delete_character, query_characters, update_character, upsert_character,
 };
 use dioxus::{html::FileData, prelude::*};
 use futures_util::StreamExt;
@@ -1108,16 +1108,16 @@ fn SectionOthers() -> Element {
     rsx! {
         Section { title: "Others",
             div { class: "grid grid-cols-[auto_auto_128px] gap-4",
-                CharactersSelect::<Class> {
-                    label: "Link key timing class",
-                    disabled,
-                    on_selected: move |class| {
+                CharactersMillisInput {
+                    label: "Link key timing",
+                    disabled: disabled(),
+                    on_value: move |link_key_timing_millis| {
                         save_character(Character {
-                            class,
+                            link_key_timing_millis,
                             ..character.peek().clone()
                         });
                     },
-                    selected: character().class,
+                    value: character().link_key_timing_millis,
                 }
                 div {}
                 div {}
