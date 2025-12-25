@@ -612,7 +612,12 @@ fn update_linking_key(resources: &Resources, use_key: &mut UseKey, link_key_timi
         panic!("use key state is not using");
     };
     let link_key = use_key.link_key;
-    let link_key_timeout = (link_key_timing_millis / MS_PER_TICK) as u32;
+    let min_timeout = if matches!(link_key, LinkKeyKind::Along(_)) {
+        2
+    } else {
+        1
+    };
+    let link_key_timeout = ((link_key_timing_millis / MS_PER_TICK) as u32).max(min_timeout);
 
     match next_timeout_lifecycle(using.link_timeout, link_key_timeout) {
         Lifecycle::Started(timeout) => transition!(
@@ -1062,8 +1067,8 @@ mod tests {
         // Release Alt
         use_key.state = State::Using(Using {
             link_timeout: Timeout {
-                current: 4,
-                total: 4,
+                current: 2,
+                total: 2,
                 started: true,
             },
             ..Default::default()
@@ -1186,7 +1191,7 @@ mod tests {
         // Press Alt
         use_key.state = State::Using(Using {
             link_timeout: Timeout {
-                current: 5, // Generic class
+                current: 1, // Min is 1
                 started: true,
                 ..Default::default()
             },
