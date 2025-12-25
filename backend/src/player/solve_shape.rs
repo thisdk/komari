@@ -88,19 +88,19 @@ fn update_waiting(
     if !resources.tick.is_multiple_of(CHECK_INTERVAL) {
         return;
     }
+    if resources.detector().detect_lie_detector_preparing() {
+        return;
+    }
 
     let title = try_ok_transition!(
         solving_shape,
         State::Completed,
         resources.detector().detect_lie_detector()
     );
-    let Ok(in_progress) = resources.detector().detect_lie_detector_in_progress() else {
-        return;
-    };
 
     transition!(solving_shape, State::Solving(Timeout::default()), {
-        let tl = title.tl() - Point::new(10, 0);
-        let br = in_progress.br() + Point::new(220, 0);
+        let tl = title.tl();
+        let br = title.br() + Point::new(750, 530);
         let region = Rect::from_points(tl, br);
         player_context.reset_shape_tracker();
         solving_shape.lie_detector_region = Some(region);

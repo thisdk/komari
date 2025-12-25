@@ -38,7 +38,7 @@ fn main() {
     let admin = dir.join("admin_ideal_ratio.png");
     let timer = dir.join("timer_ideal_ratio.png");
     let lie_detector = dir.join("lie_detector_ideal_ratio.png");
-    let lie_detector_in_progress = dir.join("lie_detector_in_progress_ideal_ratio.png");
+    let lie_detector_prepare = dir.join("lie_detector_prepare_ideal_ratio.png");
 
     let rune = dir.join("rune_ideal_ratio.png");
     let rune_mask = dir.join("rune_mask_ideal_ratio.png");
@@ -234,8 +234,8 @@ fn main() {
         lie_detector.to_str().unwrap()
     );
     println!(
-        "cargo:rustc-env=LIE_DETECTOR_IN_PROGRESS_TEMPLATE={}",
-        lie_detector_in_progress.to_str().unwrap()
+        "cargo:rustc-env=LIE_DETECTOR_PREPARE_TEMPLATE={}",
+        lie_detector_prepare.to_str().unwrap()
     );
     println!("cargo:rustc-env=ADMIN_TEMPLATE={}", admin.to_str().unwrap());
 

@@ -290,7 +290,7 @@ pub trait Detector: Debug + Send + Sync {
     /// Detects the lie detector popup.
     fn detect_lie_detector(&self) -> Result<Rect>;
 
-    fn detect_lie_detector_in_progress(&self) -> Result<Rect>;
+    fn detect_lie_detector_preparing(&self) -> bool;
 
     /// Detects the state for HEXA Booster in the quick slots.
     fn detect_quick_slots_hexa_booster(&self) -> Result<QuickSlotsHexaBooster>;
@@ -541,8 +541,8 @@ impl Detector for DefaultDetector {
         detect_lie_detector(self.bgr())
     }
 
-    fn detect_lie_detector_in_progress(&self) -> Result<Rect> {
-        detect_lie_detector_in_progress(self.bgr())
+    fn detect_lie_detector_preparing(&self) -> bool {
+        detect_lie_detector_preparing(self.bgr()).is_ok()
     }
 
     fn detect_quick_slots_hexa_booster(&self) -> Result<QuickSlotsHexaBooster> {
@@ -2428,10 +2428,10 @@ fn detect_lie_detector(bgr: &impl ToInputArray) -> Result<Rect> {
     detect_template(bgr, &*TEMPLATE, Point::default(), 0.75)
 }
 
-fn detect_lie_detector_in_progress(bgr: &impl ToInputArray) -> Result<Rect> {
+fn detect_lie_detector_preparing(bgr: &impl ToInputArray) -> Result<Rect> {
     static TEMPLATE: LazyLock<Mat> = LazyLock::new(|| {
         imgcodecs::imdecode(
-            include_bytes!(env!("LIE_DETECTOR_IN_PROGRESS_TEMPLATE")),
+            include_bytes!(env!("LIE_DETECTOR_PREPARE_TEMPLATE")),
             IMREAD_COLOR,
         )
         .unwrap()
