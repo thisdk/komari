@@ -190,7 +190,7 @@ fn perform_solving(
             let Some(last_cursor) = solving_shape.last_cursor else {
                 return;
             };
-            let scaled = solving_shape.bg_direction * 4.0;
+            let scaled = solving_shape.bg_velocity * 0.4;
             let next_cursor =
                 last_cursor + Point::new(-scaled.x.round() as i32, -scaled.y.round() as i32);
             let absolute_next_cursor = next_cursor + region.tl();
@@ -250,9 +250,10 @@ fn select_best_track<'a>(
     current_frame_id: u64,
     tracks: &'a [STrack],
 ) -> SelectedTrack<'a> {
-    const REJECT_COUNT_THRESHOLD: u32 = 3;
+    const REJECT_COUNT_THRESHOLD: u32 = 4;
     const DOT_PRODUCT_THRESHOLD: f64 = 0.5;
-    const TRACK_AGE_THRESHOLD: u64 = 3;
+    const TRACK_AGE_THRESHOLD: u64 = 6;
+    const BG_SPEED_THRESHOLD: f64 = -0.4;
 
     let Some(current_track_id) = solving_shape.current_track_id else {
         return SelectedTrack {
@@ -261,14 +262,14 @@ fn select_best_track<'a>(
         };
     };
     let bg_direction = solving_shape.bg_direction;
+    let bg_speed = solving_shape.bg_velocity.norm();
     let current_track = tracks
         .iter()
         .find(|track| track.track_id() == current_track_id);
     let mut was_rejected = solving_shape.current_track_rejected_count > REJECT_COUNT_THRESHOLD;
     if !was_rejected && let Some(track) = current_track {
         let track_speed = track_velocity(track).norm();
-        let bg_speed = solving_shape.bg_velocity.norm();
-        if track_speed <= bg_speed {
+        if track_speed - bg_speed <= BG_SPEED_THRESHOLD {
             return SelectedTrack {
                 new_track: Some(track),
                 new_rejected_count: Some(0),
@@ -310,7 +311,7 @@ fn select_best_track<'a>(
 
     #[cfg(debug_assertions)]
     let mut dots = vec![];
-    let min_track = tracks
+    let mut match_track = tracks
         .iter()
         .map(|track| {
             let dot = track_background_dot(track, bg_direction);
@@ -324,14 +325,27 @@ fn select_best_track<'a>(
 
     #[cfg(debug_assertions)]
     {
-        let len = dots.len() as f64;
-        let average = dots.iter().fold(0.0, |acc, dot| acc + dot) / len;
-        debug!(target: "player", "shapes average dot {average} {:?}", dots);
+        if match_track.is_some() {
+            let len = dots.len() as f64;
+            let average = dots.iter().fold(0.0, |acc, dot| acc + dot) / len;
+            debug!(target: "player", "selected track with shapes average dot {average} {:?}", dots);
+        }
+    }
+
+    if match_track.is_none() {
+        let slow_tracks = tracks
+            .iter()
+            .filter(|track| track_velocity(track).norm() - bg_speed <= BG_SPEED_THRESHOLD)
+            .collect::<Vec<_>>();
+        if slow_tracks.len() == 1 {
+            match_track = slow_tracks.into_iter().next();
+            debug!(target: "player", "selected track with velocity {}", track_velocity(match_track.unwrap()).norm());
+        }
     }
 
     SelectedTrack {
-        new_track: min_track,
-        new_rejected_count: min_track.is_some().then_some(0),
+        new_track: match_track,
+        new_rejected_count: match_track.is_some().then_some(0),
     }
 }
 
