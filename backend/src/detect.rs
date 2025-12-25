@@ -2425,7 +2425,7 @@ fn detect_lie_detector(bgr: &impl ToInputArray) -> Result<Rect> {
         imgcodecs::imdecode(include_bytes!(env!("LIE_DETECTOR_TEMPLATE")), IMREAD_COLOR).unwrap()
     });
 
-    detect_template(bgr, &*TEMPLATE, Point::default(), 0.75)
+    detect_template(bgr, &*TEMPLATE, Point::default(), 0.6)
 }
 
 fn detect_lie_detector_preparing(bgr: &impl ToInputArray) -> Result<Rect> {
@@ -2437,7 +2437,7 @@ fn detect_lie_detector_preparing(bgr: &impl ToInputArray) -> Result<Rect> {
         .unwrap()
     });
 
-    detect_template(bgr, &*TEMPLATE, Point::default(), 0.75)
+    detect_template(bgr, &*TEMPLATE, Point::default(), 0.6)
 }
 
 fn detect_quick_slots_hexa_booster<T: MatTraitConst + ToInputArray>(
