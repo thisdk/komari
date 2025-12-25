@@ -253,7 +253,6 @@ fn select_best_track<'a>(
     const REJECT_COUNT_THRESHOLD: u32 = 3;
     const DOT_PRODUCT_THRESHOLD: f64 = 0.5;
     const TRACK_AGE_THRESHOLD: u64 = 3;
-    const RELATIVE_SPEED_THRESHOLD: f64 = 0.7;
 
     let Some(current_track_id) = solving_shape.current_track_id else {
         return SelectedTrack {
@@ -269,8 +268,7 @@ fn select_best_track<'a>(
     if !was_rejected && let Some(track) = current_track {
         let track_speed = track_velocity(track).norm();
         let bg_speed = solving_shape.bg_velocity.norm();
-        let abs_speed = (track_speed - bg_speed).abs();
-        if abs_speed > RELATIVE_SPEED_THRESHOLD {
+        if track_speed <= bg_speed {
             return SelectedTrack {
                 new_track: Some(track),
                 new_rejected_count: Some(0),
