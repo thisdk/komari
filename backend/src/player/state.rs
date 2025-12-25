@@ -11,7 +11,7 @@ use super::{
     timeout::{Lifecycle, Timeout, next_timeout_lifecycle},
 };
 use crate::{
-    ActionKeyDirection, Class,
+    ActionKeyDirection,
     array::Array,
     bridge::{KeyKind, MouseKind},
     buff::{Buff, BuffEntities, BuffKind},
@@ -162,10 +162,7 @@ impl std::fmt::Debug for BufferedStallingCallback {
 
 #[derive(Debug, Clone, Copy)]
 pub struct PlayerConfiguration {
-    /// The player class.
-    ///
-    /// Only uses for determine linked key/action timing.
-    pub class: Class,
+    pub link_key_timing_millis: u64,
     /// Whether up jump requires helding down the key for flight.
     pub up_jump_is_flight: bool,
     /// Whether up jump using a specific key (e.g. Hero, Night Lord, ... classes) should do a jump
@@ -231,7 +228,7 @@ pub struct PlayerConfiguration {
 impl Default for PlayerConfiguration {
     fn default() -> Self {
         Self {
-            class: Class::default(),
+            link_key_timing_millis: 0,
             disable_double_jumping: false,
             disable_adjusting: false,
             disable_teleport_on_fall: false,

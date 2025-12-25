@@ -70,7 +70,8 @@ pub struct Character {
     pub hexa_booster_exchange_amount: u32,
     #[serde(default)]
     pub hexa_booster_exchange_all: bool,
-    pub class: Class,
+    #[serde(default)]
+    pub link_key_timing_millis: u64,
     #[serde(default)]
     pub disable_double_jumping: bool,
     pub disable_adjusting: bool,
@@ -135,7 +136,7 @@ impl Default for Character {
             hexa_booster_exchange_condition: ExchangeHexaBoosterCondition::default(),
             hexa_booster_exchange_amount: hexa_booster_exchange_amount_default(),
             hexa_booster_exchange_all: false,
-            class: Class::default(),
+            link_key_timing_millis: 0,
             disable_double_jumping: false,
             disable_adjusting: false,
             disable_teleport_on_fall: false,
@@ -170,17 +171,6 @@ fn key_default() -> KeyBindingConfiguration {
         key: KeyBinding::default(),
         enabled: true,
     }
-}
-
-#[derive(
-    Clone, Copy, Display, Default, EnumString, EnumIter, PartialEq, Debug, Serialize, Deserialize,
-)]
-pub enum Class {
-    Cadena,
-    Blaster,
-    Ark,
-    #[default]
-    Generic,
 }
 
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize, EnumIter, Display, EnumString)]

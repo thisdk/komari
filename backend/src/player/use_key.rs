@@ -7,7 +7,7 @@ use super::{
     timeout::{Lifecycle, next_timeout_lifecycle},
 };
 use crate::{
-    ActionKeyDirection, ActionKeyWith, Class, Position, WaitAfterBuffered,
+    ActionKeyDirection, ActionKeyWith, Position, WaitAfterBuffered,
     bridge::{InputKeyDownOptions, KeyKind, LinkKeyKind},
     ecs::{Resources, transition, transition_if},
     minimap::Minimap,
@@ -16,6 +16,7 @@ use crate::{
         state::{BufferedStalling, BufferedStallingCallback},
         transition_from_action,
     },
+    run::MS_PER_TICK,
 };
 
 /// The total number of ticks for changing direction before timing out.
@@ -449,8 +450,7 @@ fn update_using(resources: &Resources, context: &PlayerContext, use_key: &mut Us
                 return update_linking_key(
                     resources,
                     use_key,
-                    context.config.class,
-                    context.config.jump_key,
+                    context.config.link_key_timing_millis,
                 );
             }
         }
@@ -466,8 +466,7 @@ fn update_using(resources: &Resources, context: &PlayerContext, use_key: &mut Us
                 return update_linking_key(
                     resources,
                     use_key,
-                    context.config.class,
-                    context.config.jump_key,
+                    context.config.link_key_timing_millis,
                 );
             }
         }
@@ -476,8 +475,7 @@ fn update_using(resources: &Resources, context: &PlayerContext, use_key: &mut Us
                 return update_linking_key(
                     resources,
                     use_key,
-                    context.config.class,
-                    context.config.jump_key,
+                    context.config.link_key_timing_millis,
                 );
             }
 
@@ -609,26 +607,17 @@ fn update_holding_key(resources: &Resources, use_key: &mut UseKey) {
 }
 
 #[inline]
-fn update_linking_key(
-    resources: &Resources,
-    use_key: &mut UseKey,
-    class: Class,
-    jump_key: KeyKind,
-) {
+fn update_linking_key(resources: &Resources, use_key: &mut UseKey, link_key_timing_millis: u64) {
     let State::Using(using) = use_key.state else {
         panic!("use key state is not using");
     };
     let link_key = use_key.link_key;
-    let link_key_timeout = if matches!(link_key, LinkKeyKind::Along(_)) {
-        4
+    let min_timeout = if matches!(link_key, LinkKeyKind::Along(_)) {
+        2
     } else {
-        match class {
-            Class::Cadena => 4,
-            Class::Blaster => 8,
-            Class::Ark => 10,
-            Class::Generic => 5,
-        }
+        1
     };
+    let link_key_timeout = ((link_key_timing_millis / MS_PER_TICK) as u32).max(min_timeout);
 
     match next_timeout_lifecycle(using.link_timeout, link_key_timeout) {
         Lifecycle::Started(timeout) => transition!(
@@ -660,9 +649,6 @@ fn update_linking_key(
                 match link_key {
                     LinkKeyKind::After(key) => {
                         resources.input.send_key(key);
-                        if matches!(class, Class::Blaster) && key != jump_key {
-                            resources.input.send_key(jump_key);
-                        }
                     }
                     LinkKeyKind::Along(key) => {
                         resources.input.send_key_up(key);
@@ -1081,8 +1067,8 @@ mod tests {
         // Release Alt
         use_key.state = State::Using(Using {
             link_timeout: Timeout {
-                current: 4,
-                total: 4,
+                current: 2,
+                total: 2,
                 started: true,
             },
             ..Default::default()
@@ -1205,7 +1191,7 @@ mod tests {
         // Press Alt
         use_key.state = State::Using(Using {
             link_timeout: Timeout {
-                current: 5, // Generic class
+                current: 1, // Min is 1
                 started: true,
                 ..Default::default()
             },

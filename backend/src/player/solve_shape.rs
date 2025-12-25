@@ -36,6 +36,7 @@ pub struct SolvingShape {
     current_track_last_frame_id: Option<u64>,
     last_cursor: Option<Point>,
     bg_direction: Point2d,
+    bg_velocity: Point2d,
 }
 
 /// Updates the [`Player::SolvingShape`] contextual state.
@@ -88,19 +89,19 @@ fn update_waiting(
     if !resources.tick.is_multiple_of(CHECK_INTERVAL) {
         return;
     }
+    if resources.detector().detect_lie_detector_preparing() {
+        return;
+    }
 
     let title = try_ok_transition!(
         solving_shape,
         State::Completed,
         resources.detector().detect_lie_detector()
     );
-    let Ok(in_progress) = resources.detector().detect_lie_detector_in_progress() else {
-        return;
-    };
 
     transition!(solving_shape, State::Solving(Timeout::default()), {
-        let tl = title.tl() - Point::new(10, 0);
-        let br = in_progress.br() + Point::new(220, 0);
+        let tl = title.tl();
+        let br = title.br() + Point::new(660, 530);
         let region = Rect::from_points(tl, br);
         player_context.reset_shape_tracker();
         solving_shape.lie_detector_region = Some(region);
@@ -155,16 +156,9 @@ fn perform_solving(
         }
     }
 
-    if let Some(direction) = estimate_background_direction(&tracks) {
-        if solving_shape.bg_direction.norm() == 0.0 {
-            solving_shape.bg_direction = direction;
-        } else {
-            let smooth = solving_shape.bg_direction * 0.6 + direction * 0.4;
-            let norm = smooth.norm();
-            if norm >= 1e-3 {
-                solving_shape.bg_direction = smooth / norm;
-            }
-        }
+    if let Some((direction, velocity)) = estimate_background_direction_velocity(&tracks) {
+        solving_shape.bg_direction = direction;
+        solving_shape.bg_velocity = velocity;
     }
 
     let selected_track = select_best_track(solving_shape, tracker.frame_id(), &tracks);
@@ -256,9 +250,10 @@ fn select_best_track<'a>(
     current_frame_id: u64,
     tracks: &'a [STrack],
 ) -> SelectedTrack<'a> {
-    const REJECT_COUNT_THRESHOLD: u32 = 8;
+    const REJECT_COUNT_THRESHOLD: u32 = 3;
     const DOT_PRODUCT_THRESHOLD: f64 = 0.5;
-    const TRACK_AGE_THRESHOLD: u64 = 2;
+    const TRACK_AGE_THRESHOLD: u64 = 3;
+    const RELATIVE_SPEED_THRESHOLD: f64 = 0.7;
 
     let Some(current_track_id) = solving_shape.current_track_id else {
         return SelectedTrack {
@@ -272,6 +267,16 @@ fn select_best_track<'a>(
         .find(|track| track.track_id() == current_track_id);
     let mut was_rejected = solving_shape.current_track_rejected_count > REJECT_COUNT_THRESHOLD;
     if !was_rejected && let Some(track) = current_track {
+        let track_speed = track_velocity(track).norm();
+        let bg_speed = solving_shape.bg_velocity.norm();
+        let abs_speed = (track_speed - bg_speed).abs();
+        if abs_speed > RELATIVE_SPEED_THRESHOLD {
+            return SelectedTrack {
+                new_track: Some(track),
+                new_rejected_count: Some(0),
+            };
+        }
+
         let dot = track_background_dot(track, bg_direction);
         let count = if dot <= DOT_PRODUCT_THRESHOLD {
             0
@@ -350,27 +355,30 @@ fn track_background_dot(track: &STrack, bg_direction: Point2d) -> f64 {
     track_motion(track).dot(bg_direction)
 }
 
-fn estimate_background_direction(tracks: &[STrack]) -> Option<Point2d> {
-    let motions = tracks
+fn estimate_background_direction_velocity(tracks: &[STrack]) -> Option<(Point2d, Point2d)> {
+    let filtered = tracks
         .iter()
-        .filter(|track| track_velocity(track).norm() >= 1.0) // Ignore nearly-static tracks
-        .map(track_motion)
-        .collect::<Vec<Point2d>>();
-    if motions.len() < 3 {
+        .map(|track| (track_motion(track), track_velocity(track)))
+        .filter(|(_, velocity)| velocity.norm() >= 2.0)
+        .collect::<Vec<(Point2d, Point2d)>>();
+    if filtered.len() < 3 {
         return None;
     }
 
-    let mut sum = Point2d::new(0.0, 0.0);
-    for motion in motions {
-        sum += motion;
-    }
-
-    let norm = sum.norm();
-    if norm < 1e-3 {
+    let accumulator = (Point2d::default(), Point2d::default());
+    let len = filtered.len();
+    let (motion_sum, velocity_sum) = filtered.into_iter().fold(
+        accumulator,
+        |(motion_acc, velocity_acc), (motion, velocity)| {
+            (motion_acc + motion, velocity_acc + velocity)
+        },
+    );
+    let motion_norm = motion_sum.norm();
+    if motion_norm < 1e-3 {
         return None;
     }
 
-    Some(sum / norm)
+    Some((motion_sum / motion_norm, velocity_sum / len as f64))
 }
 
 fn track_velocity(track: &STrack) -> Point2d {

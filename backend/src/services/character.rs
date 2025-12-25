@@ -36,7 +36,7 @@ impl CharacterService for DefaultCharacterService {
     fn apply_character(&self, player_context: &mut PlayerContext) {
         player_context.reset();
         if let Some(character) = self.character.as_ref() {
-            player_context.config.class = character.class;
+            player_context.config.link_key_timing_millis = character.link_key_timing_millis;
             player_context.config.disable_double_jumping = character.disable_double_jumping;
             player_context.config.disable_adjusting = character.disable_adjusting;
             player_context.config.disable_teleport_on_fall = character.disable_teleport_on_fall;
@@ -70,13 +70,11 @@ impl CharacterService for DefaultCharacterService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        Class, KeyBinding, KeyBindingConfiguration, bridge::KeyKind, player::PlayerContext,
-    };
+    use crate::{KeyBinding, KeyBindingConfiguration, bridge::KeyKind, player::PlayerContext};
 
     fn mock_character() -> Character {
         Character {
-            class: Class::Cadena,
+            link_key_timing_millis: 30,
             disable_double_jumping: true,
             disable_adjusting: true,
             disable_teleport_on_fall: true,
@@ -144,10 +142,10 @@ mod tests {
     fn update_from_character_none() {
         let service = DefaultCharacterService::default();
         let mut state = PlayerContext::default();
-        state.config.class = Class::Blaster;
+        state.config.link_key_timing_millis = 11;
 
         service.apply_character(&mut state);
-        assert_eq!(state.config.class, Class::Blaster);
+        assert_eq!(state.config.link_key_timing_millis, 11);
     }
 
     #[test]
@@ -159,7 +157,10 @@ mod tests {
         let mut state = PlayerContext::default();
         service.apply_character(&mut state);
 
-        assert_eq!(state.config.class, character.class);
+        assert_eq!(
+            state.config.link_key_timing_millis,
+            character.link_key_timing_millis
+        );
         assert_eq!(
             state.config.disable_double_jumping,
             character.disable_double_jumping
