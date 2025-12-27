@@ -12,12 +12,6 @@ use crate::{
     tracker::{ByteTracker, Detection, STrack},
 };
 
-#[derive(Debug)]
-struct SelectedTrack<'a> {
-    new_track: Option<&'a STrack>,
-    new_rejected_count: Option<u32>,
-}
-
 /// Representing the current state of transparent shape (e.g. lie detector) solving.
 #[derive(Debug, Clone, Copy, Default)]
 pub enum State {
@@ -32,8 +26,6 @@ pub struct SolvingShape {
     state: State,
     lie_detector_region: Option<Rect>,
     current_track_id: Option<u64>,
-    current_track_rejected_count: u32,
-    current_track_last_frame_id: Option<u64>,
     last_cursor: Option<Point>,
     bg_direction: Point2d,
     bg_velocity: Point2d,
@@ -151,7 +143,6 @@ fn perform_solving(
         let region_mid = mid_point(Rect::new(0, 0, region.width, region.height));
         if let Some(track) = find_track_closest_to(region_mid, &tracks) {
             solving_shape.current_track_id = Some(track.track_id());
-            solving_shape.current_track_last_frame_id = Some(track.frame_id());
             solving_shape.last_cursor = Some(mid_point(track.rect()));
         }
     }
@@ -161,12 +152,7 @@ fn perform_solving(
         solving_shape.bg_velocity = velocity;
     }
 
-    let selected_track = select_best_track(solving_shape, tracker.frame_id(), &tracks);
-    if let Some(count) = selected_track.new_rejected_count {
-        solving_shape.current_track_rejected_count = count;
-    }
-
-    match selected_track.new_track {
+    match select_best_track(solving_shape, &tracks) {
         Some(track) => {
             let next_cursor = predicted_center(track);
             let absolute_next_cursor = next_cursor + region.tl();
@@ -179,7 +165,6 @@ fn perform_solving(
                 MouseKind::Move,
             );
             solving_shape.current_track_id = Some(track.track_id());
-            solving_shape.current_track_last_frame_id = Some(track.frame_id());
             solving_shape.last_cursor = Some(next_cursor);
 
             #[cfg(debug_assertions)]
@@ -225,11 +210,7 @@ fn debug_transparent_shapes(
             .mat()
             .roi(solving_shape.lie_detector_region.unwrap())
             .unwrap(),
-        tracks
-            .iter()
-            .filter(|track| Some(track.track_id()) == solving_shape.current_track_id)
-            .cloned()
-            .collect::<Vec<_>>(),
+        tracks.to_vec(),
         solving_shape.last_cursor.unwrap(),
         solving_shape.bg_direction,
     );
@@ -246,107 +227,26 @@ fn find_track_closest_to(point: Point, tracks: &[STrack]) -> Option<&STrack> {
 }
 
 fn select_best_track<'a>(
-    solving_shape: &SolvingShape,
-    current_frame_id: u64,
+    solving_shape: &mut SolvingShape,
     tracks: &'a [STrack],
-) -> SelectedTrack<'a> {
-    const REJECT_COUNT_THRESHOLD: u32 = 4;
-    const DOT_PRODUCT_THRESHOLD: f64 = 0.7;
-    const TRACK_AGE_THRESHOLD: u64 = 6;
-    const BG_SPEED_THRESHOLD: f64 = -0.7;
-
-    let Some(current_track_id) = solving_shape.current_track_id else {
-        return SelectedTrack {
-            new_track: None,
-            new_rejected_count: None,
-        };
-    };
+) -> Option<&'a STrack> {
+    let current_track_id = solving_shape.current_track_id?;
     let bg_direction = solving_shape.bg_direction;
-    let bg_speed = solving_shape.bg_velocity.norm();
-    let current_track = tracks
+    let match_tracks = tracks
         .iter()
-        .find(|track| track.track_id() == current_track_id);
-    let mut was_rejected = solving_shape.current_track_rejected_count > REJECT_COUNT_THRESHOLD;
-    if !was_rejected && let Some(track) = current_track {
-        let track_speed = track_velocity(track).norm();
-        if track_speed - bg_speed <= BG_SPEED_THRESHOLD {
-            return SelectedTrack {
-                new_track: Some(track),
-                new_rejected_count: Some(0),
-            };
-        }
-
-        let dot = track_background_dot(track, bg_direction);
-        let count = if dot <= DOT_PRODUCT_THRESHOLD {
-            0
-        } else {
-            solving_shape.current_track_rejected_count + 1
-        };
-
-        if count > REJECT_COUNT_THRESHOLD {
-            debug!(target: "player", "rejecting current track {current_track_id} with dot {dot:.2})");
-            was_rejected = true;
-        }
-
-        if !was_rejected {
-            return SelectedTrack {
-                new_track: Some(track),
-                new_rejected_count: Some(count),
-            };
-        }
-    }
-
-    if !was_rejected {
-        let last_frame_id = solving_shape
-            .current_track_last_frame_id
-            .expect("set if id is set");
-        let age = current_frame_id - last_frame_id;
-        if age <= TRACK_AGE_THRESHOLD {
-            return SelectedTrack {
-                new_track: None,
-                new_rejected_count: None,
-            };
-        }
-    }
-
-    #[cfg(debug_assertions)]
-    let mut dots = vec![];
-    let mut match_track = tracks
-        .iter()
-        .map(|track| {
-            let dot = track_background_dot(track, bg_direction);
-            #[cfg(debug_assertions)]
-            dots.push(dot);
-            (track, dot)
+        .filter(|track| {
+            track.tracklet_len() >= 3
+                && track.track_id() != current_track_id
+                && is_track_opposite_background_direction(track, bg_direction)
         })
-        .filter(|(_, dot)| *dot <= DOT_PRODUCT_THRESHOLD)
-        .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
-        .map(|(track, _)| track);
-
-    #[cfg(debug_assertions)]
-    {
-        if match_track.is_some() {
-            let len = dots.len() as f64;
-            let average = dots.iter().fold(0.0, |acc, dot| acc + dot) / len;
-            debug!(target: "player", "selected track with shapes average dot {average} {:?}", dots);
-        }
+        .collect::<Vec<&STrack>>();
+    if match_tracks.len() == 1 {
+        return Some(match_tracks[0]);
     }
 
-    if match_track.is_none() {
-        let slow_tracks = tracks
-            .iter()
-            .filter(|track| track_velocity(track).norm() - bg_speed <= BG_SPEED_THRESHOLD)
-            .collect::<Vec<_>>();
-        if slow_tracks.len() == 1 {
-            match_track = slow_tracks.into_iter().next();
-            debug!(target: "player", "selected track with velocity {}", track_velocity(match_track.unwrap()).norm());
-        }
-    }
-
-    SelectedTrack {
-        new_track: match_track,
-        new_rejected_count: match_track.is_some().then_some(0),
-    }
+    tracks
+        .iter()
+        .find(|track| track.track_id() == current_track_id)
 }
 
 fn mid_point(rect: Rect) -> Point {
@@ -363,8 +263,19 @@ fn predicted_center(track: &STrack) -> Point {
     )
 }
 
-fn track_background_dot(track: &STrack, bg_direction: Point2d) -> f64 {
-    track_motion(track).dot(bg_direction)
+fn is_track_opposite_background_direction(track: &STrack, bg_direction: Point2d) -> bool {
+    let diff = mid_point(track.rect()) - mid_point(track.last_rect());
+    let norm = diff.norm();
+    if norm < 1e-3 {
+        return false;
+    }
+    let unit = diff.to::<f64>().unwrap() / norm;
+    let dot = unit.dot(bg_direction);
+    if dot >= -0.1 {
+        return false;
+    }
+
+    true
 }
 
 fn estimate_background_direction_velocity(tracks: &[STrack]) -> Option<(Point2d, Point2d)> {
@@ -392,15 +303,4 @@ fn estimate_background_direction_velocity(tracks: &[STrack]) -> Option<(Point2d,
 fn track_velocity(track: &STrack) -> Point2d {
     let (vx, vy) = track.kalman_velocity();
     Point2d::new(vx as f64, vy as f64)
-}
-
-fn track_motion(track: &STrack) -> Point2d {
-    let v = track_velocity(track);
-    let norm = v.norm();
-
-    if norm < 1e-3 {
-        Point2d::new(0.0, 0.0)
-    } else {
-        v / norm
-    }
 }
