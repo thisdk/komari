@@ -139,6 +139,14 @@ pub fn debug_tracks(
     cursor: Point,
     bg_direction: Point2d,
 ) {
+    fn mid_point(rect: Rect) -> Point {
+        rect.tl() + Point::new(rect.width / 2, rect.height / 2)
+    }
+
+    let arrows = tracks
+        .iter()
+        .map(|track| (mid_point(track.last_rect()), mid_point(track.rect())))
+        .collect::<Vec<_>>();
     let bboxes = tracks
         .into_iter()
         .map(|track| (track.kalman_rect(), format!("Track {}", track.track_id())))
@@ -162,6 +170,27 @@ pub fn debug_tracks(
         0,
         0.25,
     );
+    for (arrow_start, arrow_end) in arrows {
+        let diff = arrow_end - arrow_start;
+        let norm = diff.norm();
+        if norm > 0.0 {
+            let unit = diff.to::<f64>().unwrap() / norm;
+            if unit.dot(bg_direction) >= -0.1 {
+                continue;
+            }
+        }
+
+        let _ = arrowed_line(
+            &mut mat,
+            arrow_start,
+            arrow_end,
+            Scalar::new(0.0, 255.0, 0.0, 0.0),
+            2,
+            LINE_8,
+            0,
+            0.25,
+        );
+    }
 
     for (bbox, text) in bboxes {
         let _ = rectangle(

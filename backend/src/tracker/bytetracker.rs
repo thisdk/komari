@@ -38,10 +38,6 @@ impl ByteTracker {
         }
     }
 
-    pub fn frame_id(&self) -> u64 {
-        self.frame_id
-    }
-
     pub fn update(&mut self, detections: Vec<Detection>) -> Vec<STrack> {
         self.frame_id += 1;
 

@@ -19,10 +19,12 @@ pub enum TrackState {
 #[derive(Debug, Clone)]
 pub struct STrack {
     pub(super) track_id: u64,
+    tracklet_len: usize,
     pub(super) frame_id: u64,
     pub(super) state: TrackState,
     pub(super) kalman: KalmanXYAH,
     pub(super) tlwh: [f32; 4],
+    pub(super) last_tlwh: [f32; 4],
 }
 
 impl STrack {
@@ -36,10 +38,12 @@ impl STrack {
 
         Self {
             track_id: 0,
+            tracklet_len: 0,
             frame_id: 0,
             state: TrackState::Lost,
             kalman: KalmanXYAH::new(),
             tlwh,
+            last_tlwh: tlwh,
         }
     }
 
@@ -47,12 +51,13 @@ impl STrack {
         self.track_id
     }
 
-    pub fn frame_id(&self) -> u64 {
-        self.frame_id
+    pub fn tracklet_len(&self) -> usize {
+        self.tracklet_len
     }
 
     pub(super) fn activate(&mut self, frame_id: u64) {
         self.track_id = TRACK_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
+        self.tracklet_len = 0;
         self.frame_id = frame_id;
         self.state = TrackState::Tracked;
 
@@ -62,6 +67,7 @@ impl STrack {
 
     pub(super) fn reactivate(&mut self, tlwh: [f32; 4], frame_id: u64) {
         self.update(tlwh, frame_id);
+        self.tracklet_len = 0;
     }
 
     pub(super) fn predict(&mut self) {
@@ -74,6 +80,8 @@ impl STrack {
 
     pub(super) fn update(&mut self, tlwh: [f32; 4], frame_id: u64) {
         self.frame_id = frame_id;
+        self.tracklet_len += 1;
+        self.last_tlwh = self.tlwh;
         self.tlwh = tlwh;
         self.state = TrackState::Tracked;
 
@@ -91,6 +99,15 @@ impl STrack {
             self.tlwh[1] as i32,
             self.tlwh[2] as i32,
             self.tlwh[3] as i32,
+        )
+    }
+
+    pub fn last_rect(&self) -> Rect {
+        Rect::new(
+            self.last_tlwh[0] as i32,
+            self.last_tlwh[1] as i32,
+            self.last_tlwh[2] as i32,
+            self.last_tlwh[3] as i32,
         )
     }
 
