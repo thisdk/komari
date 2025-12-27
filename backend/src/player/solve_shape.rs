@@ -26,6 +26,7 @@ pub struct SolvingShape {
     state: State,
     lie_detector_region: Option<Rect>,
     current_track_id: Option<u64>,
+    candidate_track_id: Option<u64>,
     last_cursor: Option<Point>,
     bg_direction: Point2d,
     bg_velocity: Point2d,
@@ -235,13 +236,19 @@ fn select_best_track<'a>(
     let match_tracks = tracks
         .iter()
         .filter(|track| {
-            track.tracklet_len() >= 3
+            track.tracklet_len() >= 1
                 && track.track_id() != current_track_id
                 && is_track_opposite_background_direction(track, bg_direction)
         })
         .collect::<Vec<&STrack>>();
     if match_tracks.len() == 1 {
-        return Some(match_tracks[0]);
+        let track = match_tracks[0];
+        if solving_shape.candidate_track_id == Some(track.track_id()) {
+            solving_shape.candidate_track_id = None;
+            return Some(track);
+        }
+
+        solving_shape.candidate_track_id = Some(track.track_id());
     }
 
     tracks
