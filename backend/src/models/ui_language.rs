@@ -3,7 +3,17 @@ use strum::{Display, EnumIter, EnumString};
 
 /// The language used for the desktop UI copy.
 #[derive(
-    Clone, Copy, PartialEq, Default, Debug, Serialize, Deserialize, EnumIter, Display, EnumString,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Default,
+    Debug,
+    Serialize,
+    Deserialize,
+    EnumIter,
+    Display,
+    EnumString,
 )]
 pub enum UiLanguage {
     #[default]
