@@ -15,13 +15,14 @@ use serde::Serialize;
 use tokio::{sync::broadcast::error::RecvError, time::sleep};
 
 use crate::{
-    AppState, persist_settings,
+    AppState,
     components::{
         button::{Button, ButtonStyle},
         file::{FileInput, FileOutput},
         named_select::NamedSelect,
         select::{Select, SelectOption},
     },
+    persist_settings,
 };
 
 const BACKGROUND: Asset = asset!(
@@ -852,7 +853,11 @@ fn ImportExport(map: ReadSignal<Option<Map>>) -> Element {
                 // Auto-detect type: try Map first (has required width/height fields),
                 // then Settings (has required capture_mode), then Character (fallback).
                 if let Ok(map) = serde_json::from_slice::<'_, Map>(&bytes) {
-                    log::info!("[bulk_import] detected Map '{}' from '{}'", map.name, file_name);
+                    log::info!(
+                        "[bulk_import] detected Map '{}' from '{}'",
+                        map.name,
+                        file_name
+                    );
                     coroutine.send(MinimapUpdate::Import(map));
                 } else if let Ok(mut settings) = serde_json::from_slice::<'_, Settings>(&bytes) {
                     log::info!("[bulk_import] detected Settings from '{}'", file_name);

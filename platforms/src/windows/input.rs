@@ -13,30 +13,27 @@ use tokio::{
     time,
 };
 use tokio_stream::wrappers::BroadcastStream;
-use windows::{
-    Win32::{
-        Foundation::{HWND, POINT, RECT},
-        Graphics::Gdi::{ClientToScreen, IntersectRect, MONITOR_DEFAULTTONULL, MonitorFromWindow},
-        System::Threading::GetCurrentProcessId,
-        UI::{
-            Input::KeyboardAndMouse::{
-                GetAsyncKeyState, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBD_EVENT_FLAGS,
-                KEYBDINPUT, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, MAPVK_VK_TO_VSC_EX,
-                MOUSE_EVENT_FLAGS, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP,
-                MOUSEEVENTF_MOVE, MOUSEEVENTF_VIRTUALDESK, MOUSEEVENTF_WHEEL, MOUSEINPUT,
-                MapVirtualKeyW, SendInput, VIRTUAL_KEY, VK_0, VK_1, VK_2, VK_3, VK_4, VK_5, VK_6,
-                VK_7, VK_8, VK_9, VK_A, VK_B, VK_BACK, VK_C, VK_CONTROL, VK_D, VK_DELETE, VK_DOWN,
-                VK_E, VK_END, VK_ESCAPE, VK_F, VK_F1, VK_F2, VK_F3, VK_F4, VK_F5, VK_F6, VK_F7,
-                VK_F8, VK_F9, VK_F10, VK_F11, VK_F12, VK_G, VK_H, VK_HOME, VK_I, VK_INSERT, VK_J,
-                VK_K, VK_L, VK_LEFT, VK_M, VK_MENU, VK_N, VK_NEXT, VK_O, VK_OEM_1, VK_OEM_2,
-                VK_OEM_3, VK_OEM_7, VK_OEM_COMMA, VK_OEM_PERIOD, VK_P, VK_PRIOR, VK_Q, VK_R,
-                VK_RETURN, VK_RIGHT, VK_S, VK_SHIFT, VK_SPACE, VK_T, VK_U, VK_UP, VK_V, VK_W, VK_X,
-                VK_Y, VK_Z,
-            },
-            WindowsAndMessaging::{
-                GetClientRect, GetForegroundWindow, GetSystemMetrics, GetWindowRect,
-                SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN,
-            },
+use windows::Win32::{
+    Foundation::{HWND, POINT, RECT},
+    Graphics::Gdi::{ClientToScreen, IntersectRect, MONITOR_DEFAULTTONULL, MonitorFromWindow},
+    System::Threading::GetCurrentProcessId,
+    UI::{
+        Input::KeyboardAndMouse::{
+            GetAsyncKeyState, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBD_EVENT_FLAGS,
+            KEYBDINPUT, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, MAPVK_VK_TO_VSC_EX,
+            MOUSE_EVENT_FLAGS, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP,
+            MOUSEEVENTF_MOVE, MOUSEEVENTF_VIRTUALDESK, MOUSEEVENTF_WHEEL, MOUSEINPUT,
+            MapVirtualKeyW, SendInput, VIRTUAL_KEY, VK_0, VK_1, VK_2, VK_3, VK_4, VK_5, VK_6, VK_7,
+            VK_8, VK_9, VK_A, VK_B, VK_BACK, VK_C, VK_CONTROL, VK_D, VK_DELETE, VK_DOWN, VK_E,
+            VK_END, VK_ESCAPE, VK_F, VK_F1, VK_F2, VK_F3, VK_F4, VK_F5, VK_F6, VK_F7, VK_F8, VK_F9,
+            VK_F10, VK_F11, VK_F12, VK_G, VK_H, VK_HOME, VK_I, VK_INSERT, VK_J, VK_K, VK_L,
+            VK_LEFT, VK_M, VK_MENU, VK_N, VK_NEXT, VK_O, VK_OEM_1, VK_OEM_2, VK_OEM_3, VK_OEM_7,
+            VK_OEM_COMMA, VK_OEM_PERIOD, VK_P, VK_PRIOR, VK_Q, VK_R, VK_RETURN, VK_RIGHT, VK_S,
+            VK_SHIFT, VK_SPACE, VK_T, VK_U, VK_UP, VK_V, VK_W, VK_X, VK_Y, VK_Z,
+        },
+        WindowsAndMessaging::{
+            GetClientRect, GetForegroundWindow, GetSystemMetrics, GetWindowRect,
+            SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN,
         },
     },
 };
@@ -73,7 +70,11 @@ pub fn init() {
                         let _ = KEY_CHANNEL.send(key);
                     }
                 }
-                if down { prev[idx] |= bit; } else { prev[idx] &= !bit; }
+                if down {
+                    prev[idx] |= bit;
+                } else {
+                    prev[idx] &= !bit;
+                }
             }
         }
     });
@@ -165,7 +166,11 @@ impl WindowsInput {
         let (dx, dy) = client_to_absolute_coordinate_raw(handle, x, y)?;
         log::debug!(
             "[send_mouse] client=({}, {}) -> absolute=({}, {}) kind={:?}",
-            x, y, dx, dy, kind
+            x,
+            y,
+            dx,
+            dy,
+            kind
         );
         let base_flags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE | MOUSEEVENTF_VIRTUALDESK;
 
@@ -487,9 +492,17 @@ fn client_to_absolute_coordinate_raw(handle: HWND, x: i32, y: i32) -> Result<(i3
 
     log::debug!(
         "[coord_conv] client=({}, {}) -> screen=({}, {}) -> abs=({}, {}) win_client={:?} virt=({},{} {},{})",
-        x, y, point.x, point.y, dx, dy,
+        x,
+        y,
+        point.x,
+        point.y,
+        dx,
+        dy,
         client_size,
-        virtual_left, virtual_top, virtual_width, virtual_height
+        virtual_left,
+        virtual_top,
+        virtual_width,
+        virtual_height
     );
 
     Ok((dx, dy))

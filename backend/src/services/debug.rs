@@ -8,11 +8,15 @@ use std::{
 
 use include_dir::{Dir, include_dir};
 use opencv::{
-    core::{copy_make_border, BorderTypes, Mat, MatTraitConst, ModifyInplace, Rect, Scalar, Vector},
+    core::{
+        BorderTypes, Mat, MatTraitConst, ModifyInplace, Rect, Scalar, Vector, copy_make_border,
+    },
     highgui::{imshow, wait_key},
     imgcodecs::{IMREAD_COLOR, imdecode},
     imgproc::{COLOR_BGR2BGRA, cvt_color_def},
-    videoio::{VideoCapture, VideoCaptureTrait, VideoCaptureTraitConst, VideoWriter, VideoWriterTrait},
+    videoio::{
+        VideoCapture, VideoCaptureTrait, VideoCaptureTraitConst, VideoWriter, VideoWriterTrait,
+    },
 };
 use platforms::Window;
 use rand::distr::SampleString;
@@ -150,7 +154,10 @@ impl DebugService {
     }
 
     pub fn test_transparent_shape_file(&self, input: Box<dyn Input>, path: PathBuf) {
-        log::info!("[debug_service] test_transparent_shape_file called with: {:?}", path);
+        log::info!(
+            "[debug_service] test_transparent_shape_file called with: {:?}",
+            path
+        );
         // Mirror the flow of test_transparent_shape: copy to dataset dir first.
         // This avoids any path encoding issues from the WebView2 file picker.
         let file_name = path
@@ -297,7 +304,9 @@ fn frame_receiver_from_video(file: PathBuf) -> mpsc::Receiver<Mat> {
     fn read_and_send_frame(capture: &mut VideoCapture, tx: &mpsc::Sender<Mat>) -> bool {
         let mut frame = Mat::default();
         if !capture.read(&mut frame).unwrap_or(false) {
-            log::info!("[frame_reader] read_and_send_frame: read failed (end of video or decode error)");
+            log::info!(
+                "[frame_reader] read_and_send_frame: read failed (end of video or decode error)"
+            );
             return false;
         }
 
@@ -320,11 +329,18 @@ fn frame_receiver_from_video(file: PathBuf) -> mpsc::Receiver<Mat> {
     let mut capture = match VideoCapture::from_file_def(path_str) {
         Ok(cap) => {
             let fps = cap.get(opencv::videoio::CAP_PROP_FPS).unwrap_or(0.0);
-            let w = cap.get(opencv::videoio::CAP_PROP_FRAME_WIDTH).unwrap_or(0.0);
-            let h = cap.get(opencv::videoio::CAP_PROP_FRAME_HEIGHT).unwrap_or(0.0);
+            let w = cap
+                .get(opencv::videoio::CAP_PROP_FRAME_WIDTH)
+                .unwrap_or(0.0);
+            let h = cap
+                .get(opencv::videoio::CAP_PROP_FRAME_HEIGHT)
+                .unwrap_or(0.0);
             log::info!(
                 "Opened video '{}': {:.0}x{:.0} @ {:.2} fps",
-                path_str, w, h, fps
+                path_str,
+                w,
+                h,
+                fps
             );
             cap
         }

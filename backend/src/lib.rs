@@ -438,7 +438,10 @@ pub async fn test_transparent_shape(difficulty: TransparentShapeDifficulty) {
 
 #[cfg(debug_assertions)]
 pub async fn test_transparent_shape_file(path: std::path::PathBuf) {
-    log::info!("[backend::lib] test_transparent_shape_file called with: {:?}", path);
+    log::info!(
+        "[backend::lib] test_transparent_shape_file called with: {:?}",
+        path
+    );
     send_request!(TestTransparentShapeFile(path));
     log::info!("[backend::lib] test_transparent_shape_file request completed");
 }

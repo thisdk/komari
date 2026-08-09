@@ -32,7 +32,6 @@ const POST_FALL_STALL_TICKS: u32 = 5;
 /// Maximum number of ticks before timing out.
 const TIMEOUT: u32 = MOVE_TIMEOUT + 3;
 
-
 #[derive(Clone, Copy, Debug)]
 pub struct Falling {
     pub moving: Moving,
@@ -124,9 +123,10 @@ pub fn update_falling_state(
             // only sees Down pressed for a few ms before it's released — it
             // registers as a plain Jump. Sleeping between commands gives the game
             // time to register each state: Down → Down+Jump → release.
-            use crate::bridge::{InputKeyDownOptions, InputKeyOptions};
             use std::thread::sleep;
             use std::time::Duration;
+
+            use crate::bridge::{InputKeyDownOptions, InputKeyOptions};
 
             resources
                 .input
@@ -138,12 +138,10 @@ pub fn update_falling_state(
                 && player.context.config.teleport_key.is_some()
                 && y_distance < player.context.config.teleport_fall_threshold as i32;
             if can_teleport {
-                resources
-                    .input
-                    .send_key_with_options(
-                        player.context.config.teleport_key.unwrap(),
-                        InputKeyOptions::default().down_ms(80),
-                    );
+                resources.input.send_key_with_options(
+                    player.context.config.teleport_key.unwrap(),
+                    InputKeyOptions::default().down_ms(80),
+                );
             } else {
                 resources.input.send_key_with_options(
                     player.context.config.jump_key,
@@ -157,8 +155,11 @@ pub fn update_falling_state(
         MovingLifecycle::Ended(moving) => {
             // Stall briefly after the fall completes so the player has time to land
             // before resuming the next operation.
-            player.context.stalling_timeout_state =
-                Some(Player::Moving(moving.dest, moving.exact, moving.intermediates));
+            player.context.stalling_timeout_state = Some(Player::Moving(
+                moving.dest,
+                moving.exact,
+                moving.intermediates,
+            ));
             player.state = Player::Stalling(Timeout::default(), POST_FALL_STALL_TICKS);
         }
         MovingLifecycle::Updated(mut moving) => {
@@ -297,7 +298,10 @@ mod tests {
             .in_sequence(&mut seq);
         keys.expect_send_key_with_options()
             .once()
-            .with(eq(KeyKind::Space), eq(InputKeyOptions::default().down_ms(80)))
+            .with(
+                eq(KeyKind::Space),
+                eq(InputKeyOptions::default().down_ms(80)),
+            )
             .in_sequence(&mut seq);
         keys.expect_send_key_up()
             .once()
@@ -405,10 +409,7 @@ mod tests {
 
         // Second update ends the fall and stalls before resuming the movement.
         update_falling_state(&mut resources, &mut player, Minimap::Detecting);
-        assert_matches!(
-            player.state,
-            Player::Stalling(_, POST_FALL_STALL_TICKS)
-        );
+        assert_matches!(player.state, Player::Stalling(_, POST_FALL_STALL_TICKS));
         assert_matches!(
             player.context.stalling_timeout_state,
             Some(Player::Moving(_, _, _))

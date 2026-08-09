@@ -10,7 +10,7 @@ use platforms::SectionPlatforms;
 use rotation::SectionRotation;
 
 use crate::{
-    AppState, persist_settings,
+    AppState,
     components::{
         ContentAlign, ContentSide,
         checkbox::Checkbox,
@@ -22,6 +22,7 @@ use crate::{
         section::Section,
         select::{Select, SelectOption},
     },
+    persist_settings,
 };
 
 mod inner;

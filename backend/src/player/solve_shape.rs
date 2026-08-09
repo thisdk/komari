@@ -116,9 +116,7 @@ fn update_waiting(resources: &mut Resources, solving_shape: &mut SolvingShape) {
         return;
     }
 
-    let is_preparing = resources
-        .detector()
-        .detect_lie_detector_shape_preparing();
+    let is_preparing = resources.detector().detect_lie_detector_shape_preparing();
     debug!(
         target: "backend/player",
         "lie detector waiting: tick={} preparing={is_preparing}",
