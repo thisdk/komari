@@ -12,6 +12,7 @@ use crate::{
         list::{List, ListItem, MoveEvent},
         popup::PopupTrigger,
     },
+    i18n::use_translator,
 };
 
 fn map_insert_index_local_to_global(filtered: Vec<(Action, usize)>, index: usize) -> usize {
@@ -48,6 +49,7 @@ pub fn ActionsList(
     disabled: bool,
     actions: ReadSignal<Vec<Action>>,
 ) -> Element {
+    let tr = use_translator();
     let id = use_memo(move || condition.to_string());
     let filtered = use_memo(move || filter_actions(actions.cloned(), condition));
 
@@ -129,7 +131,7 @@ pub fn ActionsList(
                 disabled,
                 class: "mt-2 w-full",
 
-                "Add action"
+                {tr().t("Add action")}
             }
         }
     }
@@ -137,6 +139,7 @@ pub fn ActionsList(
 
 #[component]
 fn MoveItem(action: ActionMove) -> Element {
+    let tr = use_translator();
     let ActionMove {
         position:
             Position {
@@ -157,7 +160,11 @@ fn MoveItem(action: ActionMove) -> Element {
         format!("{x_min}~{x_max}")
     };
 
-    let allow_adjusting = if allow_adjusting { " / Adjust" } else { "" };
+    let allow_adjusting = if allow_adjusting {
+        format!(" / {}", tr().t("Adjust"))
+    } else {
+        String::new()
+    };
 
     let position = format!("{x}, {y}{allow_adjusting}");
 
@@ -180,6 +187,7 @@ fn MoveItem(action: ActionMove) -> Element {
 
 #[component]
 fn KeyItem(action: ActionKey) -> Element {
+    let tr = use_translator();
     let ActionKey {
         key,
         key_hold_millis,
@@ -211,7 +219,11 @@ fn KeyItem(action: ActionKey) -> Element {
         } else {
             format!("{x_min}~{x_max}")
         };
-        let allow_adjusting = if allow_adjusting { " / Adjust" } else { "" };
+        let allow_adjusting = if allow_adjusting {
+            format!(" / {}", tr().t("Adjust"))
+        } else {
+            String::new()
+        };
 
         format!("{x}, {y}{allow_adjusting}")
     } else {
@@ -284,9 +296,9 @@ fn KeyItem(action: ActionKey) -> Element {
     };
 
     let with = match with {
-        ActionKeyWith::Any => "Any",
-        ActionKeyWith::Stationary => "Stationary",
-        ActionKeyWith::DoubleJump => "Double jump",
+        ActionKeyWith::Any => tr().t("Any"),
+        ActionKeyWith::Stationary => tr().t("Stationary"),
+        ActionKeyWith::DoubleJump => tr().t("Double jump"),
     };
 
     rsx! {

@@ -13,6 +13,7 @@ use crate::{
         labeled::Labeled,
         section::Section,
     },
+    i18n::use_translator,
 };
 
 #[derive(Debug)]
@@ -71,28 +72,34 @@ pub fn LocalizationScreen() -> Element {
 
 #[component]
 fn SectionInfo() -> Element {
+    let tr = use_translator();
+
     #[component]
     fn Header(title: &'static str) -> Element {
+        let tr = use_translator();
+
         rsx! {
             th { class: "text-xs text-primary-text text-left font-medium border-b border-primary-border",
-                {title}
+                {tr().t(title)}
             }
         }
     }
 
     #[component]
     fn Data(description: &'static str, #[props(default)] rowspan: Option<usize>) -> Element {
+        let tr = use_translator();
+
         rsx! {
             td {
                 class: "text-xs text-secondary-text border-b border-secondary-border pt-2 pr-1",
                 rowspan,
-                {description}
+                {tr().t(description)}
             }
         }
     }
 
     rsx! {
-        Section { title: "Info",
+        Section { title: tr().t("Info"),
             table { class: "table-fixed",
                 thead {
                     tr {
@@ -166,14 +173,14 @@ fn SectionInfo() -> Element {
                     on_click: move |_| async move {
                         save_capture_image(false).await;
                     },
-                    "Capture color"
+                    {tr().t("Capture color")}
                 }
                 Button {
                     style: ButtonStyle::Primary,
                     on_click: move |_| async move {
                         save_capture_image(true).await;
                     },
-                    "Capture grayscale"
+                    {tr().t("Capture grayscale")}
                 }
             }
         }
@@ -182,12 +189,13 @@ fn SectionInfo() -> Element {
 
 #[component]
 fn SectionPopups() -> Element {
+    let tr = use_translator();
     let context = use_context::<LocalizationContext>();
     let localization = context.localization;
     let save_localization = context.save_localization;
 
     rsx! {
-        Section { title: "Popups",
+        Section { title: tr().t("Popups"),
             div { class: "grid grid-cols-2  gap-4",
                 LocalizationTemplateInput {
                     label: "Confirm",
@@ -284,12 +292,13 @@ fn SectionPopups() -> Element {
 
 #[component]
 fn SectionHexa() -> Element {
+    let tr = use_translator();
     let context = use_context::<LocalizationContext>();
     let localization = context.localization;
     let save_localization = context.save_localization;
 
     rsx! {
-        Section { title: "HEXA",
+        Section { title: tr().t("HEXA"),
             div { class: "grid grid-cols-2 gap-4",
                 LocalizationTemplateInput {
                     label: "Erda conversion button",
@@ -342,12 +351,13 @@ fn SectionHexa() -> Element {
 
 #[component]
 fn SectionFamiliars() -> Element {
+    let tr = use_translator();
     let context = use_context::<LocalizationContext>();
     let localization = context.localization;
     let save_localization = context.save_localization;
 
     rsx! {
-        Section { title: "Familiars",
+        Section { title: tr().t("Familiars"),
             div { class: "grid grid-cols-2 gap-4",
                 LocalizationTemplateInput {
                     label: "Level sort button",
@@ -378,12 +388,13 @@ fn SectionFamiliars() -> Element {
 
 #[component]
 fn SectionOthers() -> Element {
+    let tr = use_translator();
     let context = use_context::<LocalizationContext>();
     let localization = context.localization;
     let save_localization = context.save_localization;
 
     rsx! {
-        Section { title: "Others",
+        Section { title: tr().t("Others"),
             div { class: "grid grid-cols-2 gap-4",
                 LocalizationTemplateInput {
                     label: "Cash shop",
@@ -399,7 +410,7 @@ fn SectionOthers() -> Element {
                 LocalizationTemplateInput {
                     label: "Change channel",
                     template: DetectionTemplate::ChangeChannel,
-                    tooltip: "This template is in grayscale.",
+                    tooltip: tr().t("This template is in grayscale."),
                     on_value: move |image: Option<Vec<u8>>| async move {
                         save_localization(Localization {
                             change_channel_base64: to_base64(image, true).await,
@@ -411,7 +422,7 @@ fn SectionOthers() -> Element {
                 LocalizationTemplateInput {
                     label: "Timer",
                     template: DetectionTemplate::Timer,
-                    tooltip: "This template is in grayscale.",
+                    tooltip: tr().t("This template is in grayscale."),
                     on_value: move |image: Option<Vec<u8>>| async move {
                         save_localization(Localization {
                             timer_base64: to_base64(image, true).await,
@@ -455,6 +466,7 @@ fn LocalizationTemplateInput(
     on_value: Callback<Option<Vec<u8>>>,
     value: ReadSignal<Option<String>>,
 ) -> Element {
+    let tr = use_translator();
     let read_file = use_callback(move |file: FileData| async move {
         on_value(file.read_bytes().await.ok().map(Vec::from));
     });
@@ -473,7 +485,7 @@ fn LocalizationTemplateInput(
     rsx! {
         div { class: "flex gap-2",
             div { class: "flex-grow",
-                Labeled { label, tooltip,
+                Labeled { label: tr().t(label), tooltip,
                     div { class: "h-6 border-b border-primary-border pb-0.5",
                         img {
                             src: format!("data:image/png;base64,{}", base64()),
@@ -490,7 +502,7 @@ fn LocalizationTemplateInput(
                         on_value(None);
                     },
 
-                    "Reset"
+                    {tr().t("Reset")}
                 }
             }
             div { class: "flex items-end",
@@ -499,7 +511,7 @@ fn LocalizationTemplateInput(
                         read_file(file).await;
                     },
                     accept: ".png,image/png",
-                    Button { class: "w-14", style: ButtonStyle::Primary, "Replace" }
+                    Button { class: "w-14", style: ButtonStyle::Primary, {tr().t("Replace")} }
                 }
             }
         }

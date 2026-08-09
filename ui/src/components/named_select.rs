@@ -5,6 +5,7 @@ use crate::components::{
     button::{Button, ButtonStyle},
     text::TextInput,
 };
+use crate::i18n::use_translator;
 
 const BUTTON_CLASS: &str = "w-20 h-full flex-none";
 
@@ -31,6 +32,7 @@ enum State {
 
 #[component]
 pub fn NamedSelect(props: NamedSelectProps) -> Element {
+    let tr = use_translator();
     let class = props.class;
     let disabled = props.disabled;
     let delete_disabled = props.delete_disabled;
@@ -75,7 +77,7 @@ pub fn NamedSelect(props: NamedSelectProps) -> Element {
                     State::Create { name, error } => rsx! {
                         TextInput {
                             class: "size-full",
-                            placeholder: "Enter a name...",
+                            placeholder: tr().t("Enter a name..."),
                             value: name,
                             disabled,
                             on_value: move |name| {
@@ -91,8 +93,8 @@ pub fn NamedSelect(props: NamedSelectProps) -> Element {
                 disabled,
                 on_click: handle_click_first,
                 match state() {
-                    State::Select => "Create",
-                    State::Create { .. } => "Save",
+                    State::Select => tr().t("Create"),
+                    State::Create { .. } => tr().t("Save"),
                 }
             }
             Button {
@@ -104,8 +106,8 @@ pub fn NamedSelect(props: NamedSelectProps) -> Element {
                 },
                 on_click: handle_click_second,
                 match state() {
-                    State::Select => "Delete",
-                    State::Create { .. } => "Cancel",
+                    State::Select => tr().t("Delete"),
+                    State::Create { .. } => tr().t("Cancel"),
                 }
             }
         }

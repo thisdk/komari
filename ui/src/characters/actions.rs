@@ -1,6 +1,7 @@
 use backend::ActionConfigurationCondition;
 use dioxus::prelude::*;
 
+use crate::i18n::use_translator;
 use crate::{
     characters::{
         CharactersContext,
@@ -11,6 +12,7 @@ use crate::{
 
 #[component]
 pub fn SectionFixedActions() -> Element {
+    let tr = use_translator();
     let context = use_context::<CharactersContext>();
     let character = context.character;
     let save_character = context.save_character;
@@ -70,7 +72,7 @@ pub fn SectionFixedActions() -> Element {
     };
 
     rsx! {
-        Section { title: "Fixed actions",
+        Section { title: tr().t("Fixed actions"),
             ActionConfigurationsList {
                 disabled: character().id.is_none(),
                 on_item_add: add_action,

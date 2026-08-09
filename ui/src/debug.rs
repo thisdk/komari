@@ -10,9 +10,11 @@ use crate::components::{
     button::{Button, ButtonStyle},
     section::Section,
 };
+use crate::i18n::use_translator;
 
 #[component]
 pub fn DebugScreen() -> Element {
+    let tr = use_translator();
     let mut state = use_signal(DebugState::default);
     let mut file_input_key = use_signal(|| 0);
 
@@ -32,7 +34,7 @@ pub fn DebugScreen() -> Element {
 
     rsx! {
         div { class: "flex flex-col h-full overflow-y-auto",
-            Section { title: "Debug",
+            Section { title: tr().t("Debug"),
                 div { class: "grid grid-cols-2 gap-3",
                     Button {
                         style: ButtonStyle::Secondary,
@@ -40,7 +42,7 @@ pub fn DebugScreen() -> Element {
                             test_spin_rune().await;
                         },
 
-                        "Test spin rune"
+                        {tr().t("Test spin rune")}
                     }
                     Button {
                         style: ButtonStyle::Secondary,
@@ -48,7 +50,7 @@ pub fn DebugScreen() -> Element {
                             test_violetta().await;
                         },
 
-                        "Test Violetta"
+                        {tr().t("Test Violetta")}
                     }
                     Button {
                         style: ButtonStyle::Secondary,
@@ -56,7 +58,7 @@ pub fn DebugScreen() -> Element {
                             test_transparent_shape(TransparentShapeDifficulty::Normal).await;
                         },
 
-                        "Test transparent shape normal"
+                        {tr().t("Test transparent shape normal")}
                     }
                     Button {
                         style: ButtonStyle::Secondary,
@@ -66,7 +68,7 @@ pub fn DebugScreen() -> Element {
                             log::info!("[UI] Test transparent shape hard completed");
                         },
 
-                        "Test transparent shape hard"
+                        {tr().t("Test transparent shape hard")}
                     }
                     label {
                         class: "inline-block h-6 text-xs text-center font-medium content-center
@@ -91,7 +93,7 @@ pub fn DebugScreen() -> Element {
                                 }
                             },
                         }
-                        "Test transparent shape..."
+                        {tr().t("Test transparent shape...")}
                     }
                     Button {
                         style: ButtonStyle::Secondary,
@@ -100,9 +102,9 @@ pub fn DebugScreen() -> Element {
                         },
 
                         if state().is_recording {
-                            "Stop recording"
+                            {tr().t("Stop recording")}
                         } else {
-                            "Start recording"
+                            {tr().t("Start recording")}
                         }
                     }
                     Button {
@@ -112,9 +114,9 @@ pub fn DebugScreen() -> Element {
                         },
 
                         if state().is_rune_auto_saving {
-                            "Stop auto saving rune"
+                            {tr().t("Stop auto saving rune")}
                         } else {
-                            "Start auto saving rune"
+                            {tr().t("Start auto saving rune")}
                         }
                     }
                     Button {
@@ -125,9 +127,9 @@ pub fn DebugScreen() -> Element {
                         },
 
                         if state().is_lie_detector_auto_recording {
-                            "Stop auto record lie detector"
+                            {tr().t("Stop auto record lie detector")}
                         } else {
-                            "Start auto record lie detector"
+                            {tr().t("Start auto record lie detector")}
                         }
                     }
                 }

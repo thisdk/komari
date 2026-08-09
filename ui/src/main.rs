@@ -25,13 +25,14 @@ use minimap::MinimapScreen;
 use rand::distr::{Alphanumeric, SampleString};
 use settings::SettingsScreen;
 
-use crate::localization::LocalizationScreen;
+use crate::{i18n::use_translator, localization::LocalizationScreen};
 
 mod actions;
 mod characters;
 mod components;
 #[cfg(debug_assertions)]
 mod debug;
+mod i18n;
 mod localization;
 mod minimap;
 mod settings;
@@ -46,14 +47,14 @@ const TAB_LOCALIZATION: &str = "Localization";
 #[cfg(debug_assertions)]
 const TAB_DEBUG: &str = "Debug";
 
-static TABS: LazyLock<Vec<String>> = LazyLock::new(|| {
+static TABS: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
     vec![
-        TAB_ACTIONS.to_string(),
-        TAB_CHARACTERS.to_string(),
-        TAB_SETTINGS.to_string(),
-        TAB_LOCALIZATION.to_string(),
+        TAB_ACTIONS,
+        TAB_CHARACTERS,
+        TAB_SETTINGS,
+        TAB_LOCALIZATION,
         #[cfg(debug_assertions)]
-        TAB_DEBUG.to_string(),
+        TAB_DEBUG,
     ]
 });
 
@@ -110,7 +111,7 @@ pub struct AppState {
 
 #[component]
 fn App() -> Element {
-    let mut selected_tab = use_signal(|| TAB_CHARACTERS.to_string());
+    let mut selected_tab = use_signal(|| TAB_CHARACTERS);
     let mut settings = use_signal::<Option<Settings>>(|| None);
 
     use_context_provider(|| AppState {
@@ -144,7 +145,7 @@ fn App() -> Element {
                     selected_tab: selected_tab(),
                 }
                 div { class: "relative w-full h-full overflow-y-auto pl-2 lg:pl-0",
-                    match selected_tab().as_str() {
+                    match selected_tab() {
                         TAB_ACTIONS => rsx! {
                             ActionsScreen {}
                         },
@@ -184,9 +185,9 @@ pub(crate) fn persist_settings(
 
 #[derive(PartialEq, Props, Clone)]
 struct TabsProps {
-    tabs: Vec<String>,
-    on_select_tab: EventHandler<String>,
-    selected_tab: String,
+    tabs: Vec<&'static str>,
+    on_select_tab: EventHandler<&'static str>,
+    selected_tab: &'static str,
 }
 
 #[component]
@@ -201,10 +202,10 @@ fn Tabs(
         div { class: "flex flex-row lg:flex-col px-2 gap-3",
             for tab in tabs {
                 Tab {
-                    name: tab.clone(),
+                    name: tab,
                     selected: selected_tab == tab,
                     on_click: move |_| {
-                        on_select_tab(tab.clone());
+                        on_select_tab(tab);
                     },
                 }
             }
@@ -213,7 +214,8 @@ fn Tabs(
 }
 
 #[component]
-fn Tab(name: String, selected: bool, on_click: EventHandler) -> Element {
+fn Tab(name: &'static str, selected: bool, on_click: EventHandler) -> Element {
+    let tr = use_translator();
     let selected_class = if selected { "bg-secondary-surface" } else { "" };
 
     rsx! {
@@ -222,7 +224,7 @@ fn Tab(name: String, selected: bool, on_click: EventHandler) -> Element {
             onclick: move |_| {
                 on_click(());
             },
-            p { class: "text-primary-text font-medium", {name} }
+            p { class: "text-primary-text font-medium", {tr().t(name)} }
         }
     }
 }

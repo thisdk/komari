@@ -15,6 +15,7 @@ use crate::{
         popup::PopupContext,
         section::Section,
     },
+    i18n::use_translator,
 };
 
 #[derive(Clone, Copy, PartialEq)]
@@ -90,6 +91,7 @@ pub fn filter_actions(actions: Vec<Action>, condition: ActionCondition) -> Vec<(
 
 #[component]
 pub fn SectionActions(actions: Memo<Vec<Action>>, disabled: bool) -> Element {
+    let tr = use_translator();
     let coroutine = use_coroutine_handle::<ActionsUpdate>();
     let map = use_context::<ActionsContext>().map;
 
@@ -216,7 +218,7 @@ pub fn SectionActions(actions: Memo<Vec<Action>>, disabled: bool) -> Element {
             on_open: move |open: bool| {
                 popup_open.set(open);
             },
-            Section { title: "Normal actions",
+            Section { title: tr().t("Normal actions"),
                 ActionsList {
                     on_add_click: move |_| {
                         handle_add_action_click(ActionCondition::Any);
@@ -229,7 +231,7 @@ pub fn SectionActions(actions: Memo<Vec<Action>>, disabled: bool) -> Element {
                     actions: actions(),
                 }
             }
-            Section { title: "Erda Shower off cooldown priority actions",
+            Section { title: tr().t("Erda Shower off cooldown priority actions"),
                 ActionsList {
                     on_add_click: move |_| {
                         handle_add_action_click(ActionCondition::ErdaShowerOffCooldown);
@@ -242,7 +244,7 @@ pub fn SectionActions(actions: Memo<Vec<Action>>, disabled: bool) -> Element {
                     actions: actions(),
                 }
             }
-            Section { title: "Every milliseconds priority actions",
+            Section { title: tr().t("Every milliseconds priority actions"),
                 ActionsList {
                     on_add_click: move |_| {
                         handle_add_action_click(ActionCondition::EveryMillis(0));
@@ -255,7 +257,7 @@ pub fn SectionActions(actions: Memo<Vec<Action>>, disabled: bool) -> Element {
                     actions: actions(),
                 }
             }
-            Section { title: "Import/export actions",
+            Section { title: tr().t("Import/export actions"),
                 div { class: "flex gap-2",
                     FileInput {
                         class: "flex-grow",
@@ -267,7 +269,7 @@ pub fn SectionActions(actions: Memo<Vec<Action>>, disabled: bool) -> Element {
                             class: "w-full",
                             style: ButtonStyle::Primary,
                             disabled,
-                            "Import"
+                            {tr().t("Import")}
                         }
                     }
                     FileOutput {
@@ -279,7 +281,7 @@ pub fn SectionActions(actions: Memo<Vec<Action>>, disabled: bool) -> Element {
                             class: "w-full",
                             style: ButtonStyle::Primary,
                             disabled,
-                            "Export"
+                            {tr().t("Export")}
                         }
                     }
                 }

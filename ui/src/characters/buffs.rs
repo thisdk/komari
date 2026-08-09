@@ -1,6 +1,7 @@
 use backend::{Character, KeyBindingConfiguration};
 use dioxus::prelude::*;
 
+use crate::i18n::use_translator;
 use crate::{
     characters::{CharactersCheckbox, CharactersContext, CharactersKeyBindingConfigurationInput},
     components::section::Section,
@@ -8,17 +9,18 @@ use crate::{
 
 #[component]
 pub fn SectionBuffs() -> Element {
+    let tr = use_translator();
     let context = use_context::<CharactersContext>();
     let character = context.character;
     let save_character = context.save_character;
     let disabled = use_memo(move || character().id.is_none());
 
     rsx! {
-        Section { title: "Buffs",
+        Section { title: tr().t("Buffs"),
             div { class: "grid grid-cols-2 xl:grid-cols-4 gap-4",
                 div { class: "col-span-full flex gap-2",
                     CharactersKeyBindingConfigurationInput {
-                        label: "Familiar skill",
+                        label: tr().t("Familiar skill"),
                         label_class: "flex-1",
                         disabled,
                         on_value: move |key_config: Option<KeyBindingConfiguration>| {
@@ -30,7 +32,7 @@ pub fn SectionBuffs() -> Element {
                         value: character().familiar_buff_key,
                     }
                     CharactersKeyBindingConfigurationInput {
-                        label: "Familiar essence",
+                        label: tr().t("Familiar essence"),
                         label_class: "flex-1",
                         disabled,
                         on_value: move |key_config: Option<KeyBindingConfiguration>| {
@@ -42,7 +44,7 @@ pub fn SectionBuffs() -> Element {
                         value: character().familiar_essence_key,
                     }
                     CharactersCheckbox {
-                        label: "Enabled",
+                        label: tr().t("Enabled"),
                         checked: character().familiar_buff_key.enabled,
                         on_checked: move |enabled| {
                             let character = character.peek().clone();
@@ -58,7 +60,7 @@ pub fn SectionBuffs() -> Element {
                     }
                 }
                 Buff {
-                    label: "Sayram's Elixir",
+                    label: tr().t("Sayram's Elixir"),
                     disabled,
                     on_value: move |sayram_elixir_key| {
                         save_character(Character {
@@ -69,7 +71,7 @@ pub fn SectionBuffs() -> Element {
                     value: character().sayram_elixir_key,
                 }
                 Buff {
-                    label: "Aurelia's Elixir",
+                    label: tr().t("Aurelia's Elixir"),
                     disabled,
                     on_value: move |aurelia_elixir_key| {
                         save_character(Character {
@@ -80,7 +82,7 @@ pub fn SectionBuffs() -> Element {
                     value: character().aurelia_elixir_key,
                 }
                 Buff {
-                    label: "2x EXP Coupon",
+                    label: tr().t("2x EXP Coupon"),
                     disabled,
                     on_value: move |exp_x2_key| {
                         save_character(Character {
@@ -91,7 +93,7 @@ pub fn SectionBuffs() -> Element {
                     value: character().exp_x2_key,
                 }
                 Buff {
-                    label: "3x EXP Coupon",
+                    label: tr().t("3x EXP Coupon"),
                     disabled,
                     on_value: move |exp_x3_key| {
                         save_character(Character {
@@ -102,7 +104,7 @@ pub fn SectionBuffs() -> Element {
                     value: character().exp_x3_key,
                 }
                 Buff {
-                    label: "4x EXP Coupon",
+                    label: tr().t("4x EXP Coupon"),
                     disabled,
                     on_value: move |exp_x4_key| {
                         save_character(Character {
@@ -113,7 +115,7 @@ pub fn SectionBuffs() -> Element {
                     value: character().exp_x4_key,
                 }
                 Buff {
-                    label: "50% Bonus EXP Coupon",
+                    label: tr().t("50% Bonus EXP Coupon"),
                     disabled,
                     on_value: move |bonus_exp_key| {
                         save_character(Character {
@@ -124,7 +126,7 @@ pub fn SectionBuffs() -> Element {
                     value: character().bonus_exp_key,
                 }
                 Buff {
-                    label: "Legion's Wealth",
+                    label: tr().t("Legion's Wealth"),
                     disabled,
                     on_value: move |legion_wealth_key| {
                         save_character(Character {
@@ -135,7 +137,7 @@ pub fn SectionBuffs() -> Element {
                     value: character().legion_wealth_key,
                 }
                 Buff {
-                    label: "Legion's Luck",
+                    label: tr().t("Legion's Luck"),
                     disabled,
                     on_value: move |legion_luck_key| {
                         save_character(Character {
@@ -146,7 +148,7 @@ pub fn SectionBuffs() -> Element {
                     value: character().legion_luck_key,
                 }
                 Buff {
-                    label: "Wealth Acquisition Potion",
+                    label: tr().t("Wealth Acquisition Potion"),
                     disabled,
                     on_value: move |wealth_acquisition_potion_key| {
                         save_character(Character {
@@ -157,7 +159,7 @@ pub fn SectionBuffs() -> Element {
                     value: character().wealth_acquisition_potion_key,
                 }
                 Buff {
-                    label: "EXP Accumulation Potion",
+                    label: tr().t("EXP Accumulation Potion"),
                     disabled,
                     on_value: move |exp_accumulation_potion_key| {
                         save_character(Character {
@@ -168,7 +170,7 @@ pub fn SectionBuffs() -> Element {
                     value: character().exp_accumulation_potion_key,
                 }
                 Buff {
-                    label: "Small Wealth Acquisition Potion",
+                    label: tr().t("Small Wealth Acquisition Potion"),
                     disabled,
                     on_value: move |small_wealth_acquisition_potion_key| {
                         save_character(Character {
@@ -179,7 +181,7 @@ pub fn SectionBuffs() -> Element {
                     value: character().small_wealth_acquisition_potion_key,
                 }
                 Buff {
-                    label: "Small EXP Accumulation Potion",
+                    label: tr().t("Small EXP Accumulation Potion"),
                     disabled,
                     on_value: move |small_exp_accumulation_potion_key| {
                         save_character(Character {
@@ -190,7 +192,7 @@ pub fn SectionBuffs() -> Element {
                     value: character().small_exp_accumulation_potion_key,
                 }
                 Buff {
-                    label: "For The Guild",
+                    label: tr().t("For The Guild"),
                     disabled,
                     on_value: move |for_the_guild_key| {
                         save_character(Character {
@@ -201,7 +203,7 @@ pub fn SectionBuffs() -> Element {
                     value: character().for_the_guild_key,
                 }
                 Buff {
-                    label: "Hard Hitter",
+                    label: tr().t("Hard Hitter"),
                     disabled,
                     on_value: move |hard_hitter_key| {
                         save_character(Character {
@@ -212,7 +214,7 @@ pub fn SectionBuffs() -> Element {
                     value: character().hard_hitter_key,
                 }
                 Buff {
-                    label: "Extreme Red Potion",
+                    label: tr().t("Extreme Red Potion"),
                     disabled,
                     on_value: move |extreme_red_potion_key| {
                         save_character(Character {
@@ -223,7 +225,7 @@ pub fn SectionBuffs() -> Element {
                     value: character().extreme_red_potion_key,
                 }
                 Buff {
-                    label: "Extreme Blue Potion",
+                    label: tr().t("Extreme Blue Potion"),
                     disabled,
                     on_value: move |extreme_blue_potion_key| {
                         save_character(Character {
@@ -234,7 +236,7 @@ pub fn SectionBuffs() -> Element {
                     value: character().extreme_blue_potion_key,
                 }
                 Buff {
-                    label: "Extreme Green Potion",
+                    label: tr().t("Extreme Green Potion"),
                     disabled,
                     on_value: move |extreme_green_potion_key| {
                         save_character(Character {
@@ -246,7 +248,7 @@ pub fn SectionBuffs() -> Element {
                 }
 
                 Buff {
-                    label: "Extreme Gold Potion",
+                    label: tr().t("Extreme Gold Potion"),
                     disabled,
                     on_value: move |extreme_gold_potion_key| {
                         save_character(Character {
@@ -268,6 +270,8 @@ fn Buff(
     on_value: Callback<KeyBindingConfiguration>,
     disabled: ReadSignal<bool>,
 ) -> Element {
+    let tr = use_translator();
+
     rsx! {
         div { class: "flex gap-2",
             CharactersKeyBindingConfigurationInput {
@@ -280,7 +284,7 @@ fn Buff(
                 label_class: "flex-1",
             }
             CharactersCheckbox {
-                label: "Enabled",
+                label: tr().t("Enabled"),
                 checked: value.enabled,
                 on_checked: move |enabled| {
                     on_value(KeyBindingConfiguration {

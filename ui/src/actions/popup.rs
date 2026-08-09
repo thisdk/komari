@@ -8,6 +8,7 @@ use crate::{
         button::{Button, ButtonStyle},
         popup::PopupContent,
     },
+    i18n::use_translator,
 };
 
 #[component]
@@ -17,16 +18,17 @@ pub fn PopupPlatformInputContent(
     on_value: Callback<Platform>,
     value: Platform,
 ) -> Element {
+    let tr = use_translator();
     let position = use_context::<AppState>().position;
     let mut platform = use_signal(|| value);
 
     use_effect(use_reactive!(|value| platform.set(value)));
 
     rsx! {
-        PopupContent { title: if modifying { "Modify platform" } else { "Add platform" },
+        PopupContent { title: if modifying { tr().t("Modify platform") } else { tr().t("Add platform") },
             div { class: "grid grid-cols-3 gap-3 pb-10 overflow-y-auto",
                 ActionsPositionInput {
-                    label: "X start",
+                    label: tr().t("X start"),
                     on_icon_click: move |_| {
                         platform.write().x_start = position.peek().0;
                     },
@@ -36,7 +38,7 @@ pub fn PopupPlatformInputContent(
                     value: platform().x_start,
                 }
                 ActionsPositionInput {
-                    label: "X end",
+                    label: tr().t("X end"),
                     on_icon_click: move |_| {
                         platform.write().x_end = position.peek().0;
                     },
@@ -46,7 +48,7 @@ pub fn PopupPlatformInputContent(
                     value: platform().x_end,
                 }
                 ActionsPositionInput {
-                    label: "Y",
+                    label: tr().t("Y"),
                     on_icon_click: move |_| {
                         platform.write().y = position.peek().1;
                     },
@@ -66,9 +68,9 @@ pub fn PopupPlatformInputContent(
                     },
 
                     if modifying {
-                        "Save"
+                        {tr().t("Save")}
                     } else {
-                        "Add"
+                        {tr().t("Add")}
                     }
                 }
                 Button {
@@ -77,7 +79,7 @@ pub fn PopupPlatformInputContent(
                     on_click: move |_| {
                         on_cancel(());
                     },
-                    "Cancel"
+                    {tr().t("Cancel")}
                 }
             }
         }
@@ -90,6 +92,7 @@ pub fn PopupMobbingBoundInputContent(
     on_value: Callback<Bound>,
     value: Bound,
 ) -> Element {
+    let tr = use_translator();
     let mut value = use_signal(|| value);
     let mut frame = use_signal::<Option<(Vec<u8>, usize, usize)>>(|| None);
     let mut task = use_signal::<Option<Task>>(|| None);
@@ -215,13 +218,13 @@ pub fn PopupMobbingBoundInputContent(
     });
 
     rsx! {
-        PopupContent { title: "Modify mobbing bound",
+        PopupContent { title: tr().t("Modify mobbing bound"),
             if frame().is_some() {
                 canvas { class: "w-full h-full", id: "bound" }
             }
             div { class: "grid grid-cols-2 gap-3 pb-10 overflow-y-auto",
                 ActionsNumberInputI32 {
-                    label: "X offset",
+                    label: tr().t("X offset"),
                     on_value: move |x| {
                         value.write().x = x;
                     },
@@ -229,7 +232,7 @@ pub fn PopupMobbingBoundInputContent(
                 }
 
                 ActionsNumberInputI32 {
-                    label: "Y offset",
+                    label: tr().t("Y offset"),
                     on_value: move |y| {
                         value.write().y = y;
                     },
@@ -237,7 +240,7 @@ pub fn PopupMobbingBoundInputContent(
                 }
 
                 ActionsNumberInputI32 {
-                    label: "Width",
+                    label: tr().t("Width"),
                     on_value: move |width| {
                         value.write().width = width;
                     },
@@ -245,7 +248,7 @@ pub fn PopupMobbingBoundInputContent(
                 }
 
                 ActionsNumberInputI32 {
-                    label: "Height",
+                    label: tr().t("Height"),
                     on_value: move |height| {
                         value.write().height = height;
                     },
@@ -261,7 +264,7 @@ pub fn PopupMobbingBoundInputContent(
                         on_value(*value.peek());
                     },
 
-                    "Save"
+                    {tr().t("Save")}
                 }
                 Button {
                     class: "flex-grow",
@@ -269,7 +272,7 @@ pub fn PopupMobbingBoundInputContent(
                     on_click: move |_| {
                         on_cancel(());
                     },
-                    "Cancel"
+                    {tr().t("Cancel")}
                 }
             }
         }
@@ -282,6 +285,7 @@ pub fn PopupMobbingKeyInputContent(
     on_value: Callback<MobbingKey>,
     value: MobbingKey,
 ) -> Element {
+    let tr = use_translator();
     let value_action_key = ActionKey {
         key: value.key,
         key_hold_millis: value.key_hold_millis,
@@ -297,7 +301,7 @@ pub fn PopupMobbingKeyInputContent(
     let value_action = Action::Key(value_action_key);
 
     rsx! {
-        PopupContent { title: "Modify mobbing key",
+        PopupContent { title: tr().t("Modify mobbing key"),
             ActionsInput {
                 switchable: false,
                 modifying: true,
@@ -342,16 +346,17 @@ pub fn PopupActionsInputContent(
     on_value: Callback<(Action, ActionCondition)>,
     value: Action,
 ) -> Element {
+    let tr = use_translator();
     let name = match value.condition() {
-        backend::ActionCondition::Any => "normal",
-        backend::ActionCondition::EveryMillis(_) => "every milliseconds",
-        backend::ActionCondition::ErdaShowerOffCooldown => "Erda Shower off cooldown",
-        backend::ActionCondition::Linked => "linked",
+        backend::ActionCondition::Any => tr().t("normal"),
+        backend::ActionCondition::EveryMillis(_) => tr().t("every milliseconds"),
+        backend::ActionCondition::ErdaShowerOffCooldown => tr().t("Erda Shower off cooldown"),
+        backend::ActionCondition::Linked => tr().t("linked"),
     };
     let title = if modifying {
-        format!("Modify a {name} action")
+        tr().t_fmt("Modify a {} action", &[name])
     } else {
-        format!("Add a new {name} action")
+        tr().t_fmt("Add a new {} action", &[name])
     };
 
     rsx! {

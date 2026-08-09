@@ -22,6 +22,7 @@ use crate::{
         named_select::NamedSelect,
         select::{Select, SelectOption},
     },
+    i18n::use_translator,
     persist_settings,
 };
 
@@ -313,6 +314,7 @@ enum MinimapUpdate {
 
 #[component]
 pub fn MinimapScreen() -> Element {
+    let tr = use_translator();
     let mut map = use_context::<AppState>().map;
     let mut map_preset = use_context::<AppState>().map_preset;
     let settings = use_context::<AppState>().settings;
@@ -455,7 +457,7 @@ pub fn MinimapScreen() -> Element {
                             delete_disabled: map_names().is_empty(),
                             Select::<usize> {
                                 class: "w-full",
-                                placeholder: "Create a map...",
+                                placeholder: tr().t("Create a map..."),
                                 disabled: map_names().is_empty(),
                                 on_selected: move |index| {
                                     let selected: Map = maps
@@ -623,6 +625,8 @@ fn Canvas(
 
 #[component]
 fn Info(state: ReadSignal<Option<MinimapState>>, map: ReadSignal<Option<Map>>) -> Element {
+    let tr = use_translator();
+
     #[derive(Debug, PartialEq, Clone)]
     struct GameStateInfo {
         position: String,
@@ -642,18 +646,18 @@ fn Info(state: ReadSignal<Option<MinimapState>>, map: ReadSignal<Option<Map>>) -
 
     let info = use_memo(move || {
         let mut info = GameStateInfo {
-            position: "Unknown".to_string(),
-            health: "Unknown".to_string(),
-            state: "Unknown".to_string(),
-            normal_action: "None".to_string(),
-            priority_action: "None".to_string(),
-            erda_shower_state: "Unknown".to_string(),
-            input_state: "Unknown".to_string(),
-            gpu_enabled: "Unknown".to_string(),
+            position: tr().t("Unknown").to_string(),
+            health: tr().t("Unknown").to_string(),
+            state: tr().t("Unknown").to_string(),
+            normal_action: tr().t("None").to_string(),
+            priority_action: tr().t("None").to_string(),
+            erda_shower_state: tr().t("Unknown").to_string(),
+            input_state: tr().t("Unknown").to_string(),
+            gpu_enabled: tr().t("Unknown").to_string(),
             lie_detector_count: "0".to_string(),
-            detected_map_size: "Unknown".to_string(),
-            selected_map_size: "Unknown".to_string(),
-            time_until_stop: "None".to_string(),
+            detected_map_size: tr().t("Unknown").to_string(),
+            selected_map_size: tr().t("Unknown").to_string(),
+            time_until_stop: tr().t("None").to_string(),
             run_time: "0s".to_string(),
         };
 
@@ -662,13 +666,17 @@ fn Info(state: ReadSignal<Option<MinimapState>>, map: ReadSignal<Option<Map>>) -
         }
 
         if let Some(state) = state() {
-            info.state = state.state;
-            info.erda_shower_state = state.erda_shower_state;
-            info.input_state = state.input_state;
-            info.gpu_enabled = state.gpu_enabled.to_string();
+            info.state = tr().state_text(&state.state);
+            info.erda_shower_state = tr().state_text(&state.erda_shower_state);
+            info.input_state = tr().state_text(&state.input_state);
+            info.gpu_enabled = if state.gpu_enabled {
+                tr().t("Yes").to_string()
+            } else {
+                tr().t("No").to_string()
+            };
             info.lie_detector_count = state.lie_detector_count.to_string();
             info.time_until_stop = match state.operation {
-                Operation::Halting | Operation::Running => "None".to_string(),
+                Operation::Halting | Operation::Running => tr().t("None").to_string(),
                 Operation::TemporaryHalting(duration) => duration_from(duration),
                 Operation::RunUntil(instant) => {
                     duration_from(instant.saturating_duration_since(Instant::now()))
@@ -682,10 +690,10 @@ fn Info(state: ReadSignal<Option<MinimapState>>, map: ReadSignal<Option<Map>>) -
                 info.health = format!("{current} / {max}");
             }
             if let Some(action) = state.normal_action {
-                info.normal_action = action;
+                info.normal_action = tr().state_text(&action);
             }
             if let Some(action) = state.priority_action {
-                info.priority_action = action;
+                info.priority_action = tr().state_text(&action);
             }
             if let Some((width, height)) = state.detected_size {
                 info.detected_map_size = format!("{width}px x {height}px")
@@ -697,18 +705,18 @@ fn Info(state: ReadSignal<Option<MinimapState>>, map: ReadSignal<Option<Map>>) -
 
     rsx! {
         div { class: "grid grid-cols-2 items-center justify-center px-4 py-3 gap-1",
-            InfoItem { name: "State", value: info().state }
-            InfoItem { name: "Position", value: info().position }
-            InfoItem { name: "Priority action", value: info().priority_action }
-            InfoItem { name: "Normal action", value: info().normal_action }
-            InfoItem { name: "Erda Shower", value: info().erda_shower_state }
-            InfoItem { name: "Detected size", value: info().detected_map_size }
-            InfoItem { name: "Selected size", value: info().selected_map_size }
-            InfoItem { name: "Time Until Stop", value: info().time_until_stop }
-            InfoItem { name: "Run Time", value: info().run_time }
-            InfoItem { name: "Input method", value: info().input_state }
-            InfoItem { name: "Use GPU", value: info().gpu_enabled }
-            InfoItem { name: "Lie Detectors", value: info().lie_detector_count }
+            InfoItem { name: tr().t("State"), value: info().state }
+            InfoItem { name: tr().t("Position"), value: info().position }
+            InfoItem { name: tr().t("Priority action"), value: info().priority_action }
+            InfoItem { name: tr().t("Normal action"), value: info().normal_action }
+            InfoItem { name: tr().t("Erda Shower"), value: info().erda_shower_state }
+            InfoItem { name: tr().t("Detected size"), value: info().detected_map_size }
+            InfoItem { name: tr().t("Selected size"), value: info().selected_map_size }
+            InfoItem { name: tr().t("Time Until Stop"), value: info().time_until_stop }
+            InfoItem { name: tr().t("Run Time"), value: info().run_time }
+            InfoItem { name: tr().t("Input method"), value: info().input_state }
+            InfoItem { name: tr().t("Use GPU"), value: info().gpu_enabled }
+            InfoItem { name: tr().t("Lie Detectors"), value: info().lie_detector_count }
         }
     }
 }
@@ -723,6 +731,7 @@ fn InfoItem(name: String, value: String) -> Element {
 
 #[component]
 fn Buttons(state: ReadSignal<Option<MinimapState>>, map: ReadSignal<Option<Map>>) -> Element {
+    let tr = use_translator();
     let kind = use_memo(move || {
         state()
             .map(|state| match state.operation {
@@ -740,18 +749,20 @@ fn Buttons(state: ReadSignal<Option<MinimapState>>, map: ReadSignal<Option<Map>>
             kind(),
             OperationUpdate::Run | OperationUpdate::TemporaryHalt
         ) {
-            "Stop"
+            tr().t("Stop")
         } else {
-            "Start"
+            tr().t("Start")
         }
     });
     let suspend_resume_text = use_memo(move || {
         state()
             .map(|state| match state.operation {
-                Operation::TemporaryHalting(_) => "Resume",
-                Operation::Halting | Operation::Running | Operation::RunUntil(_) => "Suspend",
+                Operation::TemporaryHalting(_) => tr().t("Resume"),
+                Operation::Halting | Operation::Running | Operation::RunUntil(_) => {
+                    tr().t("Suspend")
+                }
             })
-            .unwrap_or("Suspend")
+            .unwrap_or(tr().t("Suspend"))
     });
     let suspend_resume_disabled = use_memo(move || {
         if disabled() {
@@ -805,7 +816,7 @@ fn Buttons(state: ReadSignal<Option<MinimapState>>, map: ReadSignal<Option<Map>>
                 on_click: move |_| async move {
                     redetect_minimap().await;
                 },
-                "Re-detect"
+                {tr().t("Re-detect")}
             }
         }
     }
@@ -813,6 +824,7 @@ fn Buttons(state: ReadSignal<Option<MinimapState>>, map: ReadSignal<Option<Map>>
 
 #[component]
 fn ImportExport(map: ReadSignal<Option<Map>>) -> Element {
+    let tr = use_translator();
     let coroutine = use_coroutine_handle::<MinimapUpdate>();
     let mut bulk_key = use_signal(|| 0);
 
@@ -891,7 +903,7 @@ fn ImportExport(map: ReadSignal<Option<Map>>) -> Element {
                 on_file: move |file| async move {
                     import_map(file).await;
                 },
-                Button { class: "w-20", style: ButtonStyle::Primary, "Import" }
+                Button { class: "w-20", style: ButtonStyle::Primary, {tr().t("Import")} }
             }
             FileOutput {
                 on_file: export_content,
@@ -902,7 +914,7 @@ fn ImportExport(map: ReadSignal<Option<Map>>) -> Element {
                     style: ButtonStyle::Primary,
                     disabled: map().is_none(),
 
-                    "Export"
+                    {tr().t("Export")}
                 }
             }
             label {
@@ -922,7 +934,7 @@ fn ImportExport(map: ReadSignal<Option<Map>>) -> Element {
                         bulk_key += 1;
                     },
                 }
-                "Bulk import"
+                {tr().t("Bulk import")}
             }
         }
     }

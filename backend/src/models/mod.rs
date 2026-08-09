@@ -8,6 +8,7 @@ mod localization;
 mod map;
 mod seeds;
 mod settings;
+mod ui_language;
 
 pub use actions::*;
 pub use character::*;
@@ -16,6 +17,7 @@ pub use localization::*;
 pub use map::*;
 pub use seeds::*;
 pub use settings::*;
+pub use ui_language::*;
 
 pub trait Identifiable {
     fn id(&self) -> Option<i64>;

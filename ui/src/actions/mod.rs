@@ -22,6 +22,7 @@ use crate::{
         section::Section,
         select::{Select, SelectOption},
     },
+    i18n::use_translator,
     persist_settings,
 };
 
@@ -55,6 +56,7 @@ struct ActionsContext {
 
 #[component]
 pub fn ActionsScreen() -> Element {
+    let tr = use_translator();
     let mut map = use_context::<AppState>().map;
     let mut map_preset = use_context::<AppState>().map_preset;
     let settings = use_context::<AppState>().settings;
@@ -196,7 +198,7 @@ pub fn ActionsScreen() -> Element {
 
                 Select::<usize> {
                     class: "w-full",
-                    placeholder: "Create an actions preset for the selected map...",
+                    placeholder: tr().t("Create an actions preset for the selected map..."),
                     disabled: map_presets().is_empty(),
                     on_selected: select_preset,
 
@@ -215,22 +217,24 @@ pub fn ActionsScreen() -> Element {
 
 #[component]
 fn SectionLegends() -> Element {
+    let tr = use_translator();
+
     rsx! {
-        Section { title: "Action legends", class: "text-xs text-primary-text",
-            p { "⟳ - Repeat" }
-            p { "⏱︎  - Wait" }
-            p { "ㄨ - No position" }
-            p { "⇈ - Queue to front" }
-            p { "⇆ - Any direction" }
-            p { "← - Left direction" }
-            p { "→ - Right direction" }
-            p { "⁺ - Buffered wait after" }
-            p { "A ⤓ - Key A is held down" }
-            p { "A ~ B - Random range between A and B" }
-            p { "A ↝ B - Use A key then B key" }
-            p { "A ↜ B - Use B key then A key" }
-            p { "A ↭ B - Use A and B keys at the same time" }
-            p { "A ↷ B - Use A key then B key while A is held down" }
+        Section { title: tr().t("Action legends"), class: "text-xs text-primary-text",
+            p { {tr().t("⟳ - Repeat")} }
+            p { {tr().t("⏱︎  - Wait")} }
+            p { {tr().t("ㄨ - No position")} }
+            p { {tr().t("⇈ - Queue to front")} }
+            p { {tr().t("⇆ - Any direction")} }
+            p { {tr().t("← - Left direction")} }
+            p { {tr().t("→ - Right direction")} }
+            p { {tr().t("⁺ - Buffered wait after")} }
+            p { {tr().t("A ⤓ - Key A is held down")} }
+            p { {tr().t("A ~ B - Random range between A and B")} }
+            p { {tr().t("A ↝ B - Use A key then B key")} }
+            p { {tr().t("A ↜ B - Use B key then A key")} }
+            p { {tr().t("A ↭ B - Use A and B keys at the same time")} }
+            p { {tr().t("A ↷ B - Use A key then B key while A is held down")} }
         }
     }
 }
@@ -244,6 +248,7 @@ fn ActionsSelect<T: 'static + Clone + PartialEq + Display + IntoEnumIterator>(
     on_selected: Callback<T>,
     selected: ReadSignal<T>,
 ) -> Element {
+    let tr = use_translator();
     let selected_equal =
         use_callback(move |value: T| discriminant(&selected()) == discriminant(&value));
 
@@ -254,7 +259,7 @@ fn ActionsSelect<T: 'static + Clone + PartialEq + Display + IntoEnumIterator>(
                 for value in T::iter() {
                     SelectOption::<T> {
                         value: value.clone(),
-                        label: value.to_string(),
+                        label: tr().state_text(&value.to_string()),
                         selected: selected_equal(value),
                         disabled,
                     }

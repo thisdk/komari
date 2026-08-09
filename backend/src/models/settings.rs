@@ -2,13 +2,15 @@ use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString};
 
 use super::impl_identifiable;
-use crate::{KeyBinding, KeyBindingConfiguration};
+use crate::{KeyBinding, KeyBindingConfiguration, UiLanguage};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Settings {
     #[serde(skip_serializing, default)]
     pub id: Option<i64>,
     pub capture_mode: CaptureMode,
+    #[serde(default)]
+    pub ui_language: UiLanguage,
     #[serde(default = "enable_solving_default")]
     pub enable_rune_solving: bool,
     #[serde(default = "enable_solving_default")]
@@ -50,6 +52,7 @@ impl Default for Settings {
         Self {
             id: None,
             capture_mode: CaptureMode::default(),
+            ui_language: UiLanguage::default(),
             enable_rune_solving: enable_solving_default(),
             enable_transparent_shape_solving: enable_solving_default(),
             enable_violetta_solving: enable_solving_default(),
