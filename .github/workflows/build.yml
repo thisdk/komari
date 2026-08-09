@@ -11,7 +11,7 @@ on:
       - "examples/**"
       - "docs/**"
   release:
-    types: [created]
+    types: [published]
   pull_request:
     branches:
       - "master"
