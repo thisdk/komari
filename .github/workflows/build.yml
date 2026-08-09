@@ -6,12 +6,12 @@ on:
     branches:
       - "master"
       - "v*.*.*"
-    tags:
-      - "v*.*.*"
     paths-ignore:
       - "**/*.md"
       - "examples/**"
       - "docs/**"
+  release:
+    types: [created]
   pull_request:
     branches:
       - "master"
@@ -65,12 +65,32 @@ jobs:
           name: app-${{ matrix.type }}
           path: target/dx/ui/${{ matrix.type }}/windows/app
 
-      - if: startsWith(github.ref, 'refs/tags/')
-        run: Compress-Archive -Path target/dx/ui/${{ matrix.type }}/windows/app/* -Destination app-${{ matrix.type }}.zip
+  release:
+    if: github.event_name == 'release'
+    needs: build
+    runs-on: windows-latest
 
-      - uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/download-artifact@v4
         with:
-          draft: true
-          files: |
-            app-${{ matrix.type }}.zip
+          name: app-release
+          path: app-release
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: app-debug
+          path: app-debug
+
+      - name: Package release assets
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}"
+          Compress-Archive -Path app-release/* -DestinationPath "komari-$version-release.zip"
+          Compress-Archive -Path app-debug/* -DestinationPath "komari-$version-debug.zip"
+
+      - name: Upload release assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ github.ref_name }}" "komari-${{ github.ref_name }}-release.zip" "komari-${{ github.ref_name }}-debug.zip" --repo "${{ github.repository }}" --clobber

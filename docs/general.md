@@ -31,7 +31,7 @@
 ## Download
 
 1. Go to the [GitHub Release Page](https://github.com/sasanquaa/komari/releases)
-2. Download `app-release.zip` or `app-debug.zip`
+2. Download `komari-vX.Y.Z-release.zip` (release build) or `komari-vX.Y.Z-debug.zip` (debug build), matching the release version.
 3. Extract the archive
 4. Run the `.exe` file
 

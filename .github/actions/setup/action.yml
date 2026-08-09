@@ -1,4 +1,5 @@
 name: Setup
+description: Install and configure the Windows build environment (vcpkg/OpenCV, Node, Dioxus CLI, protoc, LLVM).
 runs:
   using: composite
   steps:
