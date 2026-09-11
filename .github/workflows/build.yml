@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - "master"
+      - "dev"
       - "v*.*.*"
     tags:
       - "v*.*.*"
@@ -15,6 +16,7 @@ on:
   pull_request:
     branches:
       - "master"
+      - "dev"
       - "v*.*.*"
     paths-ignore:
       - "**/*.md"
@@ -24,25 +26,49 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  # OpenCV is the slowest dependency and its cache entry is shared by every
+  # other job. Build it once here instead of letting each job race to populate
+  # the same cache key.
+  prepare:
+    name: prepare (OpenCV via vcpkg)
     runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: ./.github/actions/setup
+        with:
+          vcpkg: build
+          toolchain: "false"
+
+  test:
+    needs: prepare
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup
+        with:
+          vcpkg: restore
 
       # TODO: https://github.com/DioxusLabs/dioxus/issues/3433
       # TODO: Need to add dx fmt
       - run: cargo fmt --check
       - run: cargo clippy -- -D warnings
-      - run: cargo test -- --no-capture
+      - run: cargo test -- --nocapture
 
   build:
+    needs: prepare
     runs-on: windows-latest
 
     strategy:
+      fail-fast: false
       matrix:
         type: [release, debug]
 
@@ -50,6 +76,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: ./.github/actions/setup
+        with:
+          vcpkg: restore
 
       - name: Build ${{ matrix.type }}
         shell: pwsh
@@ -60,13 +88,34 @@ jobs:
           }
           dx build @args
 
+      - name: Verify build output
+        shell: pwsh
+        run: |
+          $app = "target/dx/ui/${{ matrix.type }}/windows/app"
+          if (-not (Test-Path "$app/ui.exe")) {
+            throw "dx build did not produce $app/ui.exe"
+          }
+          Get-ChildItem $app | Select-Object Name, Length
+
+      - name: Package archive
+        shell: pwsh
+        run: |
+          $app = "target/dx/ui/${{ matrix.type }}/windows/app"
+          $stage = "stage/app-${{ matrix.type }}"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item -Path "$app/*" -Destination $stage -Recurse -Force
+          New-Item -ItemType Directory -Force -Path "$stage/examples" | Out-Null
+          Copy-Item -Path "examples/*" -Destination "$stage/examples" -Recurse -Force
+          Copy-Item -Path "kmbox_example.bat" -Destination $stage -Force
+          Copy-Item -Path "arduino_example.bat" -Destination $stage -Force
+          Compress-Archive -Path "$stage/*" -DestinationPath "app-${{ matrix.type }}.zip" -Force
+          Get-Item "app-${{ matrix.type }}.zip" | Select-Object Name, Length
+
       - uses: actions/upload-artifact@v4
         with:
           name: app-${{ matrix.type }}
-          path: target/dx/ui/${{ matrix.type }}/windows/app
-
-      - if: startsWith(github.ref, 'refs/tags/')
-        run: Compress-Archive -Path target/dx/ui/${{ matrix.type }}/windows/app/* -Destination app-${{ matrix.type }}.zip
+          path: app-${{ matrix.type }}.zip
+          if-no-files-found: error
 
       - uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')

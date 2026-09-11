@@ -1,4 +1,19 @@
 name: Setup
+description: Configure the Windows toolchain required to build komari.
+
+inputs:
+  vcpkg:
+    description: >
+      vcpkg/OpenCV handling. "build" restores the cache and builds OpenCV from
+      source on a cache miss (then saves it), "restore" only restores an
+      existing cache and fails loudly when it is missing, "skip" does nothing.
+    required: false
+    default: restore
+  toolchain:
+    description: Install the build toolchain (node, dx, protoc, LLVM, sccache).
+    required: false
+    default: "true"
+
 runs:
   using: composite
   steps:
@@ -10,64 +25,93 @@ runs:
         Add-Content $env:GITHUB_ENV "RUST_BACKTRACE=1"
         Add-Content $env:GITHUB_ENV "RUSTC_WRAPPER=sccache"
         Add-Content $env:GITHUB_ENV "VCPKG_ENABLE_METRICS=0"
+        # Cache namespace for the built OpenCV tree. Bump the suffix whenever
+        # the triplet/features below change to force a fresh build.
         Add-Content $env:GITHUB_ENV "VCPKG_VERSION=2026.02.27"
+        # The vcpkg revision that is actually checked out and built.
+        Add-Content $env:GITHUB_ENV "VCPKG_REF=2025.10.17"
         Add-Content $env:GITHUB_ENV "VCPKG_ROOT=$env:GITHUB_WORKSPACE\vcpkg"
         Add-Content $env:GITHUB_ENV "VCPKG_INSTALLED_DIR=$env:GITHUB_WORKSPACE\vcpkg\installed"
         Add-Content $env:GITHUB_ENV "OPENCV_MSVC_CRT=static"
         Add-Content $env:GITHUB_ENV "OPENCV_DISABLE_PROBES=environment,pkg_config,cmake,vcpkg_cmake"
         Add-Content $env:GITHUB_ENV "VCPKGRS_TRIPLET=x64-windows-static"
 
-    - name: Restore vcpkg cache
-      uses: actions/cache/restore@v4
-      id: cache-vcpkg
-      with:
-        path: ${{ env.VCPKG_ROOT }}
-        key: vcpkg-${{ env.VCPKG_VERSION }}
-
-    - if: steps.cache-vcpkg.outputs.cache-hit != 'true'
-      shell: pwsh
-      run: |
-        git clone https://github.com/Microsoft/vcpkg.git "${{ env.VCPKG_ROOT }}"
-        cd "${{ env.VCPKG_ROOT }}"
-        git fetch --all --prune --tags
-        git status
-        git checkout .
-        git checkout "2025.10.17"
-        ./bootstrap-vcpkg.bat -disableMetrics
-        echo "set(VCPKG_BUILD_TYPE release)" >> triplets/x64-windows.cmake
-        echo "set(VCPKG_BUILD_TYPE release)" >> triplets/x64-windows-static.cmake
-        ./vcpkg.exe install --clean-after-build --recurse opencv4[contrib,nonfree]:x64-windows-static
-
-    - if: steps.cache-vcpkg.outputs.cache-hit != 'true'
-      name: Save vcpkg cache
-      uses: actions/cache/save@v4
-      with:
-        path: ${{ env.VCPKG_ROOT }}
-        key: vcpkg-${{ env.VCPKG_VERSION }}
-
-    - uses: actions/setup-node@v4
+    # The toolchain steps are cheap and run first so that a broken version pin
+    # fails the job in minutes instead of after the OpenCV build.
+    - if: inputs.toolchain == 'true'
+      uses: actions/setup-node@v4
       with:
         node-version: latest
         cache: "npm"
         cache-dependency-path: "./ui/package-lock.json"
-    - name: Install TailwindCSS and Dioxus CLI
+
+    - if: inputs.toolchain == 'true'
+      name: Install Node.js dependencies (TailwindCSS)
       shell: pwsh
       run: |
         cd ui
         npm install
 
-    - uses: mozilla-actions/sccache-action@v0.0.9
+    - if: inputs.toolchain == 'true'
+      uses: mozilla-actions/sccache-action@v0.0.9
 
-    - uses: cargo-bins/cargo-binstall@main
-    - name: Install Dioxus CLI
+    - if: inputs.toolchain == 'true'
+      uses: cargo-bins/cargo-binstall@main
+
+    - if: inputs.toolchain == 'true'
+      name: Install Dioxus CLI
       shell: pwsh
       run: cargo binstall dioxus-cli@0.7.2 --no-confirm
 
-    - name: Install protoc
+    - if: inputs.toolchain == 'true'
+      name: Install protoc
       shell: pwsh
-      run: choco install -y protoc --version "33.0.0"
+      run: |
+        choco install -y protoc --version "33.0.0" --no-progress
+        protoc --version
 
-    - name: Install LLVM and Clang
+    - if: inputs.toolchain == 'true'
+      name: Install LLVM and Clang
       uses: KyleMayes/install-llvm-action@v2
       with:
         version: "21"
+
+    - if: inputs.vcpkg != 'skip'
+      name: Restore vcpkg cache
+      id: cache-vcpkg
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ env.VCPKG_ROOT }}
+        key: vcpkg-${{ env.VCPKG_VERSION }}
+
+    - if: inputs.vcpkg == 'restore' && steps.cache-vcpkg.outputs.cache-hit != 'true'
+      name: Fail on missing vcpkg cache
+      shell: pwsh
+      run: |
+        throw "vcpkg cache miss (key 'vcpkg-$env:VCPKG_VERSION'). The 'prepare' job must build and cache OpenCV before this job runs."
+
+    - if: inputs.vcpkg == 'build' && steps.cache-vcpkg.outputs.cache-hit != 'true'
+      name: Build OpenCV with vcpkg
+      shell: pwsh
+      run: |
+        git clone https://github.com/Microsoft/vcpkg.git "$env:VCPKG_ROOT"
+        cd "$env:VCPKG_ROOT"
+        git fetch --tags --force
+        git checkout "$env:VCPKG_REF"
+        ./bootstrap-vcpkg.bat -disableMetrics
+        # Only build the release flavour: the static triplet would otherwise
+        # build debug and release OpenCV, doubling the job time.
+        Add-Content triplets/x64-windows.cmake "set(VCPKG_BUILD_TYPE release)"
+        Add-Content triplets/x64-windows-static.cmake "set(VCPKG_BUILD_TYPE release)"
+        ./vcpkg.exe install --clean-after-build --recurse "opencv4[contrib,nonfree]:x64-windows-static"
+        ./vcpkg.exe list
+
+    - if: inputs.vcpkg == 'build' && steps.cache-vcpkg.outputs.cache-hit != 'true'
+      name: Save vcpkg cache
+      uses: actions/cache/save@v4
+      # A concurrent run may have saved the same key first; that is not a
+      # build failure, the cache is simply already populated.
+      continue-on-error: true
+      with:
+        path: ${{ env.VCPKG_ROOT }}
+        key: vcpkg-${{ env.VCPKG_VERSION }}
