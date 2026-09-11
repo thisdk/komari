@@ -25,11 +25,15 @@ runs:
         Add-Content $env:GITHUB_ENV "RUST_BACKTRACE=1"
         Add-Content $env:GITHUB_ENV "RUSTC_WRAPPER=sccache"
         Add-Content $env:GITHUB_ENV "VCPKG_ENABLE_METRICS=0"
-        # Cache namespace for the built OpenCV tree. Bump the suffix whenever
-        # the triplet/features below change to force a fresh build.
-        Add-Content $env:GITHUB_ENV "VCPKG_VERSION=2026.02.27"
-        # The vcpkg revision that is actually checked out and built.
-        Add-Content $env:GITHUB_ENV "VCPKG_REF=2025.10.17"
+        # Single source of truth: the vcpkg release that gets checked out *and*
+        # the key of the OpenCV cache below, so a bump can never leave the two
+        # out of sync.
+        #
+        # Releases before 2026.07.29 fetch the libaec source from
+        # gitlab.dkrz.de, which now answers HTTP 429 for every request, and
+        # vcpkg treats a failed download as fatal. 2026.07.29 is also the
+        # release that ships OpenCV 4.12.0, the version the project documents.
+        Add-Content $env:GITHUB_ENV "VCPKG_VERSION=2026.07.29"
         Add-Content $env:GITHUB_ENV "VCPKG_ROOT=$env:GITHUB_WORKSPACE\vcpkg"
         Add-Content $env:GITHUB_ENV "VCPKG_INSTALLED_DIR=$env:GITHUB_WORKSPACE\vcpkg\installed"
         Add-Content $env:GITHUB_ENV "OPENCV_MSVC_CRT=static"
@@ -97,7 +101,7 @@ runs:
         git clone https://github.com/Microsoft/vcpkg.git "$env:VCPKG_ROOT"
         cd "$env:VCPKG_ROOT"
         git fetch --tags --force
-        git checkout "$env:VCPKG_REF"
+        git checkout "$env:VCPKG_VERSION"
         ./bootstrap-vcpkg.bat -disableMetrics
         # Only build the release flavour: the static triplet would otherwise
         # build debug and release OpenCV, doubling the job time.
