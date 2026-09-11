@@ -103,7 +103,24 @@ runs:
         # build debug and release OpenCV, doubling the job time.
         Add-Content triplets/x64-windows.cmake "set(VCPKG_BUILD_TYPE release)"
         Add-Content triplets/x64-windows-static.cmake "set(VCPKG_BUILD_TYPE release)"
-        ./vcpkg.exe install --clean-after-build --recurse "opencv4[contrib,nonfree]:x64-windows-static"
+
+        # Several ports fetch their sources from third party hosts that
+        # intermittently answer HTTP 429/5xx (libaec on gitlab.dkrz.de is a
+        # known offender) and vcpkg treats a failed download as fatal. Retrying
+        # is cheap: ports that already built are skipped and archives that
+        # already downloaded are not fetched again.
+        $attempts = 3
+        for ($attempt = 1; $attempt -le $attempts; $attempt++) {
+          Write-Host "vcpkg install: attempt $attempt of $attempts"
+          ./vcpkg.exe install --clean-after-build --recurse "opencv4[contrib,nonfree]:x64-windows-static"
+          $code = $LASTEXITCODE
+          if ($code -eq 0) { break }
+          Write-Host "vcpkg install failed with exit code $code"
+          if ($attempt -eq $attempts) {
+            throw "vcpkg install failed after $attempts attempts"
+          }
+          Start-Sleep -Seconds (30 * $attempt)
+        }
         ./vcpkg.exe list
 
     - if: inputs.vcpkg == 'build' && steps.cache-vcpkg.outputs.cache-hit != 'true'
