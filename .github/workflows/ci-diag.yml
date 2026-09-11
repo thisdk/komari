@@ -4,6 +4,9 @@ name: ci-diag
 # require the (slow) vcpkg/OpenCV build. Delete once CI is green again.
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - "dev"
 
 jobs:
   diag:
