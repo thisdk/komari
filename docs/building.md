@@ -125,6 +125,43 @@ Output: `target\dx\ui\debug\windows\app\ui.exe` (includes console window for log
 
 `ui_release.bat` and `ui_debug.bat` at the project root launch the respective builds.
 
+## Continuous integration
+
+`.github/workflows/build.yml` runs on `windows-latest` and publishes an
+`app-debug.zip` / `app-release.zip` artifact for every push, plus draft release
+assets for tags. The toolchain it pins is the reference for a reproducible
+build:
+
+| Tool | Pinned version | Where |
+|---|---|---|
+| Rust | nightly-2025-12-21 | `rust-toolchain.toml` |
+| Dioxus CLI | 0.7.2 | `.github/actions/setup/action.yml` |
+| vcpkg | 2026.07.29 | `.github/actions/setup/action.yml` |
+| OpenCV | 4.12.0 (`opencv4[contrib,nonfree]:x64-windows-static`) | same |
+| protobuf | 33.0.0 | same |
+| LLVM | 21 | same |
+
+Two things are worth knowing before changing those pins:
+
+- **The vcpkg release must be 2026.07.29 or newer.** Older releases resolve
+  `opencv4[contrib,nonfree]` through `hdf5 -> libaec`, and libaec's source is
+  fetched from `gitlab.dkrz.de`, which now answers HTTP 429 to every request.
+  vcpkg treats a failed download as fatal, so the build dies in setup. From
+  2026.07.29 on, `hdf` is a separate opencv4 feature and libaec is fetched from
+  GitHub.
+- **`VCPKG_VERSION` is the single source of truth** for both the vcpkg checkout
+  and the OpenCV cache key, so the two cannot drift apart.
+
+OpenCV is built once per cache miss by the `prepare` job (~40 minutes) and is
+restored from cache by every other job afterwards (~1 minute). Bumping
+`VCPKG_VERSION` invalidates that cache by design, so the next run pays the
+build cost again.
+
+The Dioxus CLI is downloaded straight from its release asset rather than via
+`cargo-binstall`, because binstall resolves it through the GitHub API and that
+API answers `403 Forbidden` to unauthenticated runners once several jobs run at
+the same time.
+
 ## Troubleshooting
 
 ### "failed to run custom build command for opencv" (0xc000007b)
