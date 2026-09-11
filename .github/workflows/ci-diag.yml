@@ -1,0 +1,86 @@
+name: ci-diag
+
+# Temporary diagnostic workflow: validates every setup step that does NOT
+# require the (slow) vcpkg/OpenCV build. Delete once CI is green again.
+on:
+  workflow_dispatch:
+
+jobs:
+  diag:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Runner info
+        shell: pwsh
+        run: |
+          $PSVersionTable.PSVersion
+          node --version
+          npm --version
+          rustc --version
+          cargo --version
+          rustup show
+          Write-Host "VS installations:"
+          Get-ChildItem "C:\Program Files\Microsoft Visual Studio" -ErrorAction SilentlyContinue | Select-Object Name
+          Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -ErrorAction SilentlyContinue | Select-Object Name
+          Get-ChildItem "C:\Program Files\LLVM\bin\clang.exe" -ErrorAction SilentlyContinue | Select-Object FullName
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: latest
+          cache: "npm"
+          cache-dependency-path: "./ui/package-lock.json"
+
+      - name: npm install
+        shell: pwsh
+        run: |
+          cd ui
+          npm install
+
+      - name: Build tailwind (ui/build.rs step)
+        shell: pwsh
+        run: |
+          cd ui
+          npx @tailwindcss/cli -i assets/tailwind.css -o public/tailwind.css
+
+      - uses: mozilla-actions/sccache-action@v0.0.9
+
+      - uses: cargo-bins/cargo-binstall@main
+
+      - name: Install Dioxus CLI 0.7.2
+        shell: pwsh
+        run: cargo binstall dioxus-cli@0.7.2 --no-confirm
+        timeout-minutes: 20
+
+      - name: dx version
+        shell: pwsh
+        run: |
+          Get-Command dx
+          dx --version
+
+      - name: Install protoc 33.0.0
+        shell: pwsh
+        run: choco install -y protoc --version "33.0.0"
+
+      - name: protoc version
+        shell: pwsh
+        run: protoc --version
+
+      - name: Install LLVM 21
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: "21"
+
+      - name: clang version
+        shell: pwsh
+        run: |
+          clang --version
+          clang --print-resource-dir
+          Get-ChildItem "C:\Program Files\LLVM\bin\libclang.dll" -ErrorAction SilentlyContinue | Select-Object FullName
+          Write-Host "LIBCLANG_PATH=$env:LIBCLANG_PATH"
+
+      - name: Check nightly toolchain target
+        shell: pwsh
+        run: |
+          rustup toolchain list
+          rustup target list --toolchain nightly-2025-12-21 --installed
