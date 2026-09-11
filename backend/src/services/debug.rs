@@ -241,7 +241,7 @@ impl DebugService {
                         let _ = imshow("Shape Tracks", &detector.mat());
                     }
 
-                    if frame_count % 30 == 0 {
+                    if frame_count.is_multiple_of(30) {
                         log::info!(
                             "[debug_service] processed {} frames, last cursor: {:?}",
                             frame_count,

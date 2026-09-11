@@ -115,7 +115,7 @@ impl TransparentShapeSolver {
         if self.is_debugging {
             static CALL_COUNT: AtomicU64 = AtomicU64::new(0);
             let call = CALL_COUNT.fetch_add(1, Ordering::Relaxed);
-            if call % 30 == 0 {
+            if call.is_multiple_of(30) {
                 info!(
                     "[solver] call#{} shapes={} tracks={} current_track={:?} last_cursor={:?} top_scores={:?}",
                     call,
@@ -138,25 +138,25 @@ impl TransparentShapeSolver {
 
         if let Ok(region_mat) = detector.mat().roi(region) {
             for t in &tracks {
-                if let Ok(shape_roi) = region_mat.roi(t.rect()) {
-                    if let Some(angle) = compute_principal_axis_angle(&shape_roi) {
-                        let history = self.angle_history.entry(t.track_id()).or_default();
-                        // Unwrap to avoid π-periodic jumps before storing.
-                        if let Some(&prev) = history.back() {
-                            let mut adjusted = angle;
-                            while adjusted - prev > std::f64::consts::FRAC_PI_2 {
-                                adjusted -= std::f64::consts::PI;
-                            }
-                            while adjusted - prev < -std::f64::consts::FRAC_PI_2 {
-                                adjusted += std::f64::consts::PI;
-                            }
-                            history.push_back(adjusted);
-                        } else {
-                            history.push_back(angle);
+                if let Ok(shape_roi) = region_mat.roi(t.rect())
+                    && let Some(angle) = compute_principal_axis_angle(&shape_roi)
+                {
+                    let history = self.angle_history.entry(t.track_id()).or_default();
+                    // Unwrap to avoid π-periodic jumps before storing.
+                    if let Some(&prev) = history.back() {
+                        let mut adjusted = angle;
+                        while adjusted - prev > std::f64::consts::FRAC_PI_2 {
+                            adjusted -= std::f64::consts::PI;
                         }
-                        if history.len() > ANGLE_WINDOW {
-                            history.pop_front();
+                        while adjusted - prev < -std::f64::consts::FRAC_PI_2 {
+                            adjusted += std::f64::consts::PI;
                         }
+                        history.push_back(adjusted);
+                    } else {
+                        history.push_back(angle);
+                    }
+                    if history.len() > ANGLE_WINDOW {
+                        history.pop_front();
                     }
                 }
             }
@@ -173,7 +173,7 @@ impl TransparentShapeSolver {
         const ROTATION_CHECK_INTERVAL: u64 = 5;
         static SOLVE_COUNT: AtomicU64 = AtomicU64::new(0);
         let solve_n = SOLVE_COUNT.fetch_add(1, Ordering::Relaxed);
-        if solve_n % ROTATION_CHECK_INTERVAL == 0 && self.current_track_id.is_some() {
+        if solve_n.is_multiple_of(ROTATION_CHECK_INTERVAL) && self.current_track_id.is_some() {
             let mut scores: Vec<(u64, f64)> = self
                 .angle_history
                 .iter()
