@@ -581,7 +581,9 @@ mod tests {
         );
         player.context.config.teleport_key = Some(KeyKind::Shift);
         player.context.config.ping_pong_attack_when_pathing = true;
-        player.context.set_priority_action(Some(1), PlayerAction::SolveRune);
+        player
+            .context
+            .set_priority_action(Some(1), PlayerAction::SolveRune);
         player.context.set_normal_action(
             None,
             PlayerAction::PingPong(PingPong {
@@ -781,7 +783,10 @@ mod tests {
     fn pathing_attack_releases_key_when_disabled_mid_hold() {
         let mut keys = MockInput::new();
         keys.expect_send_key_down_with_options()
-            .with(eq(KeyKind::A), eq(InputKeyDownOptions::default().repeatable()))
+            .with(
+                eq(KeyKind::A),
+                eq(InputKeyDownOptions::default().repeatable()),
+            )
             .once();
         keys.expect_send_key_up().with(eq(KeyKind::A)).once();
         let mut resources = Resources::new(Some(keys), None);
@@ -805,7 +810,10 @@ mod tests {
     fn pathing_attack_releases_key_after_context_reset() {
         let mut keys = MockInput::new();
         keys.expect_send_key_down_with_options()
-            .with(eq(KeyKind::A), eq(InputKeyDownOptions::default().repeatable()))
+            .with(
+                eq(KeyKind::A),
+                eq(InputKeyDownOptions::default().repeatable()),
+            )
             .once();
         keys.expect_send_key_up().with(eq(KeyKind::A)).once();
         let mut resources = Resources::new(Some(keys), None);
@@ -887,7 +895,10 @@ mod tests {
         // Cycle = 1 + 2 (hold) = 3 ticks: press down, hold, release, then repeat.
         let mut keys = MockInput::new();
         keys.expect_send_key_down_with_options()
-            .with(eq(KeyKind::A), eq(InputKeyDownOptions::default().repeatable()))
+            .with(
+                eq(KeyKind::A),
+                eq(InputKeyDownOptions::default().repeatable()),
+            )
             .once();
         keys.expect_send_key_up().with(eq(KeyKind::A)).once();
         let mut resources = Resources::new(Some(keys), None);
@@ -910,7 +921,10 @@ mod tests {
     fn pathing_attack_releases_key_when_within_distance() {
         let mut keys = MockInput::new();
         keys.expect_send_key_down_with_options()
-            .with(eq(KeyKind::A), eq(InputKeyDownOptions::default().repeatable()))
+            .with(
+                eq(KeyKind::A),
+                eq(InputKeyDownOptions::default().repeatable()),
+            )
             .once();
         keys.expect_send_key_up().with(eq(KeyKind::A)).once();
         let mut resources = Resources::new(Some(keys), None);

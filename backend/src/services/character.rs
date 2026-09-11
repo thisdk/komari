@@ -33,8 +33,7 @@ impl CharacterService for DefaultCharacterService {
         if let Some(character) = self.character.as_ref() {
             player_context.config.link_key_timing_millis = character.link_key_timing_millis;
             player_context.config.teleport_fall_threshold = character.teleport_fall_threshold;
-            player_context.config.teleport_up_jump_threshold =
-                character.teleport_up_jump_threshold;
+            player_context.config.teleport_up_jump_threshold = character.teleport_up_jump_threshold;
             player_context.config.disable_double_jumping = character.disable_double_jumping;
             player_context.config.disable_adjusting = character.disable_adjusting;
             player_context.config.disable_teleport_on_fall = character.disable_teleport_on_fall;

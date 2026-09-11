@@ -2301,22 +2301,17 @@ fn detect_lie_detector_shape(bgr: &impl ToInputArray, localization: &Localizatio
 
     let default_template = &*LIE_DETECTOR_TRANSPARENT_SHAPE_TEMPLATE;
     let used_template = template.as_ref().unwrap_or(default_template);
-    let (rect, score) = match detect_template_single(
-        bgr,
-        used_template,
-        no_array(),
-        Point::default(),
-        0.5,
-    ) {
-        Ok(result) => result,
-        Err(err) => {
-            debug!(
-                target: "backend/detect",
-                "lie_detector_shape title: NOT FOUND ({err:?})"
-            );
-            return Err(err);
-        }
-    };
+    let (rect, score) =
+        match detect_template_single(bgr, used_template, no_array(), Point::default(), 0.5) {
+            Ok(result) => result,
+            Err(err) => {
+                debug!(
+                    target: "backend/detect",
+                    "lie_detector_shape title: NOT FOUND ({err:?})"
+                );
+                return Err(err);
+            }
+        };
 
     debug!(
         target: "backend/detect",
@@ -2336,22 +2331,17 @@ fn detect_lie_detector_shape_preparing(bgr: &impl ToInputArray) -> Result<Rect> 
         .unwrap()
     });
 
-    let (rect, score) = match detect_template_single(
-        bgr,
-        &*TEMPLATE,
-        no_array(),
-        Point::default(),
-        0.5,
-    ) {
-        Ok(result) => result,
-        Err(err) => {
-            debug!(
-                target: "backend/detect",
-                "lie_detector_shape preparing: NOT FOUND ({err:?})"
-            );
-            return Err(err);
-        }
-    };
+    let (rect, score) =
+        match detect_template_single(bgr, &*TEMPLATE, no_array(), Point::default(), 0.5) {
+            Ok(result) => result,
+            Err(err) => {
+                debug!(
+                    target: "backend/detect",
+                    "lie_detector_shape preparing: NOT FOUND ({err:?})"
+                );
+                return Err(err);
+            }
+        };
 
     debug!(
         target: "backend/detect",
@@ -3411,9 +3401,7 @@ pub fn is_gpu_available() -> bool {
 
     static GPU_AVAILABLE: LazyLock<bool> = LazyLock::new(|| {
         Session::builder()
-            .and_then(|b| {
-                b.with_execution_providers([CUDAExecutionProvider::default().build()])
-            })
+            .and_then(|b| b.with_execution_providers([CUDAExecutionProvider::default().build()]))
             .is_ok()
     });
     *GPU_AVAILABLE

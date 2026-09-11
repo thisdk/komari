@@ -4,7 +4,9 @@ use opencv::core::{Point, Rect};
 use strum::Display;
 
 use super::{
-    Player, PlayerContext, moving::Moving, use_key::{UseKey, random_wait_ticks},
+    Player, PlayerContext,
+    moving::Moving,
+    use_key::{UseKey, random_wait_ticks},
 };
 use crate::{
     array::Array,

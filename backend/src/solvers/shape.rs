@@ -139,19 +139,15 @@ impl TransparentShapeSolver {
         if let Ok(region_mat) = detector.mat().roi(region) {
             for t in &tracks {
                 if let Ok(shape_roi) = region_mat.roi(t.rect()) {
-                    if let Some(angle) = compute_principal_axis_angle(&shape_roi)
-                    {
-                        let history =
-                            self.angle_history.entry(t.track_id()).or_default();
+                    if let Some(angle) = compute_principal_axis_angle(&shape_roi) {
+                        let history = self.angle_history.entry(t.track_id()).or_default();
                         // Unwrap to avoid π-periodic jumps before storing.
                         if let Some(&prev) = history.back() {
                             let mut adjusted = angle;
-                            while adjusted - prev > std::f64::consts::FRAC_PI_2
-                            {
+                            while adjusted - prev > std::f64::consts::FRAC_PI_2 {
                                 adjusted -= std::f64::consts::PI;
                             }
-                            while adjusted - prev < -std::f64::consts::FRAC_PI_2
-                            {
+                            while adjusted - prev < -std::f64::consts::FRAC_PI_2 {
                                 adjusted += std::f64::consts::PI;
                             }
                             history.push_back(adjusted);
@@ -177,9 +173,7 @@ impl TransparentShapeSolver {
         const ROTATION_CHECK_INTERVAL: u64 = 5;
         static SOLVE_COUNT: AtomicU64 = AtomicU64::new(0);
         let solve_n = SOLVE_COUNT.fetch_add(1, Ordering::Relaxed);
-        if solve_n % ROTATION_CHECK_INTERVAL == 0
-            && self.current_track_id.is_some()
-        {
+        if solve_n % ROTATION_CHECK_INTERVAL == 0 && self.current_track_id.is_some() {
             let mut scores: Vec<(u64, f64)> = self
                 .angle_history
                 .iter()
@@ -217,8 +211,7 @@ impl TransparentShapeSolver {
                         );
                         self.current_track_id = Some(*best_id);
                         self.current_track_tenure = 0;
-                        self.slow_smoothing_remaining =
-                            CURSOR_SMOOTHING_SLOW_FRAMES;
+                        self.slow_smoothing_remaining = CURSOR_SMOOTHING_SLOW_FRAMES;
                     }
                 }
             }
@@ -247,13 +240,7 @@ impl TransparentShapeSolver {
 
                 #[cfg(debug_assertions)]
                 if self.is_debugging {
-                    debug_transparent_shapes(
-                        detector,
-                        &tracks,
-                        region,
-                        cursor,
-                        self.bg_direction,
-                    );
+                    debug_transparent_shapes(detector, &tracks, region, cursor, self.bg_direction);
                 }
 
                 Some(absolute)
@@ -289,21 +276,15 @@ impl TransparentShapeSolver {
             // strongest rotation signal. Otherwise fall back to
             // closest-to-centre. The consistency-weighted drift score
             // already filters out oscillating distractors.
-            let has_history = self
-                .angle_history
-                .values()
-                .any(|h| h.len() >= 3);
+            let has_history = self.angle_history.values().any(|h| h.len() >= 3);
             let picked = if has_history {
-                tracks
-                    .iter()
-                    .max_by(|a, b| {
-                        let va = self.compute_rotation_drift(a.track_id());
-                        let vb = self.compute_rotation_drift(b.track_id());
-                        va.partial_cmp(&vb).unwrap_or(std::cmp::Ordering::Equal)
-                    })
+                tracks.iter().max_by(|a, b| {
+                    let va = self.compute_rotation_drift(a.track_id());
+                    let vb = self.compute_rotation_drift(b.track_id());
+                    va.partial_cmp(&vb).unwrap_or(std::cmp::Ordering::Equal)
+                })
             } else {
-                let region_mid =
-                    mid_point(Rect::new(0, 0, region.width, region.height));
+                let region_mid = mid_point(Rect::new(0, 0, region.width, region.height));
                 find_track_closest_to(region_mid, tracks)
             };
             if let Some(track) = picked {
@@ -390,8 +371,7 @@ impl TransparentShapeSolver {
             .iter()
             .filter(|track| track.track_id() == current_track_id || track.tracklet_len() >= 1)
             .filter_map(|track| {
-                let mut score =
-                    track_background_score(track, last_cursor, bg_direction, region)?;
+                let mut score = track_background_score(track, last_cursor, bg_direction, region)?;
                 if track.track_id() == current_track_id {
                     score *= tenure_bonus;
                 }
@@ -630,9 +610,7 @@ where
 ///
 /// A self-rotating shape will have a continuously drifting θ; a
 /// translating shape will have a nearly constant θ.
-fn compute_principal_axis_angle(
-    roi: &(impl MatTraitConst + ToInputArray),
-) -> Option<f64> {
+fn compute_principal_axis_angle(roi: &(impl MatTraitConst + ToInputArray)) -> Option<f64> {
     let mut gray = Mat::default();
     // Convert to grayscale — moments require a single-channel image.
     imgproc::cvt_color_def(roi, &mut gray, imgproc::COLOR_BGR2GRAY).ok()?;

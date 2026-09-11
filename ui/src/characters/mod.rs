@@ -2,14 +2,14 @@ use std::{fmt::Display, mem};
 
 use backend::{
     Character, EliteBossBehavior, ExchangeHexaBoosterCondition, FamiliarRarity, Familiars,
-    IntoEnumIterator, KeyBinding, KeyBindingConfiguration, PotionMode, Settings, SwappableFamiliars,
-    delete_character, query_characters, update_character, upsert_character,
+    IntoEnumIterator, KeyBinding, KeyBindingConfiguration, PotionMode, Settings,
+    SwappableFamiliars, delete_character, query_characters, update_character, upsert_character,
 };
 use dioxus::{html::FileData, prelude::*};
 use futures_util::StreamExt;
 
 use crate::{
-    AppState, persist_settings,
+    AppState,
     characters::{actions::SectionFixedActions, bindings::SectionKeyBindings, buffs::SectionBuffs},
     components::{
         ContentAlign, ContentSide,
@@ -24,6 +24,7 @@ use crate::{
         section::Section,
         select::{Select, SelectOption},
     },
+    persist_settings,
 };
 
 mod actions;

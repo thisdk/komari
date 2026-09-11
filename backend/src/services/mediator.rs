@@ -1,7 +1,6 @@
-use std::{fmt::Debug, ops::DerefMut};
-
 #[cfg(debug_assertions)]
 use std::path::PathBuf;
+use std::{fmt::Debug, ops::DerefMut};
 
 use opencv::{
     core::{MatTraitConst, MatTraitConstManual, Rect, Vec4b, Vector},
