@@ -59,13 +59,34 @@ runs:
     - if: inputs.toolchain == 'true'
       uses: mozilla-actions/sccache-action@v0.0.9
 
-    - if: inputs.toolchain == 'true'
-      uses: cargo-bins/cargo-binstall@main
-
+    # Installed straight from the release asset rather than through
+    # cargo-binstall: binstall resolves the same file via the GitHub API, which
+    # answers 403 to unauthenticated runners once a handful of jobs run at
+    # once, and its fallback source build does not compile on the pinned
+    # nightly (`kstring 2.0.4 requires rustc 1.96.0`).
     - if: inputs.toolchain == 'true'
       name: Install Dioxus CLI
       shell: pwsh
-      run: cargo binstall dioxus-cli@0.7.2 --no-confirm
+      run: |
+        $version = "0.7.2"
+        $asset = "dx-x86_64-pc-windows-msvc"
+        $base = "https://github.com/DioxusLabs/dioxus/releases/download/v$version"
+        $zip = "$env:RUNNER_TEMP\dx.zip"
+        $sha = "$env:RUNNER_TEMP\dx.sha256"
+
+        Invoke-WebRequest -Uri "$base/$asset.zip" -OutFile $zip
+        Invoke-WebRequest -Uri "$base/$asset.sha256" -OutFile $sha
+
+        $expected = ((Get-Content $sha -Raw) -split '\s+')[0].ToLower()
+        $actual = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+        if ($actual -ne $expected) {
+          throw "dx checksum mismatch: expected $expected but downloaded $actual"
+        }
+
+        $dir = "$env:RUNNER_TEMP\dx"
+        Expand-Archive -Path $zip -DestinationPath $dir -Force
+        Add-Content $env:GITHUB_PATH $dir
+        & "$dir\dx.exe" --version
 
     - if: inputs.toolchain == 'true'
       name: Install protoc
