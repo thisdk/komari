@@ -13,6 +13,13 @@
 //!
 //! Entries whose text contains `{name}` are templates; use [`I18n::format`].
 
+// Translation keys are named after the text they hold, so several of them
+// legitimately end in `Key` (`Key::CommonKey` is the "Key" label and
+// `Key::ActionLinkKey` the "Link key" one). That repetition is the content of
+// the table rather than the redundant naming this lint looks for, and the names
+// are what makes the table greppable from the game's own wording.
+#![allow(clippy::enum_variant_names)]
+
 use backend::{
     ActionKeyDirection, ActionKeyWith, CaptureMode, EliteBossBehavior,
     ExchangeHexaBoosterCondition, InputMethod, Language, LinkKeyBinding, PotionMode, RotationMode,
