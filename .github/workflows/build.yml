@@ -102,23 +102,30 @@ jobs:
           Get-ChildItem $app | Select-Object Name, Length
 
       - name: Package archive
+        id: package
         shell: pwsh
         run: |
           $app = "target/dx/ui/${{ matrix.type }}/windows/app"
-          $stage = "stage/app-${{ matrix.type }}"
+          # Archives are named after what they are and when they were built:
+          # komari-<release|debug>-<yyyy-MM-dd>.zip (UTC, so reruns of the same
+          # day agree no matter where the runner is).
+          $date = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
+          $name = "komari-${{ matrix.type }}-$date"
+          $stage = "stage/$name"
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
           Copy-Item -Path "$app/*" -Destination $stage -Recurse -Force
           New-Item -ItemType Directory -Force -Path "$stage/examples" | Out-Null
           Copy-Item -Path "examples/*" -Destination "$stage/examples" -Recurse -Force
           Copy-Item -Path "kmbox_example.bat" -Destination $stage -Force
           Copy-Item -Path "arduino_example.bat" -Destination $stage -Force
-          Compress-Archive -Path "$stage/*" -DestinationPath "app-${{ matrix.type }}.zip" -Force
-          Get-Item "app-${{ matrix.type }}.zip" | Select-Object Name, Length
+          Compress-Archive -Path "$stage/*" -DestinationPath "$name.zip" -Force
+          Get-Item "$name.zip" | Select-Object Name, Length
+          "name=$name" >> $env:GITHUB_OUTPUT
 
       - uses: actions/upload-artifact@v4
         with:
-          name: app-${{ matrix.type }}
-          path: app-${{ matrix.type }}.zip
+          name: ${{ steps.package.outputs.name }}
+          path: ${{ steps.package.outputs.name }}.zip
           if-no-files-found: error
 
   # Publishing lives in its own job: the two matrix legs would otherwise race

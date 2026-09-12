@@ -33,7 +33,8 @@
 ## Download
 
 1. Go to the [GitHub Release Page](https://github.com/sasanquaa/komari/releases)
-2. Download `app-release.zip` or `app-debug.zip`
+2. Download `komari-release-<date>.zip`, or `komari-debug-<date>.zip` for the build with the
+   console window, where `<date>` is the UTC build date (e.g. `komari-release-2026-09-12.zip`)
 3. Extract the archive
 4. Run the `.exe` file
 

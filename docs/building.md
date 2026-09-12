@@ -140,10 +140,10 @@ The directory that is actually used is logged as `data directory: ...` on every 
 
 ## Continuous integration
 
-`.github/workflows/build.yml` runs on `windows-latest` and publishes an
-`app-debug.zip` / `app-release.zip` artifact for every push, plus draft release
-assets for tags. The toolchain it pins is the reference for a reproducible
-build:
+`.github/workflows/build.yml` runs on `windows-latest` and publishes
+`komari-debug-<date>.zip` / `komari-release-<date>.zip` artifacts (named after
+the UTC build date) for every push, plus draft release assets for tags. The
+toolchain it pins is the reference for a reproducible build:
 
 | Tool | Pinned version | Where |
 |---|---|---|
