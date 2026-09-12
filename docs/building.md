@@ -121,6 +121,19 @@ dx build --package ui
 
 Output: `target\dx\ui\debug\windows\app\ui.exe` (includes console window for log output)
 
+### Runtime data during development
+
+The program stores its settings, database, captures and logs next to its own executable, which
+for the debug build is `target\dx\ui\debug\windows\app` — a directory `dx build` wipes. Point
+`KOMARI_DATA_DIR` at a directory outside the target tree to keep your characters, maps and
+settings across rebuilds:
+
+```bash
+export KOMARI_DATA_DIR="$HOME/komari-data"
+```
+
+The directory that is actually used is logged as `data directory: ...` on every start.
+
 ### Shortcuts
 
 `ui_release.bat` and `ui_debug.bat` at the project root launch the respective builds.

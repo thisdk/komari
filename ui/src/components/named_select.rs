@@ -1,9 +1,12 @@
 use dioxus::prelude::*;
 use tw_merge::tw_merge;
 
-use crate::components::{
-    button::{Button, ButtonStyle},
-    text::TextInput,
+use crate::{
+    components::{
+        button::{Button, ButtonStyle},
+        text::TextInput,
+    },
+    i18n::{Key, use_i18n},
 };
 
 const BUTTON_CLASS: &str = "w-20 h-full flex-none";
@@ -34,6 +37,7 @@ pub fn NamedSelect(props: NamedSelectProps) -> Element {
     let class = props.class;
     let disabled = props.disabled;
     let delete_disabled = props.delete_disabled;
+    let i18n = use_i18n();
 
     let mut state = use_signal(|| State::Select);
 
@@ -75,7 +79,7 @@ pub fn NamedSelect(props: NamedSelectProps) -> Element {
                     State::Create { name, error } => rsx! {
                         TextInput {
                             class: "size-full",
-                            placeholder: "Enter a name...",
+                            placeholder: i18n.t(Key::CommonEnterName),
                             value: name,
                             disabled,
                             on_value: move |name| {
@@ -91,8 +95,8 @@ pub fn NamedSelect(props: NamedSelectProps) -> Element {
                 disabled,
                 on_click: handle_click_first,
                 match state() {
-                    State::Select => "Create",
-                    State::Create { .. } => "Save",
+                    State::Select => {i18n.t(Key::CommonCreate)},
+                    State::Create { .. } => {i18n.t(Key::CommonSave)},
                 }
             }
             Button {
@@ -104,8 +108,8 @@ pub fn NamedSelect(props: NamedSelectProps) -> Element {
                 },
                 on_click: handle_click_second,
                 match state() {
-                    State::Select => "Delete",
-                    State::Create { .. } => "Cancel",
+                    State::Select => {i18n.t(Key::CommonDelete)},
+                    State::Create { .. } => {i18n.t(Key::CommonCancel)},
                 }
             }
         }

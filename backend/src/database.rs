@@ -1,7 +1,4 @@
-use std::{
-    path::PathBuf,
-    sync::{LazyLock, Mutex},
-};
+use std::sync::{LazyLock, Mutex};
 
 use anyhow::{Result, bail};
 use rusqlite::{Connection, Params, Statement, types::Null};
@@ -11,6 +8,7 @@ use tokio::sync::broadcast::{Receiver, Sender, channel};
 use crate::{
     models::{Character, Identifiable, Localization, Map, Seeds, Settings},
     services::Event,
+    utils::dataset_dir,
 };
 
 const MAPS: &str = "maps";
@@ -20,15 +18,11 @@ const SEEDS: &str = "seeds";
 const LOCALIZATIONS: &str = "localizations";
 
 static CONNECTION: LazyLock<Mutex<Connection>> = LazyLock::new(|| {
-    // Store in project root so the database survives `dx build` wipes of
-    // the target directory. CARGO_MANIFEST_DIR = <project>/backend.
-    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .unwrap()
-        .join("dataset");
-    let _ = std::fs::create_dir_all(&dir);
-    let path = dir.join("local.db");
-    let conn = Connection::open(path.to_str().unwrap()).expect("failed to open local.db");
+    // Everything the program produces is stored next to the executable so it
+    // can be managed and deleted in a single place. See [`dataset_dir`].
+    let path = dataset_dir().join("local.db");
+    let conn = Connection::open(&path)
+        .unwrap_or_else(|error| panic!("failed to open {}: {error}", path.display()));
     conn.execute_batch(
         format!(
             r#"

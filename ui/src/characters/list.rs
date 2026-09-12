@@ -17,6 +17,7 @@ use crate::{
         list::{List, ListItem, MoveEvent},
         popup::{self, PopupContext, PopupTrigger},
     },
+    i18n::{Key, use_i18n},
 };
 
 #[derive(Debug)]
@@ -59,6 +60,7 @@ pub fn ActionConfigurationsList(
 ) -> Element {
     let mut popup_content = use_signal(|| PopupContent::None);
     let mut popup_open = use_signal(|| false);
+    let i18n = use_i18n();
 
     rsx! {
         PopupContext {
@@ -121,7 +123,8 @@ pub fn ActionConfigurationsList(
                         popup_content.set(PopupContent::Add(ActionConfiguration::default()));
                     },
                     disabled,
-                    "Add action"
+
+                    {i18n.t(Key::CommonAddAction)}
                 }
             }
 
@@ -195,6 +198,7 @@ fn Item(action: ActionConfiguration) -> Element {
         "text-center inline-block pt-1 text-ellipsis overflow-hidden whitespace-nowrap";
     const ITEM_BORDER_CLASS: &str = "border-r-2 border-secondary-border";
 
+    let i18n = use_i18n();
     let ActionConfiguration {
         key,
         key_hold_millis,
@@ -267,11 +271,11 @@ fn Item(action: ActionConfiguration) -> Element {
         (Some(before), Some(after)) => format!("{before} - {after} / "),
     };
 
-    let with = match with {
-        ActionKeyWith::Any => "Any",
-        ActionKeyWith::Stationary => "Stationary",
-        ActionKeyWith::DoubleJump => "Double jump",
-    };
+    let with = i18n.t(match with {
+        ActionKeyWith::Any => Key::CommonAny,
+        ActionKeyWith::Stationary => Key::CommonStationary,
+        ActionKeyWith::DoubleJump => Key::CommonDoubleJump,
+    });
 
     rsx! {
         div { class: "grid grid-cols-[100px_auto] h-6 text-xs text-secondary-text group-hover:bg-secondary-surface {linked_action}",
@@ -290,10 +294,11 @@ fn PopupActionConfigurationContent(
     on_value: Callback<ActionConfiguration>,
     value: Option<ActionConfiguration>,
 ) -> Element {
+    let i18n = use_i18n();
     let section_text = if modifying {
-        "Modify a fixed action".to_string()
+        i18n.t(Key::CharactersModifyFixedAction).to_string()
     } else {
-        "Add a new fixed action".to_string()
+        i18n.t(Key::CharactersAddNewFixedAction).to_string()
     };
 
     rsx! {
@@ -324,6 +329,7 @@ fn ActionConfigurationInput(
         ActionConfigurationCondition::EveryMillis(millis) => Some(millis),
         ActionConfigurationCondition::Linked => None,
     });
+    let i18n = use_i18n();
 
     use_effect(move || {
         action.set(value());
@@ -337,14 +343,14 @@ fn ActionConfigurationInput(
                         style: ButtonStyle::Primary,
                         on_click: on_copy,
                         class: "col-span-3",
-                        "Copy"
+                        {i18n.t(Key::CommonCopy)}
                     }
                     div { class: "border-b border-primary-border" }
                 }
             }
             // Key, count and link key
             CharactersKeyInput {
-                label: "Key",
+                label: i18n.t(Key::CommonKey),
                 input_class: "border border-primary-border",
                 on_value: move |key: Option<KeyBinding>| {
                     let mut action = action.write();
@@ -354,7 +360,7 @@ fn ActionConfigurationInput(
             }
             div { class: "grid grid-cols-2 gap-3",
                 CharactersNumberU32Input {
-                    label: "Use count",
+                    label: i18n.t(Key::ActionUseCount),
                     on_value: move |count| {
                         let mut action = action.write();
                         action.count = count;
@@ -362,7 +368,7 @@ fn ActionConfigurationInput(
                     value: action().count,
                 }
                 CharactersMillisInput {
-                    label: "Hold for",
+                    label: i18n.t(Key::ActionHoldFor),
                     on_value: move |millis| {
                         let mut action = action.write();
                         action.key_hold_millis = millis;
@@ -371,8 +377,8 @@ fn ActionConfigurationInput(
                 }
             }
             CharactersCheckbox {
-                label: "Holding buffered",
-                tooltip: "Require [Wait after buffered] to be enabled and without [Link key]. When enabled, the holding time will be added to [Wait after] during the last key use. Useful for holding down key and moving simultaneously.",
+                label: i18n.t(Key::ActionHoldingBuffered),
+                tooltip: i18n.t(Key::ActionHoldingBufferedTooltip),
                 tooltip_align: ContentAlign::End,
                 tooltip_side: ContentSide::Bottom,
                 on_checked: move |checked| {
@@ -383,7 +389,7 @@ fn ActionConfigurationInput(
             }
 
             CharactersKeyInput {
-                label: "Link key",
+                label: i18n.t(Key::ActionLinkKey),
                 input_class: "border border-primary-border",
                 disabled: matches!(action().link_key, LinkKeyBinding::None),
                 on_value: move |key: Option<KeyBinding>| {
@@ -393,7 +399,7 @@ fn ActionConfigurationInput(
                 value: action().link_key.key().unwrap_or_default(),
             }
             CharactersSelect::<LinkKeyBinding> {
-                label: "Link key type",
+                label: i18n.t(Key::ActionLinkKeyType),
                 on_selected: move |link_key: LinkKeyBinding| {
                     let mut action = action.write();
                     action.link_key = link_key;
@@ -402,7 +408,7 @@ fn ActionConfigurationInput(
             }
             if can_create_linked_action {
                 CharactersCheckbox {
-                    label: "Linked action",
+                    label: i18n.t(Key::ActionLinkedAction),
                     checked: matches!(action().condition, ActionConfigurationCondition::Linked),
                     on_checked: move |is_linked: bool| {
                         let mut action = action.write();
@@ -419,7 +425,7 @@ fn ActionConfigurationInput(
 
             // Use with
             CharactersSelect::<ActionKeyWith> {
-                label: "Use with",
+                label: i18n.t(Key::ActionUseWith),
                 on_selected: move |with| {
                     let mut action = action.write();
                     action.with = with;
@@ -427,7 +433,7 @@ fn ActionConfigurationInput(
                 selected: action().with,
             }
             CharactersMillisInput {
-                label: "Use every",
+                label: i18n.t(Key::ActionUseEvery),
                 disabled: millis().is_none(),
                 on_value: move |new_millis| {
                     if millis.peek().is_some() {
@@ -441,7 +447,7 @@ fn ActionConfigurationInput(
 
             // Wait before use
             CharactersMillisInput {
-                label: "Wait before use",
+                label: i18n.t(Key::ActionWaitBeforeUse),
                 on_value: move |millis| {
                     let mut action = action.write();
                     action.wait_before_millis = millis;
@@ -449,7 +455,7 @@ fn ActionConfigurationInput(
                 value: action().wait_before_millis,
             }
             CharactersMillisInput {
-                label: "Wait random range",
+                label: i18n.t(Key::ActionWaitRandomRange),
                 on_value: move |millis| {
                     let mut action = action.write();
                     action.wait_before_millis_random_range = millis;
@@ -460,7 +466,7 @@ fn ActionConfigurationInput(
 
             // Wait after use
             CharactersMillisInput {
-                label: "Wait after use",
+                label: i18n.t(Key::ActionWaitAfterUse),
                 on_value: move |millis| {
                     let mut action = action.write();
                     action.wait_after_millis = millis;
@@ -468,7 +474,7 @@ fn ActionConfigurationInput(
                 value: action().wait_after_millis,
             }
             CharactersMillisInput {
-                label: "Wait random range",
+                label: i18n.t(Key::ActionWaitRandomRange),
                 on_value: move |millis| {
                     let mut action = action.write();
                     action.wait_after_millis_random_range = millis;
@@ -476,8 +482,8 @@ fn ActionConfigurationInput(
                 value: action().wait_after_millis_random_range,
             }
             CharactersSelect::<WaitAfterBuffered> {
-                label: "Wait after buffered",
-                tooltip: "After the last key use, instead of waiting inplace, the bot is allowed to execute the next action partially. This can be useful for movable skill with casting animation.",
+                label: i18n.t(Key::ActionWaitAfterBuffered),
+                tooltip: i18n.t(Key::ActionWaitAfterBufferedTooltip),
                 tooltip_align: ContentAlign::End,
                 on_selected: move |wait_after_buffered: WaitAfterBuffered| {
                     let mut action = action.write();
@@ -494,9 +500,9 @@ fn ActionConfigurationInput(
                     on_value(*action.peek());
                 },
                 if modifying {
-                    "Save"
+                    {i18n.t(Key::CommonSave)}
                 } else {
-                    "Add"
+                    {i18n.t(Key::CommonAdd)}
                 }
             }
             Button {
@@ -505,7 +511,7 @@ fn ActionConfigurationInput(
                 on_click: move |_| {
                     on_cancel(());
                 },
-                "Cancel"
+                {i18n.t(Key::CommonCancel)}
             }
         }
     }

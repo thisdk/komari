@@ -8,6 +8,9 @@ use crate::{KeyBinding, KeyBindingConfiguration};
 pub struct Settings {
     #[serde(skip_serializing, default)]
     pub id: Option<i64>,
+    /// The language used by the UI. Defaults to [`Language::SimplifiedChinese`].
+    #[serde(default)]
+    pub language: Language,
     pub capture_mode: CaptureMode,
     #[serde(default = "enable_solving_default")]
     pub enable_rune_solving: bool,
@@ -49,6 +52,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             id: None,
+            language: Language::default(),
             capture_mode: CaptureMode::default(),
             enable_rune_solving: enable_solving_default(),
             enable_transparent_shape_solving: enable_solving_default(),
@@ -112,6 +116,19 @@ fn platform_add_key_default() -> KeyBindingConfiguration {
         key: KeyBinding::L,
         enabled: false,
     }
+}
+
+/// The language the UI is displayed in.
+///
+/// The variant names are kept stable because they are persisted in the settings JSON.
+#[derive(Clone, Copy, PartialEq, Eq, Default, Debug, Serialize, Deserialize, EnumIter)]
+pub enum Language {
+    /// Simplified Chinese, the default.
+    #[default]
+    #[serde(rename = "zh-CN")]
+    SimplifiedChinese,
+    #[serde(rename = "en")]
+    English,
 }
 
 #[derive(

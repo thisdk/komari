@@ -19,9 +19,11 @@
   - [Panic Mode](#panic-mode)
   - [Elite Boss Spawns Behavior](#elite-boss-spawns-behavior)
   - [Notifications](#notifications)
+  - [Language](#language)
   - [Localization](#localization)
   - [Generic/HEXA Booster](#generichexa-booster)
   - [HEXA Booster Exchange](#hexa-booster-exchange)
+  - [Data Folder](#data-folder)
 - [Video Guides](#video-guides)
 - [Showcase](#showcase)
   - [Rotation](#rotation)
@@ -387,6 +389,20 @@ If `Discord ping user ID` is set, the bot pings that user in the notification me
 
 ---
 
+### Language
+
+Found under `Settings` → `Language`.
+
+The interface is available in **简体中文** (default) and **English**, and switches immediately
+after selecting a different language. The choice is stored with the rest of the settings, so it
+is kept across restarts and is included when settings are exported.
+
+Game vocabulary is intentionally left untranslated: item, skill and system names such as
+`Sol Erda`, `HEXA Booster`, `Erda Shower`, `Familiar`, `Violetta` or `PingPong` stay in English
+because that is what the game client and the bundled detection templates show.
+
+---
+
 ### Localization
 
 Introduced in **v0.22**.
@@ -398,7 +414,7 @@ How to use:
 2. Makes sure the matching UI element is currently visible in your game.  
 3. Identifies whether the template to replace is **color** or **grayscale**.  
 4. Clicks `Capture color` or `Capture grayscale`, depending on the template type.  
-5. Opens the `datasets` folder (located in the same directory as the `.exe` file).  
+5. Opens the `dataset` folder (located in the same directory as the `.exe` file).  
 6. Crops the captured image to match the template, then click `Replace` button.  
 
 ---
@@ -440,6 +456,27 @@ You can configure the amount to exchange using the `Amount` input field or by en
 
 ![HEXA Booster Exchange](https://github.com/sasanquaa/komari/blob/master/.github/images/hexa_booster_exchange.png?raw=true)
 
+
+### Data Folder
+
+Everything the program produces at runtime is written next to `ui.exe`, so the whole state can be
+inspected, backed up or removed in one place:
+
+| Path | Contents |
+|---|---|
+| `dataset/local.db` | Settings, characters, maps, action presets and localization templates |
+| `dataset/*.png` | Captured images from `Localization` → `Capture color` / `Capture grayscale` |
+| `log.txt` | Log of the current and previous runs |
+
+Deleting the `dataset` folder resets the program to its defaults; deleting `log.txt` just clears
+the logs. A portable install can therefore be copied or removed together with its data.
+
+> **Note:**  
+> The debug build writes its data to the same place relative to its own executable
+> (`target\dx\ui\debug\windows\app`), which `dx build` wipes. Set the `KOMARI_DATA_DIR`
+> environment variable to keep that data somewhere else while developing.
+
+The resolved data directory is logged as `data directory: ...` on every start.
 
 ## Video Guides
 

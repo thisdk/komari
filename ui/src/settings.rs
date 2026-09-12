@@ -1,9 +1,9 @@
 use std::{fmt::Display, mem};
 
 use backend::{
-    CaptureMode, InputMethod, IntoEnumIterator, KeyBinding, KeyBindingConfiguration, Notifications,
-    Settings, WebhookProvider, query_capture_handles, query_settings, refresh_capture_handles,
-    select_capture_handle, upsert_settings,
+    CaptureMode, InputMethod, IntoEnumIterator, KeyBinding, KeyBindingConfiguration, Language,
+    Notifications, Settings, WebhookProvider, query_capture_handles, query_settings,
+    refresh_capture_handles, select_capture_handle, upsert_settings,
 };
 use dioxus::{html::FileData, prelude::*};
 use futures_util::StreamExt;
@@ -23,6 +23,7 @@ use crate::{
         select::{Select, SelectOption},
         text::TextInput,
     },
+    i18n::{Key, LocalizedLabel, language_name, use_i18n},
 };
 
 #[derive(Debug)]
@@ -71,6 +72,7 @@ pub fn SettingsScreen() -> Element {
 
     rsx! {
         div { class: "flex flex-col h-full",
+            SectionLanguage {}
             SectionCapture {}
             SectionInput {}
             SectionNotifications {}
@@ -82,10 +84,46 @@ pub fn SettingsScreen() -> Element {
 }
 
 #[component]
+fn SectionLanguage() -> Element {
+    let context = use_context::<SettingsContext>();
+    let settings = context.settings;
+    let save_settings = context.save_settings;
+    let i18n = use_i18n();
+
+    rsx! {
+        Section { title: i18n.t(Key::SettingsLanguage),
+            div { class: "grid grid-cols-3 gap-3",
+                Labeled {
+                    label: i18n.t(Key::SettingsInterfaceLanguage),
+                    tooltip: i18n.t(Key::SettingsLanguageTooltip),
+                    Select::<Language> {
+                        on_selected: move |language| {
+                            save_settings(Settings {
+                                language,
+                                ..settings.peek().clone()
+                            });
+                        },
+
+                        for language in Language::iter() {
+                            SelectOption::<Language> {
+                                value: language,
+                                label: language_name(language).to_string(),
+                                selected: settings().language == language,
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[component]
 fn SectionCapture() -> Element {
     let context = use_context::<SettingsContext>();
     let settings = context.settings;
     let save_settings = context.save_settings;
+    let i18n = use_i18n();
 
     let mut selected_handle_index = use_signal(|| None);
     let mut handle_names = use_resource(move || async move {
@@ -94,17 +132,17 @@ fn SectionCapture() -> Element {
         names
     });
     let handle_names_with_default = use_memo(move || {
-        let default = vec!["Default".to_string()];
+        let default = vec![i18n.t(Key::SettingsDefault).to_string()];
         let names = handle_names().unwrap_or_default();
 
         [default, names].concat()
     });
 
     rsx! {
-        Section { title: "Capture",
+        Section { title: i18n.t(Key::SettingsCapture),
             div { class: "grid grid-cols-2 gap-3",
                 SettingsSelect {
-                    label: "Handle",
+                    label: i18n.t(Key::SettingsHandle),
                     options: handle_names_with_default(),
                     on_selected: move |index| async move {
                         if index == 0 {
@@ -118,7 +156,7 @@ fn SectionCapture() -> Element {
                     selected: selected_handle_index().map(|index| index + 1).unwrap_or_default(),
                 }
                 SettingsEnumSelect::<CaptureMode> {
-                    label: "Mode",
+                    label: i18n.t(Key::CommonMode),
                     on_selected: move |capture_mode| {
                         save_settings(Settings {
                             capture_mode,
@@ -136,7 +174,7 @@ fn SectionCapture() -> Element {
                 },
                 class: "mt-2",
 
-                "Refresh handles"
+                {i18n.t(Key::SettingsRefreshHandles)}
             }
         }
     }
@@ -147,12 +185,13 @@ fn SectionInput() -> Element {
     let context = use_context::<SettingsContext>();
     let settings = context.settings;
     let save_settings = context.save_settings;
+    let i18n = use_i18n();
 
     rsx! {
-        Section { title: "Input",
+        Section { title: i18n.t(Key::SettingsInput),
             div { class: "grid grid-cols-3 gap-3",
                 SettingsEnumSelect::<InputMethod> {
-                    label: "Method",
+                    label: i18n.t(Key::SettingsMethod),
                     on_selected: move |input_method| async move {
                         save_settings(Settings {
                             input_method,
@@ -162,8 +201,8 @@ fn SectionInput() -> Element {
                     selected: settings().input_method,
                 }
                 SettingsTextInput {
-                    text_label: "RPC server URL",
-                    button_label: "Update",
+                    text_label: i18n.t(Key::SettingsRpcServerUrl),
+                    button_label: i18n.t(Key::CommonUpdate),
                     on_value: move |input_method_rpc_server_url| {
                         save_settings(Settings {
                             input_method_rpc_server_url,
@@ -182,13 +221,14 @@ fn SectionNotifications() -> Element {
     let context = use_context::<SettingsContext>();
     let settings = context.settings;
     let save_settings = context.save_settings;
+    let i18n = use_i18n();
     let notifications = use_memo(move || settings().notifications);
 
     rsx! {
-        Section { title: "Notifications",
+        Section { title: i18n.t(Key::SettingsNotifications),
             div { class: "grid grid-cols-2 gap-3 mb-2",
                 SettingsEnumSelect::<WebhookProvider> {
-                    label: "Webhook provider",
+                    label: i18n.t(Key::SettingsWebhookProvider),
                     on_selected: move |webhook_provider| {
                         save_settings(Settings {
                             notifications: Notifications {
@@ -202,8 +242,8 @@ fn SectionNotifications() -> Element {
                 }
                 div {}
                 SettingsTextInput {
-                    text_label: "Webhook URL",
-                    button_label: "Update",
+                    text_label: i18n.t(Key::SettingsWebhookUrl),
+                    button_label: i18n.t(Key::CommonUpdate),
                     sensitive: true,
                     on_value: move |webhook_url| {
                         save_settings(Settings {
@@ -217,8 +257,8 @@ fn SectionNotifications() -> Element {
                     value: notifications().webhook_url,
                 }
                 SettingsTextInput {
-                    text_label: "Discord ping user ID",
-                    button_label: "Update",
+                    text_label: i18n.t(Key::SettingsDiscordUserId),
+                    button_label: i18n.t(Key::CommonUpdate),
                     sensitive: true,
                     on_value: move |discord_user_id| {
                         save_settings(Settings {
@@ -234,7 +274,7 @@ fn SectionNotifications() -> Element {
             }
             div { class: "grid grid-cols-3 gap-3",
                 SettingsCheckbox {
-                    label: "Rune spawns",
+                    label: i18n.t(Key::SettingsNotifyRuneSpawns),
                     on_checked: move |notify_on_rune_appear| {
                         save_settings(Settings {
                             notifications: Notifications {
@@ -247,7 +287,7 @@ fn SectionNotifications() -> Element {
                     checked: notifications().notify_on_rune_appear,
                 }
                 SettingsCheckbox {
-                    label: "Elite boss spawns",
+                    label: i18n.t(Key::SettingsNotifyEliteBoss),
                     on_checked: move |notify_on_elite_boss_appear| {
                         save_settings(Settings {
                             notifications: Notifications {
@@ -260,7 +300,7 @@ fn SectionNotifications() -> Element {
                     checked: notifications().notify_on_elite_boss_appear,
                 }
                 SettingsCheckbox {
-                    label: "Player dies",
+                    label: i18n.t(Key::SettingsNotifyPlayerDies),
                     on_checked: move |notify_on_player_die| {
                         save_settings(Settings {
                             notifications: Notifications {
@@ -273,7 +313,7 @@ fn SectionNotifications() -> Element {
                     checked: notifications().notify_on_player_die,
                 }
                 SettingsCheckbox {
-                    label: "Guildie appears",
+                    label: i18n.t(Key::SettingsNotifyGuildie),
                     on_checked: move |notify_on_player_guildie_appear| {
                         save_settings(Settings {
                             notifications: Notifications {
@@ -286,7 +326,7 @@ fn SectionNotifications() -> Element {
                     checked: notifications().notify_on_player_guildie_appear,
                 }
                 SettingsCheckbox {
-                    label: "Stranger appears",
+                    label: i18n.t(Key::SettingsNotifyStranger),
                     on_checked: move |notify_on_player_stranger_appear| {
                         save_settings(Settings {
                             notifications: Notifications {
@@ -299,7 +339,7 @@ fn SectionNotifications() -> Element {
                     checked: notifications().notify_on_player_stranger_appear,
                 }
                 SettingsCheckbox {
-                    label: "Friend appears",
+                    label: i18n.t(Key::SettingsNotifyFriend),
                     on_checked: move |notify_on_player_friend_appear| {
                         save_settings(Settings {
                             notifications: Notifications {
@@ -312,7 +352,7 @@ fn SectionNotifications() -> Element {
                     checked: notifications().notify_on_player_friend_appear,
                 }
                 SettingsCheckbox {
-                    label: "Detection fails or map changes",
+                    label: i18n.t(Key::SettingsNotifyFailOrChangeMap),
                     on_checked: move |notify_on_fail_or_change_map| {
                         save_settings(Settings {
                             notifications: Notifications {
@@ -325,7 +365,7 @@ fn SectionNotifications() -> Element {
                     checked: notifications().notify_on_fail_or_change_map,
                 }
                 SettingsCheckbox {
-                    label: "Lie detector appears",
+                    label: i18n.t(Key::SettingsNotifyLieDetector),
                     on_checked: move |notify_on_lie_detector_appear| {
                         save_settings(Settings {
                             notifications: Notifications {
@@ -338,7 +378,7 @@ fn SectionNotifications() -> Element {
                     checked: notifications().notify_on_lie_detector_appear,
                 }
                 SettingsCheckbox {
-                    label: "Run timer ends",
+                    label: i18n.t(Key::SettingsNotifyRunTimerEnd),
                     on_checked: move |notify_on_run_timer_end| {
                         save_settings(Settings {
                             notifications: Notifications {
@@ -357,12 +397,16 @@ fn SectionNotifications() -> Element {
 
 #[component]
 fn SectionHotkeys() -> Element {
+    let i18n = use_i18n();
+
     #[component]
     fn Hotkey(
         label: &'static str,
         on_value: Callback<KeyBindingConfiguration>,
         value: KeyBindingConfiguration,
     ) -> Element {
+        let i18n = use_i18n();
+
         rsx! {
             div { class: "flex gap-2",
                 SettingsKeyInput {
@@ -377,7 +421,7 @@ fn SectionHotkeys() -> Element {
                     value: value.key,
                 }
                 SettingsCheckbox {
-                    label: "Enabled",
+                    label: i18n.t(Key::CommonEnabled),
                     on_checked: move |enabled| {
                         on_value(KeyBindingConfiguration {
                             enabled,
@@ -395,10 +439,10 @@ fn SectionHotkeys() -> Element {
     let save_settings = context.save_settings;
 
     rsx! {
-        Section { title: "Hotkeys",
+        Section { title: i18n.t(Key::SettingsHotkeys),
             div { class: "grid grid-cols-2 gap-3",
                 Hotkey {
-                    label: "Toggle start/stop actions",
+                    label: i18n.t(Key::SettingsHotkeyToggleActions),
                     on_value: move |toggle_actions_key| {
                         save_settings(Settings {
                             toggle_actions_key,
@@ -408,7 +452,7 @@ fn SectionHotkeys() -> Element {
                     value: settings().toggle_actions_key,
                 }
                 Hotkey {
-                    label: "Add platform",
+                    label: i18n.t(Key::SettingsHotkeyAddPlatform),
                     on_value: move |platform_add_key| {
                         save_settings(Settings {
                             platform_add_key,
@@ -418,7 +462,7 @@ fn SectionHotkeys() -> Element {
                     value: settings().platform_add_key,
                 }
                 Hotkey {
-                    label: "Mark platform start",
+                    label: i18n.t(Key::SettingsHotkeyPlatformStart),
                     on_value: move |platform_start_key| {
                         save_settings(Settings {
                             platform_start_key,
@@ -428,7 +472,7 @@ fn SectionHotkeys() -> Element {
                     value: settings().platform_start_key,
                 }
                 Hotkey {
-                    label: "Mark platform end",
+                    label: i18n.t(Key::SettingsHotkeyPlatformEnd),
                     on_value: move |platform_end_key| {
                         save_settings(Settings {
                             platform_end_key,
@@ -447,11 +491,12 @@ fn SectionRunTimer() -> Element {
     let context = use_context::<SettingsContext>();
     let settings = context.settings;
     let save_settings = context.save_settings;
+    let i18n = use_i18n();
 
     rsx! {
-        Section { title: "Run timer",
+        Section { title: i18n.t(Key::SettingsRunTimer),
             div { class: "grid grid-cols-2 gap-3",
-                Labeled { label: "Duration (hh:mm:ss)",
+                Labeled { label: i18n.t(Key::SettingsRunTimerDuration),
                     DurationInput {
                         on_value: move |run_timer_millis| {
                             save_settings(Settings {
@@ -463,7 +508,7 @@ fn SectionRunTimer() -> Element {
                     }
                 }
                 SettingsCheckbox {
-                    label: "Enabled",
+                    label: i18n.t(Key::CommonEnabled),
                     on_checked: move |run_timer| {
                         save_settings(Settings {
                             run_timer,
@@ -482,6 +527,7 @@ fn SectionOthers() -> Element {
     let context = use_context::<SettingsContext>();
     let settings = context.settings;
     let save_settings = context.save_settings;
+    let i18n = use_i18n();
 
     let import_settings = use_callback(move |file: FileData| async move {
         let Some(id) = settings.peek().id else {
@@ -498,10 +544,10 @@ fn SectionOthers() -> Element {
     });
 
     rsx! {
-        Section { title: "Others",
+        Section { title: i18n.t(Key::SettingsOthers),
             div { class: "grid grid-cols-2 gap-3",
                 SettingsCheckbox {
-                    label: "Enable rune solving",
+                    label: i18n.t(Key::SettingsEnableRuneSolving),
                     on_checked: move |enable_rune_solving| {
                         save_settings(Settings {
                             enable_rune_solving,
@@ -511,7 +557,7 @@ fn SectionOthers() -> Element {
                     checked: settings().enable_rune_solving,
                 }
                 SettingsCheckbox {
-                    label: "Enable transparent shape solving",
+                    label: i18n.t(Key::SettingsEnableTransparentShapeSolving),
                     on_checked: move |enable_transparent_shape_solving| {
                         save_settings(Settings {
                             enable_transparent_shape_solving,
@@ -521,7 +567,7 @@ fn SectionOthers() -> Element {
                     checked: settings().enable_transparent_shape_solving,
                 }
                 SettingsCheckbox {
-                    label: "Enable Violetta solving",
+                    label: i18n.t(Key::SettingsEnableViolettaSolving),
                     on_checked: move |enable_violetta_solving| {
                         save_settings(Settings {
                             enable_violetta_solving,
@@ -531,7 +577,7 @@ fn SectionOthers() -> Element {
                     checked: settings().enable_violetta_solving,
                 }
                 SettingsCheckbox {
-                    label: "Enable panic mode",
+                    label: i18n.t(Key::SettingsEnablePanicMode),
                     on_checked: move |enable_panic_mode| {
                         save_settings(Settings {
                             enable_panic_mode,
@@ -541,7 +587,7 @@ fn SectionOthers() -> Element {
                     checked: settings().enable_panic_mode,
                 }
                 SettingsCheckbox {
-                    label: "Stop actions on fail or map changed",
+                    label: i18n.t(Key::SettingsStopOnFailOrChangeMap),
                     on_checked: move |stop_on_fail_or_change_map| {
                         save_settings(Settings {
                             stop_on_fail_or_change_map,
@@ -551,7 +597,7 @@ fn SectionOthers() -> Element {
                     checked: settings().stop_on_fail_or_change_map,
                 }
                 SettingsCheckbox {
-                    label: "Stop actions on player dies",
+                    label: i18n.t(Key::SettingsStopOnPlayerDies),
                     on_checked: move |stop_on_player_die| {
                         save_settings(Settings {
                             stop_on_player_die,
@@ -566,13 +612,13 @@ fn SectionOthers() -> Element {
                             on_file: move |file| async move {
                                 import_settings(file).await;
                             },
-                            Button { class: "w-full", style: ButtonStyle::Primary, "Import" }
+                            Button { class: "w-full", style: ButtonStyle::Primary, {i18n.t(Key::CommonImport)} }
                         }
 
                         FileOutput {
                             on_file: move |_| { serde_json::to_vec_pretty(&*settings.peek()).unwrap_or_default() },
                             download: "settings.json",
-                            Button { class: "w-full", style: ButtonStyle::Primary, "Export" }
+                            Button { class: "w-full", style: ButtonStyle::Primary, {i18n.t(Key::CommonExport)} }
                         }
                     }
                 }
@@ -619,12 +665,15 @@ fn SettingsMillisInput(
 }
 
 #[component]
-fn SettingsEnumSelect<T: 'static + Clone + PartialEq + Display + IntoEnumIterator>(
+fn SettingsEnumSelect<
+    T: 'static + Clone + PartialEq + Display + IntoEnumIterator + LocalizedLabel,
+>(
     label: &'static str,
     #[props(default)] disabled: bool,
     on_selected: Callback<T>,
     selected: ReadSignal<T>,
 ) -> Element {
+    let i18n = use_i18n();
     let selected_equal =
         use_callback(move |value: T| mem::discriminant(&selected()) == mem::discriminant(&value));
 
@@ -635,7 +684,7 @@ fn SettingsEnumSelect<T: 'static + Clone + PartialEq + Display + IntoEnumIterato
                 for value in T::iter() {
                     SelectOption::<T> {
                         value: value.clone(),
-                        label: value.to_string(),
+                        label: i18n.label(&value),
                         selected: selected_equal(value),
                         disabled,
                     }

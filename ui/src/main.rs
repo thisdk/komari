@@ -4,10 +4,10 @@
 #![feature(push_mut)]
 #![feature(iter_intersperse)]
 
-use std::{env::current_exe, io::stdout, string::ToString, sync::LazyLock};
+use std::{io::stdout, string::ToString, sync::LazyLock};
 
 use actions::ActionsScreen;
-use backend::{Character, Localization, Map, Settings, query_settings, upsert_settings};
+use backend::{Character, Localization, Map, Settings, data_dir, query_settings, upsert_settings};
 use characters::CharactersScreen;
 #[cfg(debug_assertions)]
 use debug::DebugScreen;
@@ -20,6 +20,7 @@ use dioxus::{
     prelude::*,
 };
 use fern::Dispatch;
+use i18n::{I18n, Key, use_i18n};
 use log::LevelFilter;
 use minimap::MinimapScreen;
 use rand::distr::{Alphanumeric, SampleString};
@@ -32,6 +33,7 @@ mod characters;
 mod components;
 #[cfg(debug_assertions)]
 mod debug;
+mod i18n;
 mod localization;
 mod minimap;
 mod settings;
@@ -39,6 +41,7 @@ mod settings;
 const TAILWIND_CSS: Asset = asset!("public/tailwind.css");
 const AUTO_NUMERIC_JS: Asset = asset!("public/autoNumeric.min.js");
 const SORTABLE_JS: Asset = asset!("public/Sortable.min.js");
+/// Internal tab identifiers. They are never displayed, only [`TABS`] titles are.
 const TAB_ACTIONS: &str = "Actions";
 const TAB_CHARACTERS: &str = "Characters";
 const TAB_SETTINGS: &str = "Settings";
@@ -46,14 +49,15 @@ const TAB_LOCALIZATION: &str = "Localization";
 #[cfg(debug_assertions)]
 const TAB_DEBUG: &str = "Debug";
 
-static TABS: LazyLock<Vec<String>> = LazyLock::new(|| {
+/// The tabs of the main window as `(id, title)`.
+static TABS: LazyLock<Vec<(&'static str, Key)>> = LazyLock::new(|| {
     vec![
-        TAB_ACTIONS.to_string(),
-        TAB_CHARACTERS.to_string(),
-        TAB_SETTINGS.to_string(),
-        TAB_LOCALIZATION.to_string(),
+        (TAB_ACTIONS, Key::TabActions),
+        (TAB_CHARACTERS, Key::TabCharacters),
+        (TAB_SETTINGS, Key::TabSettings),
+        (TAB_LOCALIZATION, Key::TabLocalization),
         #[cfg(debug_assertions)]
-        TAB_DEBUG.to_string(),
+        (TAB_DEBUG, Key::TabDebug),
     ]
 });
 
@@ -63,6 +67,9 @@ fn main() {
     } else {
         LevelFilter::Info
     };
+    // Everything the program writes lives next to the executable, so the whole
+    // state can be managed or removed in one place.
+    let data_directory = data_dir();
     Dispatch::new()
         .format(|out, message, record| {
             out.finish(format_args!(
@@ -81,10 +88,11 @@ fn main() {
                 || target.starts_with("platforms")
         })
         .chain(stdout())
-        .chain(fern::log_file(current_exe().unwrap().parent().unwrap().join("log.txt")).unwrap())
+        .chain(fern::log_file(data_directory.join("log.txt")).unwrap())
         .apply()
         .unwrap();
     log_panics::init();
+    log::info!("data directory: {}", data_directory.display());
 
     backend::init();
     let window = WindowBuilder::new()
@@ -121,6 +129,15 @@ fn App() -> Element {
         localization: Signal::new(None),
         position: Signal::new((0, 0)),
     });
+
+    // The language is part of the settings, so changing it in the settings
+    // screen updates every screen through this memo.
+    let language = use_memo(move || {
+        settings()
+            .map(|settings| settings.language)
+            .unwrap_or_default()
+    });
+    use_context_provider(|| I18n::new(language));
 
     // Loads settings early so screens can restore the last selected character/map/preset.
     use_future(move || async move {
@@ -184,7 +201,7 @@ pub(crate) fn persist_settings(
 
 #[derive(PartialEq, Props, Clone)]
 struct TabsProps {
-    tabs: Vec<String>,
+    tabs: Vec<(&'static str, Key)>,
     on_select_tab: EventHandler<String>,
     selected_tab: String,
 }
@@ -197,14 +214,16 @@ fn Tabs(
         selected_tab,
     }: TabsProps,
 ) -> Element {
+    let i18n = use_i18n();
+
     rsx! {
         div { class: "flex flex-row lg:flex-col px-2 gap-3",
-            for tab in tabs {
+            for (id , title) in tabs {
                 Tab {
-                    name: tab.clone(),
-                    selected: selected_tab == tab,
+                    name: i18n.t(title),
+                    selected: selected_tab == id,
                     on_click: move |_| {
-                        on_select_tab(tab.clone());
+                        on_select_tab(id.to_string());
                     },
                 }
             }

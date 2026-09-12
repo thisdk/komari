@@ -16,6 +16,7 @@ use crate::{
         ContentSide,
         button::{Button, ButtonStyle},
     },
+    i18n::{Key, use_i18n},
 };
 
 #[derive(Debug)]
@@ -92,6 +93,7 @@ pub fn ActionsInput(
     value: ReadSignal<Action>,
 ) -> Element {
     let mut current_value = use_signal(&*value);
+    let i18n = use_i18n();
 
     // TODO: Check if there is a bug on Dioxus side that cause `on_copy` to be `Some` even if
     // TODO: `None` is explicitly passed.
@@ -137,9 +139,9 @@ pub fn ActionsInput(
                             on_click: handle_switch,
                             class: "text-xxs",
                             if matches!(current_value(), Action::Move(_)) {
-                                "Switch to key"
+                                {i18n.t(Key::ActionSwitchToKey)}
                             } else {
-                                "Switch to move"
+                                {i18n.t(Key::ActionSwitchToMove)}
                             }
                         }
                     }
@@ -148,7 +150,8 @@ pub fn ActionsInput(
                             style: ButtonStyle::Primary,
                             on_click: on_copy,
                             class: "text-xxs",
-                            "Copy"
+
+                            {i18n.t(Key::CommonCopy)}
                         }
                     }
                 }
@@ -195,6 +198,7 @@ fn ActionsMoveInput(
     value: ReadSignal<ActionMove>,
 ) -> Element {
     let value_condition = value().condition;
+    let i18n = use_i18n();
 
     let mut current_value = use_signal(&*value);
     let current_value_position = WriteSignal::from(
@@ -219,7 +223,7 @@ fn ActionsMoveInput(
         div { class: "grid grid-cols-3 gap-3",
             // Position
             ActionsCheckbox {
-                label: "Adjust",
+                label: i18n.t(Key::ActionAdjust),
                 on_checked: handle_adjusting_update,
                 checked: current_value().position.allow_adjusting,
             }
@@ -236,7 +240,7 @@ fn ActionsMoveInput(
             }
 
             ActionsNumberInputI32 {
-                label: "X random range",
+                label: i18n.t(Key::ActionXRandomRange),
                 on_value: move |x| {
                     update_position(current_value_position, PositionUpdate::XRange(x));
                 },
@@ -253,7 +257,7 @@ fn ActionsMoveInput(
             }
 
             ActionsMillisInput {
-                label: "Wait after move",
+                label: i18n.t(Key::ActionWaitAfterMove),
                 on_value: move |millis| {
                     let mut action = current_value.write();
                     action.wait_after_move_millis = millis;
@@ -263,7 +267,7 @@ fn ActionsMoveInput(
 
             if linkable {
                 ActionsCheckbox {
-                    label: "Linked action",
+                    label: i18n.t(Key::ActionLinkedAction),
                     on_checked: move |is_linked: bool| {
                         let mut action = current_value.write();
                         action.condition = if is_linked {
@@ -285,9 +289,9 @@ fn ActionsMoveInput(
                     on_value((*current_value.peek(), value_condition));
                 },
                 if modifying {
-                    "Save"
+                    {i18n.t(Key::CommonSave)}
                 } else {
-                    "Add"
+                    {i18n.t(Key::CommonAdd)}
                 }
             }
 
@@ -297,7 +301,8 @@ fn ActionsMoveInput(
                 on_click: move |_| {
                     on_cancel(());
                 },
-                "Cancel"
+
+                {i18n.t(Key::CommonCancel)}
             }
         }
     }
@@ -315,6 +320,7 @@ fn ActionsKeyInput(
     value: ReadSignal<ActionKey>,
 ) -> Element {
     let value_condition = value().condition;
+    let i18n = use_i18n();
 
     let mut current_value = use_signal(&*value);
     let current_value_position =
@@ -332,7 +338,7 @@ fn ActionsKeyInput(
 
             // Key, count and link key
             ActionsKeyBindingInput {
-                label: "Key",
+                label: i18n.t(Key::CommonKey),
                 disabled: false,
                 on_value: move |key: Option<KeyBinding>| {
                     let mut action = current_value.write();
@@ -342,7 +348,7 @@ fn ActionsKeyInput(
             }
             div { class: "grid grid-cols-2 gap-3",
                 ActionsNumberInputU32 {
-                    label: "Use count",
+                    label: i18n.t(Key::ActionUseCount),
                     on_value: move |count| {
                         let mut action = current_value.write();
                         action.count = count;
@@ -350,7 +356,7 @@ fn ActionsKeyInput(
                     value: current_value().count,
                 }
                 ActionsMillisInput {
-                    label: "Hold for",
+                    label: i18n.t(Key::ActionHoldFor),
                     on_value: move |millis| {
                         let mut action = current_value.write();
                         action.key_hold_millis = millis;
@@ -360,8 +366,8 @@ fn ActionsKeyInput(
             }
             if bufferable() {
                 ActionsCheckbox {
-                    label: "Holding buffered",
-                    tooltip: "Require [Wait after buffered] to be enabled and without [Link key]. When enabled, the holding time will be added to [Wait after] during the last key use. Useful for holding down key and moving simultaneously.",
+                    label: i18n.t(Key::ActionHoldingBuffered),
+                    tooltip: i18n.t(Key::ActionHoldingBufferedTooltip),
                     tooltip_side: ContentSide::Bottom,
                     on_checked: move |checked| {
                         let mut action = current_value.write();
@@ -375,7 +381,7 @@ fn ActionsKeyInput(
 
 
             ActionsKeyBindingInput {
-                label: "Link key",
+                label: i18n.t(Key::ActionLinkKey),
                 disabled: matches!(current_value().link_key, LinkKeyBinding::None),
                 on_value: move |key: Option<KeyBinding>| {
                     let mut action = current_value.write();
@@ -384,7 +390,7 @@ fn ActionsKeyInput(
                 value: current_value().link_key.key().unwrap_or_default(),
             }
             ActionsSelect::<LinkKeyBinding> {
-                label: "Link key type",
+                label: i18n.t(Key::ActionLinkKeyType),
                 disabled: false,
                 on_selected: move |link_key: LinkKeyBinding| {
                     let mut action = current_value.write();
@@ -394,7 +400,7 @@ fn ActionsKeyInput(
             }
             if linkable() {
                 ActionsCheckbox {
-                    label: "Linked action",
+                    label: i18n.t(Key::ActionLinkedAction),
                     on_checked: move |is_linked: bool| {
                         let mut action = current_value.write();
                         action.condition = if is_linked {
@@ -413,7 +419,7 @@ fn ActionsKeyInput(
             // Use with, direction
 
             ActionsSelect::<ActionKeyWith> {
-                label: "Use with",
+                label: i18n.t(Key::ActionUseWith),
                 disabled: false,
                 on_selected: move |with| {
                     let mut action = current_value.write();
@@ -423,7 +429,7 @@ fn ActionsKeyInput(
             }
             if directionable() {
                 ActionsSelect::<ActionKeyDirection> {
-                    label: "Use direction",
+                    label: i18n.t(Key::ActionUseDirection),
                     disabled: false,
                     on_selected: move |direction| {
                         let mut action = current_value.write();
@@ -440,7 +446,7 @@ fn ActionsKeyInput(
             )
             {
                 ActionsCheckbox {
-                    label: "Queue to front",
+                    label: i18n.t(Key::ActionQueueToFront),
                     on_checked: move |queue_to_front: bool| {
                         let mut action = current_value.write();
                         action.queue_to_front = Some(queue_to_front);
@@ -452,7 +458,7 @@ fn ActionsKeyInput(
             }
             if let ActionCondition::EveryMillis(millis) = current_value().condition {
                 ActionsMillisInput {
-                    label: "Use every",
+                    label: i18n.t(Key::ActionUseEvery),
                     on_value: move |millis| {
                         let mut action = current_value.write();
                         action.condition = ActionCondition::EveryMillis(millis);
@@ -464,7 +470,7 @@ fn ActionsKeyInput(
 
             // Wait before use
             ActionsMillisInput {
-                label: "Wait before use",
+                label: i18n.t(Key::ActionWaitBeforeUse),
                 on_value: move |millis| {
                     let mut action = current_value.write();
                     action.wait_before_use_millis = millis;
@@ -472,7 +478,7 @@ fn ActionsKeyInput(
                 value: current_value().wait_before_use_millis,
             }
             ActionsMillisInput {
-                label: "Wait random range",
+                label: i18n.t(Key::ActionWaitRandomRange),
                 on_value: move |millis| {
                     let mut action = current_value.write();
                     action.wait_before_use_millis_random_range = millis;
@@ -483,7 +489,7 @@ fn ActionsKeyInput(
 
             // Wait after use
             ActionsMillisInput {
-                label: "Wait after use",
+                label: i18n.t(Key::ActionWaitAfterUse),
                 on_value: move |millis| {
                     let mut action = current_value.write();
                     action.wait_after_use_millis = millis;
@@ -491,7 +497,7 @@ fn ActionsKeyInput(
                 value: current_value().wait_after_use_millis,
             }
             ActionsMillisInput {
-                label: "Wait random range",
+                label: i18n.t(Key::ActionWaitRandomRange),
                 on_value: move |millis| {
                     let mut action = current_value.write();
                     action.wait_after_use_millis_random_range = millis;
@@ -500,8 +506,8 @@ fn ActionsKeyInput(
             }
             if bufferable() {
                 ActionsSelect::<WaitAfterBuffered> {
-                    label: "Wait after buffered",
-                    tooltip: "After the last key use, instead of waiting inplace, the bot is allowed to execute the next action partially. This can be useful for movable skill with casting animation.",
+                    label: i18n.t(Key::ActionWaitAfterBuffered),
+                    tooltip: i18n.t(Key::ActionWaitAfterBufferedTooltip),
                     disabled: false,
                     on_selected: move |wait_after_buffered: WaitAfterBuffered| {
                         let mut action = current_value.write();
@@ -519,9 +525,9 @@ fn ActionsKeyInput(
                     on_value((*current_value.peek(), value_condition));
                 },
                 if modifying() {
-                    "Save"
+                    {i18n.t(Key::CommonSave)}
                 } else {
-                    "Add"
+                    {i18n.t(Key::CommonAdd)}
                 }
             }
             Button {
@@ -530,7 +536,8 @@ fn ActionsKeyInput(
                 on_click: move |_| {
                     on_cancel(());
                 },
-                "Cancel"
+
+                {i18n.t(Key::CommonCancel)}
             }
         }
     }
@@ -539,6 +546,7 @@ fn ActionsKeyInput(
 #[component]
 fn KeyPositionInput(value: WriteSignal<Option<Position>>) -> Element {
     let disabled = use_memo(move || value().is_none());
+    let i18n = use_i18n();
 
     let handle_icon_click = use_position_icon_callback_optional(value);
 
@@ -567,7 +575,7 @@ fn KeyPositionInput(value: WriteSignal<Option<Position>>) -> Element {
             }
 
             ActionsNumberInputI32 {
-                label: "X range",
+                label: i18n.t(Key::ActionXRange),
                 disabled: disabled(),
                 on_value: move |x| {
                     update_position_optional(value, PositionUpdate::XRange(x));
@@ -588,14 +596,14 @@ fn KeyPositionInput(value: WriteSignal<Option<Position>>) -> Element {
 
         div { class: "grid grid-cols-2 gap-3",
             ActionsCheckbox {
-                label: "Adjust",
+                label: i18n.t(Key::ActionAdjust),
                 disabled: disabled(),
                 on_checked: handle_adjusting_update,
                 checked: value().map(|pos| pos.allow_adjusting).unwrap_or_default(),
             }
 
             ActionsCheckbox {
-                label: "Positioned",
+                label: i18n.t(Key::ActionPositioned),
                 on_checked: handle_positioned_update,
                 checked: !disabled(),
             }

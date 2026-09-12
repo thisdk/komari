@@ -13,6 +13,7 @@ use crate::{
         labeled::Labeled,
         section::Section,
     },
+    i18n::{Key, use_i18n},
 };
 
 #[derive(Debug)]
@@ -91,72 +92,74 @@ fn SectionInfo() -> Element {
         }
     }
 
+    let i18n = use_i18n();
+
     rsx! {
-        Section { title: "Info",
+        Section { title: i18n.t(Key::LocalizationInfo),
             table { class: "table-fixed",
                 thead {
                     tr {
-                        Header { title: "Section" }
-                        Header { title: "Function" }
-                        Header { title: "Template(s)" }
+                        Header { title: i18n.t(Key::LocalizationHeaderSection) }
+                        Header { title: i18n.t(Key::LocalizationHeaderFunction) }
+                        Header { title: i18n.t(Key::LocalizationHeaderTemplates) }
                     }
                 }
                 tbody {
                     tr {
-                        Data { description: "Popups", rowspan: 3 }
-                        Data { description: "Unstuck player through closing menu, popup, dialog, etc." }
-                        Data { description: "All popups." }
+                        Data { description: i18n.t(Key::LocalizationSectionPopups), rowspan: 3 }
+                        Data { description: i18n.t(Key::LocalizationDescUnstuck) }
+                        Data { description: i18n.t(Key::LocalizationDescAllPopups) }
                     }
                     tr {
-                        Data { description: "Go to town confirmation and save familiars setup." }
-                        Data { description: "Confirm popup." }
+                        Data { description: i18n.t(Key::LocalizationDescGoToTown) }
+                        Data { description: i18n.t(Key::LocalizationDescConfirmPopup) }
                     }
                     tr {
-                        Data { description: "Respawn on player death." }
-                        Data { description: "Ok (new) popup." }
+                        Data { description: i18n.t(Key::LocalizationDescRespawn) }
+                        Data { description: i18n.t(Key::LocalizationDescOkNewPopup) }
                     }
                     tr {
-                        Data { description: "Familiars", rowspan: 2 }
-                        Data { description: "Sort familiar cards by level before swapping." }
-                        Data { description: "Familiar menu setup tab's setup level sort button." }
+                        Data { description: i18n.t(Key::LocalizationSectionFamiliars), rowspan: 2 }
+                        Data { description: i18n.t(Key::LocalizationDescSortFamiliar) }
+                        Data { description: i18n.t(Key::LocalizationDescLevelSortButton) }
                     }
                     tr {
-                        Data { description: "Save familiars setup after swapping." }
-                        Data { description: "Familiar menu setup tab's save button." }
+                        Data { description: i18n.t(Key::LocalizationDescSaveFamiliars) }
+                        Data { description: i18n.t(Key::LocalizationDescSaveButton) }
                     }
                     tr {
-                        Data { description: "HEXA", rowspan: 4 }
-                        Data { description: "Open Sol Erda version menu in HEXA Matrix." }
-                        Data { description: "Erda conversion button." }
+                        Data { description: i18n.t(Key::LocalizationSectionHexa), rowspan: 4 }
+                        Data { description: i18n.t(Key::LocalizationDescErdaMenu) }
+                        Data { description: i18n.t(Key::LocalizationDescErdaConversionButton) }
                     }
                     tr {
-                        Data { description: "Open HEXA Booster exchange menu." }
-                        Data { description: "HEXA Booster button." }
+                        Data { description: i18n.t(Key::LocalizationDescBoosterExchangeMenu) }
+                        Data { description: i18n.t(Key::LocalizationDescHexaBoosterButton) }
                     }
                     tr {
-                        Data { description: "Select max HEXA Booster amount to exchange." }
-                        Data { description: "Max button." }
+                        Data { description: i18n.t(Key::LocalizationDescMaxAmount) }
+                        Data { description: i18n.t(Key::LocalizationDescMaxButton) }
                     }
                     tr {
-                        Data { description: "Convert Sol Erda to HEXA Booster." }
-                        Data { description: "Convert button." }
+                        Data { description: i18n.t(Key::LocalizationDescConvert) }
+                        Data { description: i18n.t(Key::LocalizationDescConvertButton) }
                     }
                     tr {
-                        Data { description: "Others", rowspan: 4 }
-                        Data { description: "Detect whether change channel menu is opened." }
-                        Data { description: "Change channel text." }
+                        Data { description: i18n.t(Key::LocalizationSectionOthers), rowspan: 4 }
+                        Data { description: i18n.t(Key::LocalizationDescChangeChannelMenu) }
+                        Data { description: i18n.t(Key::LocalizationDescChangeChannelText) }
                     }
                     tr {
-                        Data { description: "Detect whether player entered cash shop." }
-                        Data { description: "Cash shop text." }
+                        Data { description: i18n.t(Key::LocalizationDescCashShop) }
+                        Data { description: i18n.t(Key::LocalizationDescCashShopText) }
                     }
                     tr {
-                        Data { description: "Detect whether Generic/HEXA booster is in use." }
-                        Data { description: "Timer text." }
+                        Data { description: i18n.t(Key::LocalizationDescBoosterInUse) }
+                        Data { description: i18n.t(Key::LocalizationDescTimerText) }
                     }
                     tr {
-                        Data { description: "Detect lie detector event." }
-                        Data { description: "Lie detector title." }
+                        Data { description: i18n.t(Key::LocalizationDescLieDetector) }
+                        Data { description: i18n.t(Key::LocalizationDescLieDetectorTitle) }
                     }
                 }
             }
@@ -166,14 +169,16 @@ fn SectionInfo() -> Element {
                     on_click: move |_| async move {
                         save_capture_image(false).await;
                     },
-                    "Capture color"
+
+                    {i18n.t(Key::LocalizationCaptureColor)}
                 }
                 Button {
                     style: ButtonStyle::Primary,
                     on_click: move |_| async move {
                         save_capture_image(true).await;
                     },
-                    "Capture grayscale"
+
+                    {i18n.t(Key::LocalizationCaptureGrayscale)}
                 }
             }
         }
@@ -185,9 +190,10 @@ fn SectionPopups() -> Element {
     let context = use_context::<LocalizationContext>();
     let localization = context.localization;
     let save_localization = context.save_localization;
+    let i18n = use_i18n();
 
     rsx! {
-        Section { title: "Popups",
+        Section { title: i18n.t(Key::LocalizationSectionPopups),
             div { class: "grid grid-cols-2  gap-4",
                 LocalizationTemplateInput {
                     label: "Confirm",
@@ -287,12 +293,13 @@ fn SectionHexa() -> Element {
     let context = use_context::<LocalizationContext>();
     let localization = context.localization;
     let save_localization = context.save_localization;
+    let i18n = use_i18n();
 
     rsx! {
-        Section { title: "HEXA",
+        Section { title: i18n.t(Key::LocalizationSectionHexa),
             div { class: "grid grid-cols-2 gap-4",
                 LocalizationTemplateInput {
-                    label: "Erda conversion button",
+                    label: i18n.t(Key::LocalizationErdaConversionButton),
                     template: DetectionTemplate::HexaErdaConversionButton,
                     on_value: move |image: Option<Vec<u8>>| async move {
                         save_localization(Localization {
@@ -303,7 +310,7 @@ fn SectionHexa() -> Element {
                     value: localization().hexa_erda_conversion_button_base64,
                 }
                 LocalizationTemplateInput {
-                    label: "HEXA Booster button",
+                    label: i18n.t(Key::LocalizationHexaBoosterButton),
                     template: DetectionTemplate::HexaBoosterButton,
                     on_value: move |image: Option<Vec<u8>>| async move {
                         save_localization(Localization {
@@ -314,7 +321,7 @@ fn SectionHexa() -> Element {
                     value: localization().hexa_booster_button_base64,
                 }
                 LocalizationTemplateInput {
-                    label: "Max button",
+                    label: i18n.t(Key::LocalizationMaxButton),
                     template: DetectionTemplate::HexaMaxButton,
                     on_value: move |image: Option<Vec<u8>>| async move {
                         save_localization(Localization {
@@ -325,7 +332,7 @@ fn SectionHexa() -> Element {
                     value: localization().hexa_max_button_base64,
                 }
                 LocalizationTemplateInput {
-                    label: "Convert button",
+                    label: i18n.t(Key::LocalizationConvertButton),
                     template: DetectionTemplate::HexaConvertButton,
                     on_value: move |image: Option<Vec<u8>>| async move {
                         save_localization(Localization {
@@ -345,12 +352,13 @@ fn SectionFamiliars() -> Element {
     let context = use_context::<LocalizationContext>();
     let localization = context.localization;
     let save_localization = context.save_localization;
+    let i18n = use_i18n();
 
     rsx! {
-        Section { title: "Familiars",
+        Section { title: i18n.t(Key::LocalizationSectionFamiliars),
             div { class: "grid grid-cols-2 gap-4",
                 LocalizationTemplateInput {
-                    label: "Level sort button",
+                    label: i18n.t(Key::LocalizationLevelSortButton),
                     template: DetectionTemplate::FamiliarsLevelSort,
                     on_value: move |image: Option<Vec<u8>>| async move {
                         save_localization(Localization {
@@ -361,7 +369,7 @@ fn SectionFamiliars() -> Element {
                     value: localization().familiar_level_button_base64,
                 }
                 LocalizationTemplateInput {
-                    label: "Save button",
+                    label: i18n.t(Key::LocalizationSaveButton),
                     template: DetectionTemplate::FamiliarsSaveButton,
                     on_value: move |image: Option<Vec<u8>>| async move {
                         save_localization(Localization {
@@ -381,12 +389,13 @@ fn SectionOthers() -> Element {
     let context = use_context::<LocalizationContext>();
     let localization = context.localization;
     let save_localization = context.save_localization;
+    let i18n = use_i18n();
 
     rsx! {
-        Section { title: "Others",
+        Section { title: i18n.t(Key::LocalizationSectionOthers),
             div { class: "grid grid-cols-2 gap-4",
                 LocalizationTemplateInput {
-                    label: "Cash shop",
+                    label: i18n.t(Key::LocalizationCashShop),
                     template: DetectionTemplate::CashShop,
                     on_value: move |image: Option<Vec<u8>>| async move {
                         save_localization(Localization {
@@ -397,9 +406,9 @@ fn SectionOthers() -> Element {
                     value: localization().cash_shop_base64,
                 }
                 LocalizationTemplateInput {
-                    label: "Change channel",
+                    label: i18n.t(Key::LocalizationChangeChannel),
                     template: DetectionTemplate::ChangeChannel,
-                    tooltip: "This template is in grayscale.",
+                    tooltip: i18n.t(Key::LocalizationGrayscaleTooltip),
                     on_value: move |image: Option<Vec<u8>>| async move {
                         save_localization(Localization {
                             change_channel_base64: to_base64(image, true).await,
@@ -409,9 +418,9 @@ fn SectionOthers() -> Element {
                     value: localization().change_channel_base64,
                 }
                 LocalizationTemplateInput {
-                    label: "Timer",
+                    label: i18n.t(Key::LocalizationTimer),
                     template: DetectionTemplate::Timer,
-                    tooltip: "This template is in grayscale.",
+                    tooltip: i18n.t(Key::LocalizationGrayscaleTooltip),
                     on_value: move |image: Option<Vec<u8>>| async move {
                         save_localization(Localization {
                             timer_base64: to_base64(image, true).await,
@@ -421,7 +430,7 @@ fn SectionOthers() -> Element {
                     value: localization().timer_base64,
                 }
                 LocalizationTemplateInput {
-                    label: "Lie detector (new)",
+                    label: i18n.t(Key::LocalizationLieDetectorNew),
                     template: DetectionTemplate::LieDetectorNew,
                     on_value: move |image: Option<Vec<u8>>| async move {
                         save_localization(Localization {
@@ -432,7 +441,7 @@ fn SectionOthers() -> Element {
                     value: localization().lie_detector_new_base64,
                 }
                 LocalizationTemplateInput {
-                    label: "Lie detector (old)",
+                    label: i18n.t(Key::LocalizationLieDetectorOld),
                     template: DetectionTemplate::LieDetectorOld,
                     on_value: move |image: Option<Vec<u8>>| async move {
                         save_localization(Localization {
@@ -459,6 +468,7 @@ fn LocalizationTemplateInput(
         on_value(file.read_bytes().await.ok().map(Vec::from));
     });
     let mut base64 = use_signal(String::default);
+    let i18n = use_i18n();
 
     use_effect(move || {
         if let Some(value) = value() {
@@ -490,7 +500,7 @@ fn LocalizationTemplateInput(
                         on_value(None);
                     },
 
-                    "Reset"
+                    {i18n.t(Key::CommonReset)}
                 }
             }
             div { class: "flex items-end",
@@ -499,7 +509,7 @@ fn LocalizationTemplateInput(
                         read_file(file).await;
                     },
                     accept: ".png,image/png",
-                    Button { class: "w-14", style: ButtonStyle::Primary, "Replace" }
+                    Button { class: "w-14", style: ButtonStyle::Primary, {i18n.t(Key::CommonReplace)} }
                 }
             }
         }

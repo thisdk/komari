@@ -15,6 +15,7 @@ use crate::{
         popup::PopupContext,
         section::Section,
     },
+    i18n::{Key, use_i18n},
 };
 
 #[derive(Clone, Copy, PartialEq)]
@@ -92,6 +93,7 @@ pub fn filter_actions(actions: Vec<Action>, condition: ActionCondition) -> Vec<(
 pub fn SectionActions(actions: Memo<Vec<Action>>, disabled: bool) -> Element {
     let coroutine = use_coroutine_handle::<ActionsUpdate>();
     let map = use_context::<ActionsContext>().map;
+    let i18n = use_i18n();
 
     let export_name = use_memo(move || format!("{}.json", map().name));
     let export_content = move |_| serde_json::to_vec_pretty(&*actions.peek()).unwrap_or_default();
@@ -216,7 +218,7 @@ pub fn SectionActions(actions: Memo<Vec<Action>>, disabled: bool) -> Element {
             on_open: move |open: bool| {
                 popup_open.set(open);
             },
-            Section { title: "Normal actions",
+            Section { title: i18n.t(Key::SectionNormalActions),
                 ActionsList {
                     on_add_click: move |_| {
                         handle_add_action_click(ActionCondition::Any);
@@ -229,7 +231,7 @@ pub fn SectionActions(actions: Memo<Vec<Action>>, disabled: bool) -> Element {
                     actions: actions(),
                 }
             }
-            Section { title: "Erda Shower off cooldown priority actions",
+            Section { title: i18n.t(Key::SectionErdaPriorityActions),
                 ActionsList {
                     on_add_click: move |_| {
                         handle_add_action_click(ActionCondition::ErdaShowerOffCooldown);
@@ -242,7 +244,7 @@ pub fn SectionActions(actions: Memo<Vec<Action>>, disabled: bool) -> Element {
                     actions: actions(),
                 }
             }
-            Section { title: "Every milliseconds priority actions",
+            Section { title: i18n.t(Key::SectionMillisPriorityActions),
                 ActionsList {
                     on_add_click: move |_| {
                         handle_add_action_click(ActionCondition::EveryMillis(0));
@@ -255,7 +257,7 @@ pub fn SectionActions(actions: Memo<Vec<Action>>, disabled: bool) -> Element {
                     actions: actions(),
                 }
             }
-            Section { title: "Import/export actions",
+            Section { title: i18n.t(Key::SectionImportExportActions),
                 div { class: "flex gap-2",
                     FileInput {
                         class: "flex-grow",
@@ -267,7 +269,8 @@ pub fn SectionActions(actions: Memo<Vec<Action>>, disabled: bool) -> Element {
                             class: "w-full",
                             style: ButtonStyle::Primary,
                             disabled,
-                            "Import"
+
+                            {i18n.t(Key::CommonImport)}
                         }
                     }
                     FileOutput {
@@ -279,7 +282,8 @@ pub fn SectionActions(actions: Memo<Vec<Action>>, disabled: bool) -> Element {
                             class: "w-full",
                             style: ButtonStyle::Primary,
                             disabled,
-                            "Export"
+
+                            {i18n.t(Key::CommonExport)}
                         }
                     }
                 }

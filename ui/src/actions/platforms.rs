@@ -14,6 +14,7 @@ use crate::{
         popup::{PopupContext, PopupTrigger},
         section::Section,
     },
+    i18n::{Key, use_i18n},
 };
 
 #[derive(PartialEq, Clone, Copy)]
@@ -41,6 +42,7 @@ pub fn SectionPlatforms(disabled: bool) -> Element {
 
     let map = context.map;
     let save_map = context.save_map;
+    let i18n = use_i18n();
 
     let add_platform = move |platform| {
         let mut map = map();
@@ -110,10 +112,10 @@ pub fn SectionPlatforms(disabled: bool) -> Element {
             on_open: move |open: bool| {
                 popup_open.set(open);
             },
-            Section { title: "Platforms",
+            Section { title: i18n.t(Key::SectionPlatforms),
                 div { class: "grid grid-cols-2 gap-3",
                     ActionsCheckbox {
-                        label: "Rune pathing",
+                        label: i18n.t(Key::PlatformsRunePathing),
                         disabled,
                         on_checked: move |rune_platforms_pathing| {
                             save_map(Map {
@@ -125,7 +127,7 @@ pub fn SectionPlatforms(disabled: bool) -> Element {
                     }
 
                     ActionsCheckbox {
-                        label: "Up jump only",
+                        label: i18n.t(Key::PlatformsUpJumpOnly),
                         disabled: disabled || !map().rune_platforms_pathing,
                         on_checked: move |rune_platforms_pathing_up_jump_only| {
                             save_map(Map {
@@ -137,7 +139,7 @@ pub fn SectionPlatforms(disabled: bool) -> Element {
                     }
 
                     ActionsCheckbox {
-                        label: "Auto-mobbing pathing",
+                        label: i18n.t(Key::PlatformsAutoMobbingPathing),
                         disabled,
                         on_checked: move |auto_mob_platforms_pathing| {
                             save_map(Map {
@@ -149,7 +151,7 @@ pub fn SectionPlatforms(disabled: bool) -> Element {
                     }
 
                     ActionsCheckbox {
-                        label: "Up jump only",
+                        label: i18n.t(Key::PlatformsUpJumpOnly),
                         disabled: disabled || !map().auto_mob_platforms_pathing,
                         on_checked: move |auto_mob_platforms_pathing_up_jump_only| {
                             save_map(Map {
@@ -192,7 +194,7 @@ pub fn SectionPlatforms(disabled: bool) -> Element {
                         disabled,
                         class: "mt-2 w-full",
 
-                        "Add platform"
+                        {i18n.t(Key::PlatformsAddPlatform)}
                     }
                 }
 

@@ -6,15 +6,19 @@ use backend::{
 use dioxus::prelude::*;
 use tokio::sync::broadcast::error::RecvError;
 
-use crate::components::{
-    button::{Button, ButtonStyle},
-    section::Section,
+use crate::{
+    components::{
+        button::{Button, ButtonStyle},
+        section::Section,
+    },
+    i18n::{Key, use_i18n},
 };
 
 #[component]
 pub fn DebugScreen() -> Element {
     let mut state = use_signal(DebugState::default);
     let mut file_input_key = use_signal(|| 0);
+    let i18n = use_i18n();
 
     use_future(move || async move {
         let mut rx = debug_state_receiver().await;
@@ -32,7 +36,7 @@ pub fn DebugScreen() -> Element {
 
     rsx! {
         div { class: "flex flex-col h-full overflow-y-auto",
-            Section { title: "Debug",
+            Section { title: i18n.t(Key::DebugSection),
                 div { class: "grid grid-cols-2 gap-3",
                     Button {
                         style: ButtonStyle::Secondary,
@@ -40,7 +44,7 @@ pub fn DebugScreen() -> Element {
                             test_spin_rune().await;
                         },
 
-                        "Test spin rune"
+                        {i18n.t(Key::DebugTestSpinRune)}
                     }
                     Button {
                         style: ButtonStyle::Secondary,
@@ -48,7 +52,7 @@ pub fn DebugScreen() -> Element {
                             test_violetta().await;
                         },
 
-                        "Test Violetta"
+                        {i18n.t(Key::DebugTestVioletta)}
                     }
                     Button {
                         style: ButtonStyle::Secondary,
@@ -56,7 +60,7 @@ pub fn DebugScreen() -> Element {
                             test_transparent_shape(TransparentShapeDifficulty::Normal).await;
                         },
 
-                        "Test transparent shape normal"
+                        {i18n.t(Key::DebugTestShapeNormal)}
                     }
                     Button {
                         style: ButtonStyle::Secondary,
@@ -66,7 +70,7 @@ pub fn DebugScreen() -> Element {
                             log::info!("[UI] Test transparent shape hard completed");
                         },
 
-                        "Test transparent shape hard"
+                        {i18n.t(Key::DebugTestShapeHard)}
                     }
                     label {
                         class: "inline-block h-6 text-xs text-center font-medium content-center
@@ -91,7 +95,7 @@ pub fn DebugScreen() -> Element {
                                 }
                             },
                         }
-                        "Test transparent shape..."
+                        {i18n.t(Key::DebugTestShapeFile)}
                     }
                     Button {
                         style: ButtonStyle::Secondary,
@@ -100,9 +104,9 @@ pub fn DebugScreen() -> Element {
                         },
 
                         if state().is_recording {
-                            "Stop recording"
+                            {i18n.t(Key::DebugStopRecording)}
                         } else {
-                            "Start recording"
+                            {i18n.t(Key::DebugStartRecording)}
                         }
                     }
                     Button {
@@ -112,9 +116,9 @@ pub fn DebugScreen() -> Element {
                         },
 
                         if state().is_rune_auto_saving {
-                            "Stop auto saving rune"
+                            {i18n.t(Key::DebugStopAutoSaveRune)}
                         } else {
-                            "Start auto saving rune"
+                            {i18n.t(Key::DebugStartAutoSaveRune)}
                         }
                     }
                     Button {
@@ -125,9 +129,9 @@ pub fn DebugScreen() -> Element {
                         },
 
                         if state().is_lie_detector_auto_recording {
-                            "Stop auto record lie detector"
+                            {i18n.t(Key::DebugStopAutoRecordLieDetector)}
                         } else {
-                            "Start auto record lie detector"
+                            {i18n.t(Key::DebugStartAutoRecordLieDetector)}
                         }
                     }
                 }

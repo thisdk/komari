@@ -22,6 +22,7 @@ use crate::{
         section::Section,
         select::{Select, SelectOption},
     },
+    i18n::{Key, LocalizedLabel, use_i18n},
     persist_settings,
 };
 
@@ -58,6 +59,7 @@ pub fn ActionsScreen() -> Element {
     let mut map = use_context::<AppState>().map;
     let mut map_preset = use_context::<AppState>().map_preset;
     let settings = use_context::<AppState>().settings;
+    let i18n = use_i18n();
     // Non-null view of map
     let map_view = use_memo(move || map().unwrap_or_default());
     // Maps currently selected `map` to presets
@@ -196,7 +198,7 @@ pub fn ActionsScreen() -> Element {
 
                 Select::<usize> {
                     class: "w-full",
-                    placeholder: "Create an actions preset for the selected map...",
+                    placeholder: i18n.t(Key::ActionsPresetPlaceholder),
                     disabled: map_presets().is_empty(),
                     on_selected: select_preset,
 
@@ -215,28 +217,30 @@ pub fn ActionsScreen() -> Element {
 
 #[component]
 fn SectionLegends() -> Element {
+    let i18n = use_i18n();
+
     rsx! {
-        Section { title: "Action legends", class: "text-xs text-primary-text",
-            p { "⟳ - Repeat" }
-            p { "⏱︎  - Wait" }
-            p { "ㄨ - No position" }
-            p { "⇈ - Queue to front" }
-            p { "⇆ - Any direction" }
-            p { "← - Left direction" }
-            p { "→ - Right direction" }
-            p { "⁺ - Buffered wait after" }
-            p { "A ⤓ - Key A is held down" }
-            p { "A ~ B - Random range between A and B" }
-            p { "A ↝ B - Use A key then B key" }
-            p { "A ↜ B - Use B key then A key" }
-            p { "A ↭ B - Use A and B keys at the same time" }
-            p { "A ↷ B - Use A key then B key while A is held down" }
+        Section { title: i18n.t(Key::ActionLegends), class: "text-xs text-primary-text",
+            p { {i18n.t(Key::LegendRepeat)} }
+            p { {i18n.t(Key::LegendWait)} }
+            p { {i18n.t(Key::LegendNoPosition)} }
+            p { {i18n.t(Key::LegendQueueToFront)} }
+            p { {i18n.t(Key::LegendAnyDirection)} }
+            p { {i18n.t(Key::LegendLeftDirection)} }
+            p { {i18n.t(Key::LegendRightDirection)} }
+            p { {i18n.t(Key::LegendBufferedWait)} }
+            p { {i18n.t(Key::LegendHeldKey)} }
+            p { {i18n.t(Key::LegendRandomRange)} }
+            p { {i18n.t(Key::LegendLinkBefore)} }
+            p { {i18n.t(Key::LegendLinkAfter)} }
+            p { {i18n.t(Key::LegendLinkSame)} }
+            p { {i18n.t(Key::LegendLinkAlong)} }
         }
     }
 }
 
 #[component]
-fn ActionsSelect<T: 'static + Clone + PartialEq + Display + IntoEnumIterator>(
+fn ActionsSelect<T: 'static + Clone + PartialEq + Display + IntoEnumIterator + LocalizedLabel>(
     label: &'static str,
     #[props(default)] tooltip: Option<String>,
     #[props(default = ContentAlign::Start)] tooltip_align: ContentAlign,
@@ -244,6 +248,7 @@ fn ActionsSelect<T: 'static + Clone + PartialEq + Display + IntoEnumIterator>(
     on_selected: Callback<T>,
     selected: ReadSignal<T>,
 ) -> Element {
+    let i18n = use_i18n();
     let selected_equal =
         use_callback(move |value: T| discriminant(&selected()) == discriminant(&value));
 
@@ -254,7 +259,7 @@ fn ActionsSelect<T: 'static + Clone + PartialEq + Display + IntoEnumIterator>(
                 for value in T::iter() {
                     SelectOption::<T> {
                         value: value.clone(),
-                        label: value.to_string(),
+                        label: i18n.label(&value),
                         selected: selected_equal(value),
                         disabled,
                     }

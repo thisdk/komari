@@ -7,6 +7,7 @@ use crate::{
         list::{ActionConfigurationsList, ItemClickEvent, ItemMoveEvent, ItemToggleEvent},
     },
     components::section::Section,
+    i18n::{Key, use_i18n},
 };
 
 #[component]
@@ -14,6 +15,7 @@ pub fn SectionFixedActions() -> Element {
     let context = use_context::<CharactersContext>();
     let character = context.character;
     let save_character = context.save_character;
+    let i18n = use_i18n();
 
     let add_action = move |action| {
         let mut character = character.peek().clone();
@@ -70,7 +72,7 @@ pub fn SectionFixedActions() -> Element {
     };
 
     rsx! {
-        Section { title: "Fixed actions",
+        Section { title: i18n.t(Key::SectionFixedActions),
             ActionConfigurationsList {
                 disabled: character().id.is_none(),
                 on_item_add: add_action,

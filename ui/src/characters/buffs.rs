@@ -4,6 +4,7 @@ use dioxus::prelude::*;
 use crate::{
     characters::{CharactersCheckbox, CharactersContext, CharactersKeyBindingConfigurationInput},
     components::section::Section,
+    i18n::{Key, use_i18n},
 };
 
 #[component]
@@ -12,13 +13,14 @@ pub fn SectionBuffs() -> Element {
     let character = context.character;
     let save_character = context.save_character;
     let disabled = use_memo(move || character().id.is_none());
+    let i18n = use_i18n();
 
     rsx! {
-        Section { title: "Buffs",
+        Section { title: i18n.t(Key::SectionBuffs),
             div { class: "grid grid-cols-2 xl:grid-cols-4 gap-4",
                 div { class: "col-span-full flex gap-2",
                     CharactersKeyBindingConfigurationInput {
-                        label: "Familiar skill",
+                        label: i18n.t(Key::BuffsFamiliarSkill),
                         label_class: "flex-1",
                         disabled,
                         on_value: move |key_config: Option<KeyBindingConfiguration>| {
@@ -30,7 +32,7 @@ pub fn SectionBuffs() -> Element {
                         value: character().familiar_buff_key,
                     }
                     CharactersKeyBindingConfigurationInput {
-                        label: "Familiar essence",
+                        label: i18n.t(Key::BuffsFamiliarEssence),
                         label_class: "flex-1",
                         disabled,
                         on_value: move |key_config: Option<KeyBindingConfiguration>| {
@@ -42,7 +44,7 @@ pub fn SectionBuffs() -> Element {
                         value: character().familiar_essence_key,
                     }
                     CharactersCheckbox {
-                        label: "Enabled",
+                        label: i18n.t(Key::CommonEnabled),
                         checked: character().familiar_buff_key.enabled,
                         on_checked: move |enabled| {
                             let character = character.peek().clone();
@@ -268,6 +270,8 @@ fn Buff(
     on_value: Callback<KeyBindingConfiguration>,
     disabled: ReadSignal<bool>,
 ) -> Element {
+    let i18n = use_i18n();
+
     rsx! {
         div { class: "flex gap-2",
             CharactersKeyBindingConfigurationInput {
@@ -280,7 +284,7 @@ fn Buff(
                 label_class: "flex-1",
             }
             CharactersCheckbox {
-                label: "Enabled",
+                label: i18n.t(Key::CommonEnabled),
                 checked: value.enabled,
                 on_checked: move |enabled| {
                     on_value(KeyBindingConfiguration {

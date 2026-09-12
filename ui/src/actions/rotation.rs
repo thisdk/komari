@@ -11,6 +11,7 @@ use crate::{
         popup::{PopupContext, PopupTrigger},
         section::Section,
     },
+    i18n::{Key, use_i18n},
 };
 
 #[derive(Clone, Copy, PartialEq)]
@@ -25,6 +26,7 @@ pub fn SectionRotation(disabled: bool) -> Element {
     let context = use_context::<ActionsContext>();
     let map = context.map;
     let save_map = context.save_map;
+    let i18n = use_i18n();
 
     let update_mobbing_key_disabled = use_memo(move || {
         let mode = map().rotation_mode;
@@ -91,10 +93,10 @@ pub fn SectionRotation(disabled: bool) -> Element {
             on_open: move |open: bool| {
                 popup_open.set(open);
             },
-            Section { title: "Rotation",
+            Section { title: i18n.t(Key::SectionRotation),
                 div { class: "grid grid-cols-2 gap-3",
                     ActionsSelect::<RotationMode> {
-                        label: "Mode",
+                        label: i18n.t(Key::CommonMode),
                         disabled,
                         on_selected: move |rotation_mode| {
                             save_map(Map {
@@ -114,7 +116,7 @@ pub fn SectionRotation(disabled: bool) -> Element {
                             disabled: disabled | update_mobbing_key_disabled(),
                             on_click: handle_mobbing_key_click,
 
-                            "Update mobbing key"
+                            {i18n.t(Key::RotationUpdateMobbingKey)}
                         }
                     }
 
@@ -125,13 +127,13 @@ pub fn SectionRotation(disabled: bool) -> Element {
                             disabled: disabled || update_mobbing_key_disabled(),
                             on_click: handle_mobbing_bound_click,
 
-                            "Update mobbing bound"
+                            {i18n.t(Key::RotationUpdateMobbingBound)}
                         }
                     }
 
                     ActionsCheckbox {
-                        label: "Auto mobbing uses key when pathing",
-                        tooltip: "Pathing means when the player is moving from one quad to another.",
+                        label: i18n.t(Key::RotationAutoMobbingUsesKey),
+                        tooltip: i18n.t(Key::RotationPathingTooltip),
                         disabled,
                         on_checked: move |auto_mob_use_key_when_pathing| {
                             save_map(Map {
@@ -143,7 +145,7 @@ pub fn SectionRotation(disabled: bool) -> Element {
                     }
 
                     ActionsMillisInput {
-                        label: "Detect mobs when pathing every",
+                        label: i18n.t(Key::RotationDetectMobsEvery),
                         disabled,
                         on_value: move |auto_mob_use_key_when_pathing_update_millis| {
                             save_map(Map {
@@ -155,7 +157,7 @@ pub fn SectionRotation(disabled: bool) -> Element {
                     }
 
                     ActionsCheckbox {
-                        label: "Reset normal actions on Erda Shower resets",
+                        label: i18n.t(Key::RotationResetNormalActions),
                         disabled,
                         on_checked: move |actions_any_reset_on_erda_condition| {
                             save_map(Map {

@@ -22,6 +22,7 @@ use crate::{
         named_select::NamedSelect,
         select::{Select, SelectOption},
     },
+    i18n::{Key, use_i18n},
     persist_settings,
 };
 
@@ -316,6 +317,7 @@ pub fn MinimapScreen() -> Element {
     let mut map = use_context::<AppState>().map;
     let mut map_preset = use_context::<AppState>().map_preset;
     let settings = use_context::<AppState>().settings;
+    let i18n = use_i18n();
     let mut maps = use_resource(async || query_maps().await.unwrap_or_default());
     let position = use_context::<AppState>().position;
     // Maps queried `maps` to names
@@ -455,7 +457,7 @@ pub fn MinimapScreen() -> Element {
                             delete_disabled: map_names().is_empty(),
                             Select::<usize> {
                                 class: "w-full",
-                                placeholder: "Create a map...",
+                                placeholder: i18n.t(Key::MinimapCreateMap),
                                 disabled: map_names().is_empty(),
                                 on_selected: move |index| {
                                     let selected: Map = maps
@@ -640,20 +642,23 @@ fn Info(state: ReadSignal<Option<MinimapState>>, map: ReadSignal<Option<Map>>) -
         run_time: String,
     }
 
+    let i18n = use_i18n();
     let info = use_memo(move || {
+        let unknown = i18n.t(Key::CommonUnknown).to_string();
+        let none = i18n.t(Key::CommonNone).to_string();
         let mut info = GameStateInfo {
-            position: "Unknown".to_string(),
-            health: "Unknown".to_string(),
-            state: "Unknown".to_string(),
-            normal_action: "None".to_string(),
-            priority_action: "None".to_string(),
-            erda_shower_state: "Unknown".to_string(),
-            input_state: "Unknown".to_string(),
-            gpu_enabled: "Unknown".to_string(),
+            position: unknown.clone(),
+            health: unknown.clone(),
+            state: unknown.clone(),
+            normal_action: none.clone(),
+            priority_action: none.clone(),
+            erda_shower_state: unknown.clone(),
+            input_state: unknown.clone(),
+            gpu_enabled: unknown.clone(),
             lie_detector_count: "0".to_string(),
-            detected_map_size: "Unknown".to_string(),
-            selected_map_size: "Unknown".to_string(),
-            time_until_stop: "None".to_string(),
+            detected_map_size: unknown,
+            selected_map_size: i18n.t(Key::CommonUnknown).to_string(),
+            time_until_stop: none,
             run_time: "0s".to_string(),
         };
 
@@ -665,10 +670,16 @@ fn Info(state: ReadSignal<Option<MinimapState>>, map: ReadSignal<Option<Map>>) -
             info.state = state.state;
             info.erda_shower_state = state.erda_shower_state;
             info.input_state = state.input_state;
-            info.gpu_enabled = state.gpu_enabled.to_string();
+            info.gpu_enabled = i18n
+                .t(if state.gpu_enabled {
+                    Key::CommonYes
+                } else {
+                    Key::CommonNo
+                })
+                .to_string();
             info.lie_detector_count = state.lie_detector_count.to_string();
             info.time_until_stop = match state.operation {
-                Operation::Halting | Operation::Running => "None".to_string(),
+                Operation::Halting | Operation::Running => i18n.t(Key::CommonNone).to_string(),
                 Operation::TemporaryHalting(duration) => duration_from(duration),
                 Operation::RunUntil(instant) => {
                     duration_from(instant.saturating_duration_since(Instant::now()))
@@ -697,18 +708,18 @@ fn Info(state: ReadSignal<Option<MinimapState>>, map: ReadSignal<Option<Map>>) -
 
     rsx! {
         div { class: "grid grid-cols-2 items-center justify-center px-4 py-3 gap-1",
-            InfoItem { name: "State", value: info().state }
-            InfoItem { name: "Position", value: info().position }
-            InfoItem { name: "Priority action", value: info().priority_action }
-            InfoItem { name: "Normal action", value: info().normal_action }
-            InfoItem { name: "Erda Shower", value: info().erda_shower_state }
-            InfoItem { name: "Detected size", value: info().detected_map_size }
-            InfoItem { name: "Selected size", value: info().selected_map_size }
-            InfoItem { name: "Time Until Stop", value: info().time_until_stop }
-            InfoItem { name: "Run Time", value: info().run_time }
-            InfoItem { name: "Input method", value: info().input_state }
-            InfoItem { name: "Use GPU", value: info().gpu_enabled }
-            InfoItem { name: "Lie Detectors", value: info().lie_detector_count }
+            InfoItem { name: i18n.t(Key::InfoState), value: info().state }
+            InfoItem { name: i18n.t(Key::InfoPosition), value: info().position }
+            InfoItem { name: i18n.t(Key::InfoPriorityAction), value: info().priority_action }
+            InfoItem { name: i18n.t(Key::InfoNormalAction), value: info().normal_action }
+            InfoItem { name: i18n.t(Key::InfoErdaShower), value: info().erda_shower_state }
+            InfoItem { name: i18n.t(Key::InfoDetectedSize), value: info().detected_map_size }
+            InfoItem { name: i18n.t(Key::InfoSelectedSize), value: info().selected_map_size }
+            InfoItem { name: i18n.t(Key::InfoTimeUntilStop), value: info().time_until_stop }
+            InfoItem { name: i18n.t(Key::InfoRunTime), value: info().run_time }
+            InfoItem { name: i18n.t(Key::InfoInputMethod), value: info().input_state }
+            InfoItem { name: i18n.t(Key::InfoUseGpu), value: info().gpu_enabled }
+            InfoItem { name: i18n.t(Key::InfoLieDetectors), value: info().lie_detector_count }
         }
     }
 }
@@ -723,6 +734,7 @@ fn InfoItem(name: String, value: String) -> Element {
 
 #[component]
 fn Buttons(state: ReadSignal<Option<MinimapState>>, map: ReadSignal<Option<Map>>) -> Element {
+    let i18n = use_i18n();
     let kind = use_memo(move || {
         state()
             .map(|state| match state.operation {
@@ -740,18 +752,20 @@ fn Buttons(state: ReadSignal<Option<MinimapState>>, map: ReadSignal<Option<Map>>
             kind(),
             OperationUpdate::Run | OperationUpdate::TemporaryHalt
         ) {
-            "Stop"
+            i18n.t(Key::MinimapStop)
         } else {
-            "Start"
+            i18n.t(Key::MinimapStart)
         }
     });
     let suspend_resume_text = use_memo(move || {
         state()
             .map(|state| match state.operation {
-                Operation::TemporaryHalting(_) => "Resume",
-                Operation::Halting | Operation::Running | Operation::RunUntil(_) => "Suspend",
+                Operation::TemporaryHalting(_) => i18n.t(Key::MinimapResume),
+                Operation::Halting | Operation::Running | Operation::RunUntil(_) => {
+                    i18n.t(Key::MinimapSuspend)
+                }
             })
-            .unwrap_or("Suspend")
+            .unwrap_or(i18n.t(Key::MinimapSuspend))
     });
     let suspend_resume_disabled = use_memo(move || {
         if disabled() {
@@ -805,7 +819,8 @@ fn Buttons(state: ReadSignal<Option<MinimapState>>, map: ReadSignal<Option<Map>>
                 on_click: move |_| async move {
                     redetect_minimap().await;
                 },
-                "Re-detect"
+
+                {i18n.t(Key::MinimapRedetect)}
             }
         }
     }
@@ -815,6 +830,7 @@ fn Buttons(state: ReadSignal<Option<MinimapState>>, map: ReadSignal<Option<Map>>
 fn ImportExport(map: ReadSignal<Option<Map>>) -> Element {
     let coroutine = use_coroutine_handle::<MinimapUpdate>();
     let mut bulk_key = use_signal(|| 0);
+    let i18n = use_i18n();
 
     let export_name = use_memo(move || {
         let name = map().map(|map| map.name).unwrap_or_default();
@@ -891,7 +907,7 @@ fn ImportExport(map: ReadSignal<Option<Map>>) -> Element {
                 on_file: move |file| async move {
                     import_map(file).await;
                 },
-                Button { class: "w-20", style: ButtonStyle::Primary, "Import" }
+                Button { class: "w-20", style: ButtonStyle::Primary, {i18n.t(Key::CommonImport)} }
             }
             FileOutput {
                 on_file: export_content,
@@ -902,7 +918,7 @@ fn ImportExport(map: ReadSignal<Option<Map>>) -> Element {
                     style: ButtonStyle::Primary,
                     disabled: map().is_none(),
 
-                    "Export"
+                    {i18n.t(Key::CommonExport)}
                 }
             }
             label {
@@ -922,7 +938,7 @@ fn ImportExport(map: ReadSignal<Option<Map>>) -> Element {
                         bulk_key += 1;
                     },
                 }
-                "Bulk import"
+                {i18n.t(Key::MinimapBulkImport)}
             }
         }
     }

@@ -8,6 +8,7 @@ use crate::{
         button::{Button, ButtonStyle},
         popup::PopupContent,
     },
+    i18n::{Key, use_i18n},
 };
 
 #[component]
@@ -19,14 +20,15 @@ pub fn PopupPlatformInputContent(
 ) -> Element {
     let position = use_context::<AppState>().position;
     let mut platform = use_signal(|| value);
+    let i18n = use_i18n();
 
     use_effect(use_reactive!(|value| platform.set(value)));
 
     rsx! {
-        PopupContent { title: if modifying { "Modify platform" } else { "Add platform" },
+        PopupContent { title: if modifying { i18n.t(Key::PopupModifyPlatform) } else { i18n.t(Key::PlatformsAddPlatform) },
             div { class: "grid grid-cols-3 gap-3 pb-10 overflow-y-auto",
                 ActionsPositionInput {
-                    label: "X start",
+                    label: i18n.t(Key::PopupXStart),
                     on_icon_click: move |_| {
                         platform.write().x_start = position.peek().0;
                     },
@@ -36,7 +38,7 @@ pub fn PopupPlatformInputContent(
                     value: platform().x_start,
                 }
                 ActionsPositionInput {
-                    label: "X end",
+                    label: i18n.t(Key::PopupXEnd),
                     on_icon_click: move |_| {
                         platform.write().x_end = position.peek().0;
                     },
@@ -66,9 +68,9 @@ pub fn PopupPlatformInputContent(
                     },
 
                     if modifying {
-                        "Save"
+                        {i18n.t(Key::CommonSave)}
                     } else {
-                        "Add"
+                        {i18n.t(Key::CommonAdd)}
                     }
                 }
                 Button {
@@ -77,7 +79,8 @@ pub fn PopupPlatformInputContent(
                     on_click: move |_| {
                         on_cancel(());
                     },
-                    "Cancel"
+
+                    {i18n.t(Key::CommonCancel)}
                 }
             }
         }
@@ -93,6 +96,7 @@ pub fn PopupMobbingBoundInputContent(
     let mut value = use_signal(|| value);
     let mut frame = use_signal::<Option<(Vec<u8>, usize, usize)>>(|| None);
     let mut task = use_signal::<Option<Task>>(|| None);
+    let i18n = use_i18n();
 
     use_effect(move || {
         spawn(async move {
@@ -215,13 +219,13 @@ pub fn PopupMobbingBoundInputContent(
     });
 
     rsx! {
-        PopupContent { title: "Modify mobbing bound",
+        PopupContent { title: i18n.t(Key::PopupModifyMobbingBound),
             if frame().is_some() {
                 canvas { class: "w-full h-full", id: "bound" }
             }
             div { class: "grid grid-cols-2 gap-3 pb-10 overflow-y-auto",
                 ActionsNumberInputI32 {
-                    label: "X offset",
+                    label: i18n.t(Key::PopupXOffset),
                     on_value: move |x| {
                         value.write().x = x;
                     },
@@ -229,7 +233,7 @@ pub fn PopupMobbingBoundInputContent(
                 }
 
                 ActionsNumberInputI32 {
-                    label: "Y offset",
+                    label: i18n.t(Key::PopupYOffset),
                     on_value: move |y| {
                         value.write().y = y;
                     },
@@ -237,7 +241,7 @@ pub fn PopupMobbingBoundInputContent(
                 }
 
                 ActionsNumberInputI32 {
-                    label: "Width",
+                    label: i18n.t(Key::PopupWidth),
                     on_value: move |width| {
                         value.write().width = width;
                     },
@@ -245,7 +249,7 @@ pub fn PopupMobbingBoundInputContent(
                 }
 
                 ActionsNumberInputI32 {
-                    label: "Height",
+                    label: i18n.t(Key::PopupHeight),
                     on_value: move |height| {
                         value.write().height = height;
                     },
@@ -261,7 +265,7 @@ pub fn PopupMobbingBoundInputContent(
                         on_value(*value.peek());
                     },
 
-                    "Save"
+                    {i18n.t(Key::CommonSave)}
                 }
                 Button {
                     class: "flex-grow",
@@ -269,7 +273,8 @@ pub fn PopupMobbingBoundInputContent(
                     on_click: move |_| {
                         on_cancel(());
                     },
-                    "Cancel"
+
+                    {i18n.t(Key::CommonCancel)}
                 }
             }
         }
@@ -295,9 +300,10 @@ pub fn PopupMobbingKeyInputContent(
         ..ActionKey::default()
     };
     let value_action = Action::Key(value_action_key);
+    let i18n = use_i18n();
 
     rsx! {
-        PopupContent { title: "Modify mobbing key",
+        PopupContent { title: i18n.t(Key::PopupModifyMobbingKey),
             ActionsInput {
                 switchable: false,
                 modifying: true,
@@ -342,16 +348,17 @@ pub fn PopupActionsInputContent(
     on_value: Callback<(Action, ActionCondition)>,
     value: Action,
 ) -> Element {
-    let name = match value.condition() {
-        backend::ActionCondition::Any => "normal",
-        backend::ActionCondition::EveryMillis(_) => "every milliseconds",
-        backend::ActionCondition::ErdaShowerOffCooldown => "Erda Shower off cooldown",
-        backend::ActionCondition::Linked => "linked",
-    };
+    let i18n = use_i18n();
+    let name = i18n.t(match value.condition() {
+        backend::ActionCondition::Any => Key::ActionNameNormal,
+        backend::ActionCondition::EveryMillis(_) => Key::ActionNameEveryMillis,
+        backend::ActionCondition::ErdaShowerOffCooldown => Key::ActionNameErdaShower,
+        backend::ActionCondition::Linked => Key::ActionNameLinked,
+    });
     let title = if modifying {
-        format!("Modify a {name} action")
+        i18n.format(Key::ActionTitleModify, name)
     } else {
-        format!("Add a new {name} action")
+        i18n.format(Key::ActionTitleAddNew, name)
     };
 
     rsx! {

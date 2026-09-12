@@ -56,6 +56,7 @@ pub use {
     pathing::MAX_PLATFORMS_COUNT,
     run::init,
     strum::{EnumMessage, IntoEnumIterator, ParseError},
+    utils::{DATA_DIR_ENV, data_dir, dataset_dir},
 };
 
 type PendingRequest = (Request, Sender<Response>);
